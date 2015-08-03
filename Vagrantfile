@@ -21,6 +21,7 @@ require "net/http"
 require "nokogiri"
 require "open-uri"
 require "openssl"
+require "resolv"
 require "securerandom"
 require "socket"
 require "yaml"
@@ -43,7 +44,6 @@ def catapult_exception(error)
     puts "\n"
     puts "Please correct the error then re-run your vagrant command."
     puts "See https://github.com/devopsgroup-io/catapult-release-management for more information."
-    puts "\n\n"
     exit 1
   end
 end
@@ -52,14 +52,23 @@ end
 # set variables based on operating system
 if (RbConfig::CONFIG['host_os'] =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/)
   if File.exist?('C:\Program Files (x86)\Git\bin\git.exe')
-    git = "\"C:\\Program Files (x86)\\Git\\bin\\git.exe\""
+    @git = "\"C:\\Program Files (x86)\\Git\\bin\\git.exe\""
   else
     catapult_exception("Git is not installed at C:\\Program Files (x86)\\Git\\bin\\git.exe")
   end
 elsif (RbConfig::CONFIG['host_os'] =~ /darwin|mac os|linux|solaris|bsd/)
-  git = "git"
+  @git = "git"
 else
   catapult_exception("Cannot detect your operating system, please submit an issue at https://github.com/devopsgroup-io/catapult-release-management")
+end
+
+
+# check for an internet connection
+dns_resolver = Resolv::DNS.new()
+begin
+  dns_resolver.getaddress("google.com")
+rescue Resolv::ResolvError => e
+  catapult_exception("Please check your internet connection, unable to reach google.com")
 end
 
 
@@ -84,37 +93,46 @@ end
 
 
 # configure catapult and git
-remote = `#{git} config --get remote.origin.url`
-if remote.include?("devopsgroup-io/release-management.git") || remote.include?("devopsgroup-io/catapult-release-management.git")
+remote = `#{@git} config --get remote.origin.url`
+if remote.include?("devopsgroup-io/")
   catapult_exception("In order to use Catapult Release Management, you must fork the repository so that the committed and encrypted configuration is unique to you! See https://github.com/devopsgroup-io/catapult-release-management for more information.")
 else
-  puts "Self updating Catapult:"
-  branch = `#{git} rev-parse --abbrev-ref HEAD`.strip
-  repo = `#{git} config --get remote.origin.url`
-  repo_upstream = `#{git} config --get remote.upstream.url`
+  puts "\n\nSelf updating Catapult:\n\n"
+  `#{@git} fetch`
+  # get current branch
+  branch = `#{@git} rev-parse --abbrev-ref HEAD`.strip
+  # get current repo
+  repo = `#{@git} config --get remote.origin.url`
+  puts " * Your repository: #{repo}"
+  # set the correct upstream
+  repo_upstream = `#{@git} config --get remote.upstream.url`
   repo_upstream_url = "https://github.com/devopsgroup-io/catapult-release-management.git"
-  puts "\nYour repository: #{repo}"
-  puts "Will sync from: #{repo_upstream}\n\n"
+  puts " * Will sync from: #{repo_upstream}"
   if repo_upstream.empty?
-    `#{git} remote add upstream #{repo_upstream_url}`
+    `#{@git} remote add upstream #{repo_upstream_url}`
   else
-    `#{git} remote rm upstream`
-    `#{git} remote add upstream #{repo_upstream_url}`
+    `#{@git} remote rm upstream`
+    `#{@git} remote add upstream #{repo_upstream_url}`
   end
-  repo_develop = `#{git} config --get branch.develop.remote`
-  if repo_develop.empty?
-    `#{git} fetch upstream`
-    `#{git} checkout -b develop --track upstream/master`
-    `#{git} pull upstream master`
-  else
-    `#{git} checkout develop`
-    `#{git} pull upstream master`
+  # create and confirm branches, and sync from catapult core
+  @branches = `#{@git} ls-remote #{repo}`.split(/\n/).reject(&:empty?)
+  def branch_management(branch)
+    puts "\n * Configuring #{branch} branch:\n\n"
+    if @branches.find { |element| element.include?("refs/heads/#{branch}") }
+      `#{@git} checkout #{branch}`
+      `#{@git} pull upstream master`
+      `#{@git} push origin #{branch}`
+    else
+      `#{@git} fetch upstream`
+      `#{@git} checkout -b #{branch} --track upstream/master`
+      `#{@git} pull upstream master`
+      `#{@git} push origin #{branch}`
+    end
   end
-  `#{git} push origin develop`
-  `#{git} checkout master`
-  `#{git} pull upstream master`
-  `#{git} push origin master`
-  `#{git} checkout #{branch}`
+  branch_management("develop-catapult")
+  branch_management("develop")
+  # checkout original branch
+  `#{@git} checkout #{branch}`
 end
 # create a git pre-commit hook to ensure no configuration is committed to develop and only configuration is committed to master
 FileUtils.mkdir_p(".git/hooks")
@@ -127,27 +145,35 @@ else
   git = "git"
 end
 
-branch = `#{git} rev-parse --abbrev-ref HEAD`
-branch = branch.strip
+branch = `#{git} rev-parse --abbrev-ref HEAD`.strip
 staged = `#{git} diff --name-only --staged --word-diff=porcelain`
 staged = staged.split($/)
 
-if "#{branch}" == "develop"
+if "#{branch}" == "develop-catapult"
   if staged.include?("secrets/configuration.yml.gpg")
-    puts "Please commit secrets/configuration.yml.gpg on the master branch. You are on the develop branch, which is meant for contribution back to Catapult and should not contain your configuration files."
+    puts "Please commit secrets/configuration.yml.gpg on the develop branch. You are on the develop-catapult branch, which is meant for contribution back to Catapult and should not contain your configuration files."
     exit 1
   end
   if staged.include?("secrets/id_rsa.gpg")
-    puts "Please commit secrets/id_rsa.gpg on the master branch. You are on the develop branch, which is meant for contribution back to Catapult and should not contain your configuration files."
+    puts "Please commit secrets/id_rsa.gpg on the develop branch. You are on the develop-catapult branch, which is meant for contribution back to Catapult and should not contain your configuration files."
     exit 1
   end
   if staged.include?("secrets/id_rsa.pub.gpg")
-    puts "Please commit secrets/id_rsa.pub.gpg on the master branch. You are on the develop branch, which is meant for contribution back to Catapult and should not contain your configuration files."
+    puts "Please commit secrets/id_rsa.pub.gpg on the develop branch. You are on the develop-catapult branch, which is meant for contribution back to Catapult and should not contain your configuration files."
+    exit 1
+  end
+elsif "#{branch}" == "develop"
+  unless staged.include?("secrets/configuration.yml.gpg") || staged.include?("secrets/id_rsa.gpg") || staged.include?("secrets/id_rsa.pub.gpg")
+    puts "You are on the develop branch, which is only meant for your configuration files (secrets/configuration.yml.gpg, secrets/id_rsa.gpg, secrets/id_rsa.pub.gpg)."
+    puts "To contribute to Catapult, please switch to the develop-catapult branch."
     exit 1
   end
 elsif "#{branch}" == "master"
   unless staged.include?("secrets/configuration.yml.gpg") || staged.include?("secrets/id_rsa.gpg") || staged.include?("secrets/id_rsa.pub.gpg")
-    puts "You are on the master branch, which is only meant for your configuration files (secrets/configuration.yml.gpg, secrets/id_rsa.gpg, secrets/id_rsa.pub.gpg). To contribute to Catapult, please switch to the develop branch."
+    puts "You are trying to commit directly to the master branch, please create a pull request from develop into master instead."
+    exit 1
+  else 
+    puts "To contribute to Catapult, please switch to the develop-catapult branch."
     exit 1
   end
 end
@@ -175,8 +201,8 @@ end
 
 
 puts "\n\n\nVerification of encrypted Catapult configuration files:\n\n"
-if "#{branch}" == "develop"
-  puts " * You are on the develop branch, this branch is automatically synced with Catapult core and is meant to contribute back to the core Catapult project."
+if "#{branch}" == "develop-catapult"
+  puts " * You are on the develop-catapult branch, this branch is automatically synced with Catapult core and is meant to contribute back to the core Catapult project."
   puts " * secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg are checked out from the master branch so that you're able to develop and test."
   puts " * After you're finished on the develop branch, switch to the master branch and discard secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg"
   puts "\n"
@@ -186,8 +212,10 @@ if "#{branch}" == "develop"
   `git reset -- secrets/configuration.yml.gpg`
   `git reset -- secrets/id_rsa.gpg`
   `git reset -- secrets/id_rsa.pub.gpg`
-elsif "#{branch}" == "master"
-  puts " * You are on the master branch, this branch is automatically synced with Catapult core and is meant to commit your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
+elsif "#{branch}" == "develop"
+  puts " * You are on the develop branch, this branch contains your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
+  puts " * The develop branch is running in the localdev and test environments, please first test then commit your configuration to the develop branch."
+  puts " * Once you're satisified with your new configuration in localdev and test, create a pull request from develop into master."
   if configuration_user["settings"]["gpg_edit"]
     puts " * GPG Edit Mode is enabled at secrets/configuration-user.yml[\"settings\"][\"gpg_edit\"], if there are changes to secrets/configuration.yml, secrets/id_rsa, or secrets/id_rsa.pub, they will be re-encrypted."
   end
@@ -254,7 +282,10 @@ elsif "#{branch}" == "master"
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa --decrypt secrets/id_rsa.gpg`
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa.pub --decrypt secrets/id_rsa.pub.gpg`
   end
-  
+elsif "#{branch}" == "master"
+  puts " * You are on the master branch, this branch contains your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
+  puts " * The master branch is running in the qc and production environments, please first test then commit your configuration to the develop branch."
+  puts " * Once you're satisified with your new configuration in localdev and test, create a pull request from develop into master."
 end
 # create objects from secrets/configuration.yml.gpg and secrets/configuration.yml.template
 configuration = YAML.load(`gpg --batch --passphrase "#{configuration_user["settings"]["gpg_key"]}" --decrypt secrets/configuration.yml.gpg`)
@@ -507,25 +538,25 @@ configuration["environments"].each do |environment,data|
   unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"]
     configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"] = SecureRandom.urlsafe_base64(16)
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-    File.open('secrets/configuration.yml', 'w') {|f| f.write secrets/configuration.to_yaml }
+    File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
   end
   unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["root_password"]
     configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["root_password"] = SecureRandom.urlsafe_base64(16)
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-    File.open('secrets/configuration.yml', 'w') {|f| f.write secrets/configuration.to_yaml }
+    File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
   end
   unless configuration["environments"]["#{environment}"]["software"]["drupal"]["admin_password"]
     configuration["environments"]["#{environment}"]["software"]["drupal"]["admin_password"] = SecureRandom.urlsafe_base64(16)
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-    File.open('secrets/configuration.yml', 'w') {|f| f.write secrets/configuration.to_yaml }
+    File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
   end
   unless configuration["environments"]["#{environment}"]["software"]["wordpress"]["admin_password"]
     configuration["environments"]["#{environment}"]["software"]["wordpress"]["admin_password"] = SecureRandom.urlsafe_base64(16)
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-    File.open('secrets/configuration.yml', 'w') {|f| f.write secrets/configuration.to_yaml }
+    File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
     `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
   end
   # if upstream digitalocean droplets are provisioned, get their ip addresses to write to secrets/configuration.yml
@@ -535,7 +566,7 @@ configuration["environments"].each do |environment,data|
       unless configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
         configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
         `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-        File.open('secrets/configuration.yml', 'w') {|f| f.write secrets/configuration.to_yaml }
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
         `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
       end
     end
@@ -544,7 +575,7 @@ configuration["environments"].each do |environment,data|
       unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
         configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
         `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-        File.open('secrets/configuration.yml', 'w') {|f| f.write secrets/configuration.to_yaml }
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
         `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
       end
     end
@@ -626,6 +657,65 @@ configuration["websites"].each do |service,data|
             puts "   - Verified your GitHub user #{configuration["company"]["github_username"]} has write access."
           else
             catapult_exception("Your GitHub user #{configuration["company"]["github_username"]} does not have write access to this repository.")
+          end
+        end
+      end
+      # validate repo branches
+      if "#{repo_split_2[0]}" == "bitbucket.org"
+        uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/branches")
+        Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
+          request = Net::HTTP::Get.new uri.request_uri
+          request.basic_auth "#{configuration["company"]["bitbucket_username"]}", "#{configuration["company"]["bitbucket_password"]}"
+          response = http.request request # Net::HTTPResponse object
+          api_bitbucket_repo_branches = JSON.parse(response.body)
+          @api_bitbucket_repo_develop = false
+          @api_bitbucket_repo_master = false
+          api_bitbucket_repo_branches.each do |branch, array|
+            if branch == "develop"
+              @api_bitbucket_repo_develop = true
+            end
+            if branch == "master"
+              @api_bitbucket_repo_master = true
+            end
+          end
+          unless @api_bitbucket_repo_develop
+            catapult_exception("Cannot find the develop branch for this repository, please create one.")
+          else
+            puts "   - Found the develop branch."
+          end
+          unless @api_bitbucket_repo_master
+            catapult_exception("Cannot find the master branch for this repository, please create one.")
+          else
+            puts "   - Found the master branch."
+          end
+        end
+      end
+      if "#{repo_split_2[0]}" == "github.com"
+        uri = URI("https://api.github.com/repos/#{repo_split_3[0]}/branches")
+        Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
+          request = Net::HTTP::Get.new uri.request_uri
+          request.basic_auth "#{configuration["company"]["github_username"]}", "#{configuration["company"]["github_password"]}"
+          response = http.request request # Net::HTTPResponse object
+          api_github_repo_branches = JSON.parse(response.body)
+          @api_github_repo_develop = false
+          @api_github_repo_master = false
+          api_github_repo_branches.each do |branch|
+            if branch["name"] == "develop"
+              @api_github_repo_develop = true
+            end
+            if branch["name"] == "master"
+              @api_github_repo_master = true
+            end
+          end
+          unless @api_github_repo_develop
+            catapult_exception("Cannot find the develop branch for this repository, please create one.")
+          else
+            puts "   - Found the develop branch."
+          end
+          unless @api_github_repo_master
+            catapult_exception("Cannot find the master branch for this repository, please create one.")
+          else
+            puts "   - Found the master branch."
           end
         end
       end
@@ -922,9 +1012,11 @@ Vagrant.configure("2") do |config|
     end
     config.vm.provision :hostmanager
     config.hostmanager.aliases = redhathostsfile
-    config.vm.synced_folder ".", "/vagrant", type: "nfs"
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.synced_folder ".", "/catapult", type: "nfs"
+    # this takes place of git clones
     config.vm.synced_folder "repositories", "/var/www/repositories", type: "nfs"
-    config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["dev","#{configuration_user["settings"]["git_pull"]}","#{configuration_user["settings"]["software_validation"]}"]
+    config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["dev","#{repo}","#{configuration_user["settings"]["gpg_key"]}","#{configuration_user["settings"]["software_validation"]}"]
   end
   config.vm.define "#{configuration["company"]["name"]}-dev-redhat-mysql" do |config|
     config.vm.box = "chef/centos-7.0"
@@ -933,9 +1025,12 @@ Vagrant.configure("2") do |config|
       provider.memory = 512
       provider.cpus = 1
     end
-    config.vm.synced_folder ".", "/vagrant", type: "nfs"
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.synced_folder ".", "/catapult", type: "nfs"
+    # this takes place of git clones
+    config.vm.synced_folder "repositories", "/var/www/repositories", type: "nfs"
     config.vm.provision :hostmanager
-    config.vm.provision "shell", path: "provisioners/redhat_mysql/provision.sh", args: ["dev"]
+    config.vm.provision "shell", path: "provisioners/redhat_mysql/provision.sh", args: ["dev","#{repo}","#{configuration_user["settings"]["gpg_key"]}","#{configuration_user["settings"]["software_validation"]}"]
   end
 
   # redhat test servers
@@ -951,8 +1046,8 @@ Vagrant.configure("2") do |config|
       provider.ipv6 = true
       provider.backups_enabled = true
     end
-    config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ["repositories/apache/*", "repositories/iis/*"]
-    config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["test","true","false","true"]
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["test","#{repo}","#{configuration_user["settings"]["gpg_key"]}","false"]
   end
   config.vm.define "#{configuration["company"]["name"]}-test-redhat-mysql" do |config|
     config.vm.provider :digital_ocean do |provider,override|
@@ -966,8 +1061,8 @@ Vagrant.configure("2") do |config|
       provider.ipv6 = true
       provider.backups_enabled = true
     end
-    config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ["repositories/apache/*", "repositories/iis/*"]
-    config.vm.provision "shell", path: "provisioners/redhat_mysql/provision.sh", args: ["test"]
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.provision "shell", path: "provisioners/redhat_mysql/provision.sh", args: ["test","#{repo}","#{configuration_user["settings"]["gpg_key"]}","false"]
   end
 
   # redhat quality control servers
@@ -983,8 +1078,8 @@ Vagrant.configure("2") do |config|
       provider.ipv6 = true
       provider.backups_enabled = true
     end
-    config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ["repositories/apache/*", "repositories/iis/*"]
-    config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["qc","true","false","true"]
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["qc","#{repo}","#{configuration_user["settings"]["gpg_key"]}","false"]
   end
   config.vm.define "#{configuration["company"]["name"]}-qc-redhat-mysql" do |config|
     config.vm.provider :digital_ocean do |provider,override|
@@ -998,8 +1093,8 @@ Vagrant.configure("2") do |config|
       provider.ipv6 = true
       provider.backups_enabled = true
     end
-    config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ["repositories/apache/*", "repositories/iis/*"]
-    config.vm.provision "shell", path: "provisioners/redhat_mysql/provision.sh", args: ["qc"]
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.provision "shell", path: "provisioners/redhat_mysql/provision.sh", args: ["qc","#{repo}","#{configuration_user["settings"]["gpg_key"]}","false"]
   end
 
   # redhat production servers
@@ -1015,8 +1110,8 @@ Vagrant.configure("2") do |config|
       provider.ipv6 = true
       provider.backups_enabled = true
     end
-    config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ["repositories/apache/*", "repositories/iis/*"]
-    config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["production","true","false","true"]
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["production","#{repo}","#{configuration_user["settings"]["gpg_key"]}","false"]
   end
   config.vm.define "#{configuration["company"]["name"]}-production-redhat-mysql" do |config|
     config.vm.provider :digital_ocean do |provider,override|
@@ -1030,8 +1125,8 @@ Vagrant.configure("2") do |config|
       provider.ipv6 = true
       provider.backups_enabled = true
     end
-    config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ["repositories/apache/*", "repositories/iis/*"]
-    config.vm.provision "shell", path: "provisioners/redhat_mysql/provision.sh", args: ["production"]
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.provision "shell", path: "provisioners/redhat_mysql/provision.sh", args: ["production","#{repo}","#{configuration_user["settings"]["gpg_key"]}","false"]
   end
 
   # windows localdev servers

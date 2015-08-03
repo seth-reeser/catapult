@@ -10,12 +10,12 @@
 
 As a **non-Developer** you may think - *I already have a website, why do I need Catapult?* Over time you will find yourself or find yourself paying a freelancer or a development company hundreds or even thousands of dollars to manage or interact with the DevOps (Development Operations) and solve these problems:
 
-  * *Production is down.*
-  * *We need a test site.*
-  * *Why is this costing so much?*
-  * *Is my website safe?* 
-  * *Is my website backed up?*
-  * *Can I easily scale my website for more traffic?*
+  * Production is down.
+  * We need a test site.
+  * Why is this costing so much?
+  * Is my website safe? 
+  * Is my website backed up?
+  * Can I easily scale my website for more traffic?
 
 As a **Developer**, you have to manage many websites and probably end up using the same tools and APIs over and over again. Why not use something that has been developed just for you from Developers that have been down the same road as you and also have the ability to contribute back?
 
@@ -33,7 +33,6 @@ Catapult manages all of this for you and is open-sourced, well-documented, devel
 
 - [Catapult Release Management](#catapult-release-management)
     - [Table of Contents](#table-of-contents)
-    - [File Structure](#file-structure)
     - [Supported Software](#supported-software)
 - [Setup](#setup)
     - [Developer Setup](#developer-setup)
@@ -122,21 +121,24 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
 
 Catapult uses several third-party services to pull everything off - below is a list of the required services and sign-up and configuration steps.
 
-1. **Hosting:** 
+1. **Hosting:**    
     1. **DigitalOcean** sign-up and configuration
         1. Create an account at http://digitalocean.com
         2. Create a Personal Access Token at https://cloud.digitalocean.com/settings/applications named "Vagrant" and place the token value at `~/configuration.yml["company"]["digitalocean_personal_access_token"]`
         3. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key in https://cloud.digitalocean.com/settings/security named "Vagrant"
-2. **Repositories:**
+2. **Repositories:**    
+    Bitbucket provides free private repositories and GitHub provides free public repositories, you will need to sign up for both. If you already have Bitbucket and GitHub accounts you may use them, however, it's best to setup a [machine user](https://developer.github.com/guides/managing-deploy-keys/#machine-users) if you're using Catapult with your team.
     1. **Bitbucket** sign-up and configuration
         1. Create an account at https://bitbucket.org
-            1. Place the email address that you used to sign up for Bitbucket at `~/configuration.yml["company"]["bitbucket_username"]`
+            1. Place the username (not the email address) that you used to sign up for Bitbucket at `~/configuration.yml["company"]["bitbucket_username"]`
             2. Place the password of the account for Bitbucket at `~/configuration.yml["company"]["bitbucket_password"]`
+        2. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key in https://bitbucket.org/account/user/`your-user-here`/ssh-keys/ named "Catapult"
     2. **GitHub** sign-up and configuration
         1. Create an account at https://github.com
-            1. Place the email address that you used to sign up for GitHub at `~/configuration.yml["company"]["github_username"]`
+            1. Place the username (not the email address) that you used to sign up for GitHub at `~/configuration.yml["company"]["github_username"]`
             2. Place the password of the account for GitHub at `~/configuration.yml["company"]["github_password"]`
-3. **Automated Deployments:**
+        2. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key in https://github.com/settings/ssh named "Catapult"
+3. **Automated Deployments:**    
     1. **Amazon Web Services** (AWS) EC2 sign-up and configuration (Required for Bamboo)
         1. Create an AWS account https://portal.aws.amazon.com/gp/aws/developer/registration
         2. Sign in to your new AWS console https://console.aws.amazon.com
@@ -190,13 +192,13 @@ Catapult uses several third-party services to pull everything off - below is a l
                     6. Plan description:
                 * *Link repository to new build plan*
                     1. Repository host: Previously linked repository > github_username/catapult-release-management
-4. **DNS:**
+4. **DNS:**    
     1. **CloudFlare** sign-up and configuration
         1. Create a CloudFlare account at https://www.cloudflare.com
         2. Sign in your new CloudFlare account
         3. Visit your My Account section at https://www.cloudflare.com/a/account/my-account and scroll down to your API Key and place the token value at `~/configuration.yml["company"]["cloudflare_api_key"]`
         4. Place the email address of the email address that you used to sign up for CloudFlare at `~/configuration.yml["company"]["cloudflare_email"]`
-5. **Verify Configuration:**
+5. **Verify Configuration:**    
     1. To verify all of the configuration that you just set, open your command line and cd into your fork of Catapult, then run `vagrant status`. Catapult will confirm connection to all of the Services and inform you of any problems.
 
 | Service                       | Description                                                      | Monthly Cost |
@@ -338,7 +340,17 @@ If you're still having issues with Catapult, [submit a GitHub Issue](https://git
 
 # Contributing #
 
-The open source community is an awesome thing, we hope Catapult is of use to you, and if you develop a feature that you think would benefit everyone, please submit a pull request.  When you first setup Catapult a develop branch is created for you under your forked repository with an upstream set to `https://github.com/devopsgroup-io/catapult-release-management.git` so that you can easily create a pull request. Also keep in mind when closing issues to submit a pull requst that includes [GitHub's: Closing issues via commit messages](https://help.github.com/articles/closing-issues-via-commit-messages/).
+So you want to contribute... Great! Open source projects like Catapult Release Management succeed or fail upon the involvement of a thriving community of developers, who often offer various levels of code skills and time commitment. Here are some ways you can begin contributing right away, at whatever level is most comfortable for you.
+
+  * Submit a feature
+  * Report a bug
+  * Verify and track down a reported bug
+  * Add documentation to the README
+  * Answer project specific questions
+  * Contribute to the Catapult wiki
+  * Blog about your experiences with Catapult
+
+When you first setup Catapult a develop branch is created for you under your forked repository, with an upstream set to `https://github.com/devopsgroup-io/catapult-release-management.git` so that you can easily create a pull request. Also keep in mind when closing issues to submit a pull requst that includes [GitHub's: Closing issues via commit messages](https://help.github.com/articles/closing-issues-via-commit-messages/).
 
 
 
