@@ -218,6 +218,7 @@ while IFS='' read -r -d '' key; do
     software=$(echo "$key" | grep -w "software" | cut -d ":" -f 2 | tr -d " ")
     software_dbprefix=$(echo "$key" | grep -w "software_dbprefix" | cut -d ":" -f 2 | tr -d " ")
     software_workflow=$(echo "$key" | grep -w "software_workflow" | cut -d ":" -f 2 | tr -d " ")
+    software_dbexist=$(mysql --defaults-extra-file=$dbconf -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '$1_$domainvaliddbname'")
 
     if [ "$1" = "production" ]; then
         echo -e "\nNOTICE: ${domain}"
@@ -228,7 +229,7 @@ while IFS='' read -r -d '' key; do
         echo -e "\t* skipping database creation/restore as this website does not require a database"
     else
         # respect software_workflow option
-        if ! ([ "$1" != "production" ] && [ "$software_workflow" = "downstream" ]) || ([ "$1" != "test" ] && [ "$software_workflow" = "upstream" ]); then
+        if ([ "$1" = "production" ] && [ "$software_workflow" = "downstream" ] && [ "$software_dbexist" != "" ]) || ([ "$1" = "test" ] && [ "$software_workflow" = "upstream" ] && [ "$software_dbexist" != "" ]); then
             echo -e "\t* skipping database creation/restore as this website's software_workflow is set to ${software_workflow} and this is the ${1} environment"
         else
             # drop the database
@@ -239,10 +240,6 @@ while IFS='' read -r -d '' key; do
             done
             # create database
             mysql --defaults-extra-file=$dbconf -e "CREATE DATABASE $1_$domainvaliddbname"
-            # grant user to database
-            mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON $1_$domainvaliddbname.* TO '$mysql_user'@'%'";
-            # flush privileges
-            mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
             # confirm we have a usable database backup
             if ! [ -d "/var/www/repositories/apache/$domain/_sql" ]; then
                 echo -e "\t* /repositories/$domain/_sql does not exist - $software will not function"
@@ -290,6 +287,10 @@ while IFS='' read -r -d '' key; do
                 done
             fi
         fi
+        # grant user to database
+        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON $1_$domainvaliddbname.* TO '$mysql_user'@'%'";
+        # flush privileges
+        mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
     fi
 
 done

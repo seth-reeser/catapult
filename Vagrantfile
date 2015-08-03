@@ -119,6 +119,11 @@ else
   def branch_management(branch)
     puts "\n * Configuring #{branch} branch:\n\n"
     if @branches.find { |element| element.include?("refs/heads/#{branch}") }
+      if "#{branch}" == "develop-catapult"
+        `#{@git} checkout -- secrets/configuration.yml.gpg`
+        `#{@git} checkout -- secrets/id_rsa.gpg`
+        `#{@git} checkout -- secrets/id_rsa.pub.gpg`
+      end
       `#{@git} checkout #{branch}`
       `#{@git} pull upstream master`
       `#{@git} push origin #{branch}`
@@ -206,12 +211,12 @@ if "#{branch}" == "develop-catapult"
   puts " * secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg are checked out from the master branch so that you're able to develop and test."
   puts " * After you're finished on the develop branch, switch to the master branch and discard secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg"
   puts "\n"
-  `git checkout --force master -- secrets/configuration.yml.gpg`
-  `git checkout --force master -- secrets/id_rsa.gpg`
-  `git checkout --force master -- secrets/id_rsa.pub.gpg`
-  `git reset -- secrets/configuration.yml.gpg`
-  `git reset -- secrets/id_rsa.gpg`
-  `git reset -- secrets/id_rsa.pub.gpg`
+  `#{@git} checkout --force develop -- secrets/configuration.yml.gpg`
+  `#{@git} checkout --force develop -- secrets/id_rsa.gpg`
+  `#{@git} checkout --force develop -- secrets/id_rsa.pub.gpg`
+  `#{@git} reset -- secrets/configuration.yml.gpg`
+  `#{@git} reset -- secrets/id_rsa.gpg`
+  `#{@git} reset -- secrets/id_rsa.pub.gpg`
 elsif "#{branch}" == "develop"
   puts " * You are on the develop branch, this branch contains your unique secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg secrets/configuration."
   puts " * The develop branch is running in the localdev and test environments, please first test then commit your configuration to the develop branch."
