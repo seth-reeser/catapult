@@ -6,11 +6,12 @@
 # $1 => environment
 # $2 => repository
 # $3 => gpg key
-# $4 => software_validation
+# $4 => instance
+# $5 => software_validation
 
 
 
-echo -e "==> Updating existing packages and installing utilities"
+echo -e "\n\n==> Updating existing packages and installing utilities"
 start=$(date +%s)
 # only allow authentication via ssh key pair
 # suppress this - There were 34877 failed login attempts since the last successful login.
@@ -27,31 +28,13 @@ sudo yum install -y git
 sudo easy_install pip
 sudo pip install --upgrade pip
 sudo pip install shyaml --upgrade
-# clone and pull catapult
-if ([ $1 = "dev" ] || [ $1 = "test" ]); then
-    branch="develop"
-elif ([ $1 = "qc" ] || [ $1 = "production" ]); then
-    branch="master"
-fi
-if [ $1 != "dev" ]; then
-    if [ -d "/catapult/.git" ]; then
-        cd /catapult && sudo git pull
-    else
-        sudo git clone --recursive -b ${branch} $2 /catapult | sed "s/^/\t/"
-    fi
-else
-    if ! [ -e "/catapult/secrets/configuration.yml.gpg" ]; then
-        echo -e "Cannot read from /catapult/secrets/configuration.yml.gpg, please vagrant reload the virtual machine."
-        exit 1
-    fi
-fi
 configuration=$(gpg --batch --passphrase ${3} --decrypt /catapult/secrets/configuration.yml.gpg)
 gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa --decrypt /catapult/secrets/id_rsa.gpg
 gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa.pub --decrypt /catapult/secrets/id_rsa.pub.gpg
 chmod 700 /catapult/secrets/id_rsa
 chmod 700 /catapult/secrets/id_rsa.pub
 end=$(date +%s)
-echo "[$(date)] Updating existing packages and installing utilities ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat_mysql/logs/provision.log
+echo "[$(date)] Updating existing packages and installing utilities ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat/logs/mysql.log
 
 
 echo -e "\n\n==> Configuring time"
@@ -65,9 +48,9 @@ sudo systemctl start ntpd.service
 # echo datetimezone
 date
 provisionstart=$(date +%s)
-sudo touch /catapult/provisioners/redhat_mysql/logs/provision.log
+sudo touch /catapult/provisioners/redhat/logs/mysql.log
 end=$(date +%s)
-echo "[$(date)] Configuring time ($(($end - $start)) seconds" >> /catapult/provisioners/redhat_mysql/logs/provision.log
+echo "[$(date)] Configuring time ($(($end - $start)) seconds" >> /catapult/provisioners/redhat/logs/mysql.log
 
 
 echo -e "\n\n==> Installing Drush and WP-CLI"
@@ -97,7 +80,7 @@ sudo yum -y install mariadb mariadb-server
 sudo systemctl enable mariadb.service
 sudo systemctl start mariadb.service
 end=$(date +%s)
-echo "[$(date)] Installing MySQL ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat_mysql/logs/provision.log
+echo "[$(date)] Installing MySQL ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat/logs/mysql.log
 
 
 echo -e "\n\n==> Configuring git repositories (This may take a while...)"
@@ -149,7 +132,7 @@ for directory in /var/www/repositories/apache/*/; do
     fi
 done
 end=$(date +%s)
-echo "[$(date)] Configuring git repositories ($(($end - $start)) seconds" >> /catapult/provisioners/redhat_mysql/logs/provision.log
+echo "[$(date)] Configuring git repositories ($(($end - $start)) seconds" >> /catapult/provisioners/redhat/logs/mysql.log
 
 
 echo -e "\n\n==> Configuring MySQL"
@@ -163,13 +146,13 @@ wordpress_admin_password="$(echo "${configuration}" | shyaml get-value environme
 company_email="$(echo "${configuration}" | shyaml get-value company.email)"
 
 # configure mysql conf so user/pass isn't logged in shell history or memory
-sudo cat > "/catapult/provisioners/redhat_mysql/installers/$1.cnf" << EOF
+sudo cat > "/catapult/provisioners/redhat/installers/$1.cnf" << EOF
 [client]
 host = "localhost"
 user = "root"
 password = "$mysql_root_password"
 EOF
-dbconf="/catapult/provisioners/redhat_mysql/installers/$1.cnf"
+dbconf="/catapult/provisioners/redhat/installers/$1.cnf"
 
 # only set root password on fresh install of mysql
 if mysqladmin --defaults-extra-file=$dbconf ping 2>&1 | grep -q "failed"; then
@@ -218,6 +201,7 @@ while IFS='' read -r -d '' key; do
     software=$(echo "$key" | grep -w "software" | cut -d ":" -f 2 | tr -d " ")
     software_dbprefix=$(echo "$key" | grep -w "software_dbprefix" | cut -d ":" -f 2 | tr -d " ")
     software_workflow=$(echo "$key" | grep -w "software_workflow" | cut -d ":" -f 2 | tr -d " ")
+    software_dbexist=$(mysql --defaults-extra-file=$dbconf -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '$1_$domainvaliddbname'")
 
     if [ "$1" = "production" ]; then
         echo -e "\nNOTICE: ${domain}"
@@ -228,7 +212,7 @@ while IFS='' read -r -d '' key; do
         echo -e "\t* skipping database creation/restore as this website does not require a database"
     else
         # respect software_workflow option
-        if ! ([ "$1" != "production" ] && [ "$software_workflow" = "downstream" ]) || ([ "$1" != "test" ] && [ "$software_workflow" = "upstream" ]); then
+        if ([ "$1" = "production" ] && [ "$software_workflow" = "downstream" ] && [ "$software_dbexist" != "" ]) || ([ "$1" = "test" ] && [ "$software_workflow" = "upstream" ] && [ "$software_dbexist" != "" ]); then
             echo -e "\t* skipping database creation/restore as this website's software_workflow is set to ${software_workflow} and this is the ${1} environment"
         else
             # drop the database
@@ -239,10 +223,6 @@ while IFS='' read -r -d '' key; do
             done
             # create database
             mysql --defaults-extra-file=$dbconf -e "CREATE DATABASE $1_$domainvaliddbname"
-            # grant user to database
-            mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON $1_$domainvaliddbname.* TO '$mysql_user'@'%'";
-            # flush privileges
-            mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
             # confirm we have a usable database backup
             if ! [ -d "/var/www/repositories/apache/$domain/_sql" ]; then
                 echo -e "\t* /repositories/$domain/_sql does not exist - $software will not function"
@@ -290,18 +270,22 @@ while IFS='' read -r -d '' key; do
                 done
             fi
         fi
+        # grant user to database
+        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON $1_$domainvaliddbname.* TO '$mysql_user'@'%'";
+        # flush privileges
+        mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
     fi
 
 done
 # remove .cnf file after usage
-sudo rm -f /catapult/provisioners/redhat_mysql/installers/$1.cnf
+sudo rm -f /catapult/provisioners/redhat/installers/$1.cnf
 end=$(date +%s)
-echo "[$(date)] Configuring MySQL ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat_mysql/logs/provision.log
+echo "[$(date)] Configuring MySQL ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat/logs/mysql.log
 
 
 provisionend=$(date +%s)
 echo -e "\n\n==> Provision complete ($(($provisionend - $provisionstart)) seconds)"
-echo -e "[$(date)] Provision complete ($(($provisionend - $provisionstart)) total seconds)\n" >> /catapult/provisioners/redhat_mysql/logs/provision.log
+echo -e "[$(date)] Provision complete ($(($provisionend - $provisionstart)) total seconds)\n" >> /catapult/provisioners/redhat/logs/mysql.log
 
 
 exit 0
