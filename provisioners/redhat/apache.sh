@@ -11,7 +11,7 @@
 
 
 
-echo -e "\n\n==> Updating existing packages and installing utilities"
+echo -e "==> Updating existing packages and installing utilities"
 start=$(date +%s)
 # only allow authentication via ssh key pair
 # suppress this - There were 34877 failed login attempts since the last successful login.
@@ -34,24 +34,17 @@ gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa.
 chmod 700 /catapult/secrets/id_rsa
 chmod 700 /catapult/secrets/id_rsa.pub
 end=$(date +%s)
-echo "[$(date)] Updating existing packages and installing utilities ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat/logs/apache.log
+echo "==> completed in ($(($end - $start)) seconds)"
 
 
 
 echo -e "\n\n==> Configuring time"
 start=$(date +%s)
-# set timezone
-sudo timedatectl set-timezone "$(echo "${configuration}" | shyaml get-value company.timezone_redhat)"
-# configure ntp
-sudo yum install -y ntp
-sudo systemctl enable ntpd.service
-sudo systemctl start ntpd.service
-# echo datetimezone
-date
+source /catapult/provisioners/redhat/modules/time.sh
 provisionstart=$(date +%s)
 sudo touch /catapult/provisioners/redhat/logs/apache.log
 end=$(date +%s)
-echo "[$(date)] Configuring time ($(($end - $start)) seconds" >> /catapult/provisioners/redhat/logs/apache.log
+echo "==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n==> Installing PHP"
@@ -65,7 +58,7 @@ sudo yum install -y php-dom
 sudo yum install -y php-mbstring
 sed -i -e "s#\;date\.timezone.*#date.timezone = \"$(echo "${configuration}" | shyaml get-value company.timezone_redhat)\"#g" /etc/php.ini
 end=$(date +%s)
-echo "[$(date)] Installing PHP ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat/logs/apache.log
+echo "==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n==> Installing Drush and WP-CLI"
@@ -85,7 +78,7 @@ if [ ! -f /usr/bin/drush  ]; then
 fi
 drush --version
 end=$(date +%s)
-echo "[$(date)] Installing Drush and WP-CLI ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat/logs/apache.log
+echo "==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n==> Installing Apache"
@@ -97,59 +90,14 @@ sudo systemctl start httpd.service
 sudo yum install -y mod_ssl
 sudo bash /etc/ssl/certs/make-dummy-cert "/etc/ssl/certs/httpd-dummy-cert.key.cert"
 end=$(date +%s)
-echo "[$(date)] Installing Apache ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat/logs/apache.log
+echo "==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n==> Configuring git repositories (This may take a while...)"
 start=$(date +%s)
-# clone/pull necessary repos
-sudo mkdir -p ~/.ssh
-sudo touch ~/.ssh/known_hosts
-sudo ssh-keyscan bitbucket.org > ~/.ssh/known_hosts
-sudo ssh-keyscan github.com >> ~/.ssh/known_hosts
-while IFS='' read -r -d '' key; do
-    domain=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " ")
-    repo=$(echo "$key" | grep -w "repo" | cut -d ":" -f 2,3 | tr -d " ")
-    echo -e "\nNOTICE: $domain"
-    if [ -d "/var/www/repositories/apache/$domain/.git" ]; then
-        if [ "$(cd /var/www/repositories/apache/$domain && git config --get remote.origin.url)" != "$repo" ]; then
-            echo "the repo has changed in secrets/configuration.yml, removing and cloning the new repository." | sed "s/^/\t/"
-            sudo rm -rf /var/www/repositories/apache/$domain
-            sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git clone --recursive -b $(echo "${configuration}" | shyaml get-value environments.$1.branch) $repo /var/www/repositories/apache/$domain" | sed "s/^/\t/"
-        elif [ "$(cd /var/www/repositories/apache/$domain && git rev-list HEAD | tail -n 1 )" != "$(cd /var/www/repositories/apache/$domain && git rev-list origin/master | tail -n 1 )" ]; then
-            echo "the repo has changed, removing and cloning the new repository." | sed "s/^/\t/"
-            sudo rm -rf /var/www/repositories/apache/$domain
-            sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git clone --recursive -b $(echo "${configuration}" | shyaml get-value environments.$1.branch) $repo /var/www/repositories/apache/$domain" | sed "s/^/\t/"
-        else
-            cd /var/www/repositories/apache/$domain && git checkout $(echo "${configuration}" | shyaml get-value environments.$1.branch)
-            cd /var/www/repositories/apache/$domain && sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git pull origin $(echo "${configuration}" | shyaml get-value environments.$1.branch)" | sed "s/^/\t/"
-        fi
-    else
-        if [ -d "/var/www/repositories/apache/$domain" ]; then
-            echo "the .git folder is missing, removing the directory and re-cloning the repository." | sed "s/^/\t/"
-            sudo chmod 0777 -R /var/www/repositories/apache/$domain
-            sudo rm -rf /var/www/repositories/apache/$domain
-        fi
-        sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git clone --recursive -b $(echo "${configuration}" | shyaml get-value environments.$1.branch) $repo /var/www/repositories/apache/$domain" | sed "s/^/\t/"
-    fi
-done < <(echo "${configuration}" | shyaml get-values-0 websites.apache)
-
-# create an array of domains
-while IFS='' read -r -d '' key; do
-    domain=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " ")
-    domains+=($domain)
-done < <(echo "${configuration}" | shyaml get-values-0 websites.apache)
-# cleanup directories from domains array
-for directory in /var/www/repositories/apache/*/; do
-    domain=$(basename $directory)
-    if ! [[ ${domains[*]} =~ $domain ]]; then
-        echo "Cleaning up websites that no longer exist..."
-        sudo chmod 0777 -R $directory
-        sudo rm -rf $directory
-    fi
-done
+source /catapult/provisioners/redhat/modules/git.sh
 end=$(date +%s)
-echo "[$(date)] Configuring git repositories ($(($end - $start)) seconds" >> /catapult/provisioners/redhat/logs/apache.log
+echo "==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n==> Configuring Apache"
@@ -521,7 +469,7 @@ EOF
 done
 
 end=$(date +%s)
-echo "[$(date)] Configuring Apache ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat/logs/apache.log
+echo "==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n==> Restarting Apache"
@@ -531,12 +479,11 @@ sudo apachectl start
 sudo apachectl configtest
 sudo systemctl is-active httpd.service
 end=$(date +%s)
-echo "[$(date)] Restarting Apache ($(($end - $start)) seconds)" >> /catapult/provisioners/redhat/logs/apache.log
+echo "==> completed in ($(($end - $start)) seconds)"
 
 
 provisionend=$(date +%s)
-echo -e "\n\n==> Provision complete ($(($provisionend - $provisionstart)) seconds)"
-echo -e "[$(date)] Provision complete ($(($provisionend - $provisionstart)) total seconds)\n" >> /catapult/provisioners/redhat/logs/apache.log
+echo -e "\n\n==> Provision complete ($(($provisionend - $provisionstart)) total seconds)"
 
 
 exit 0
