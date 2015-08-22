@@ -56,10 +56,29 @@ if (RbConfig::CONFIG['host_os'] =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/)
   else
     catapult_exception("Git is not installed at C:\\Program Files (x86)\\Git\\bin\\git.exe")
   end
+  begin
+     require "Win32/Console/ANSI"
+  rescue LoadError
+     catapult_exception('win32console is not installed, please run "gem install win32console"')
+  end
 elsif (RbConfig::CONFIG['host_os'] =~ /darwin|mac os|linux|solaris|bsd/)
   @git = "git"
 else
   catapult_exception("Cannot detect your operating system, please submit an issue at https://github.com/devopsgroup-io/catapult-release-management")
+end
+
+
+class Colors
+   NOCOLOR = "\033[0m"
+   RED = "\033[1;31;40m"
+   GREEN = "\033[1;32;40m"
+   YELLOW = "\033[1;33;40m"
+   WHITE = "\033[1;37;40m"
+end
+class String
+   def color(color)
+      return color + self + Colors::NOCOLOR
+   end
 end
 
 
@@ -97,7 +116,7 @@ remote = `#{@git} config --get remote.origin.url`
 if remote.include?("devopsgroup-io/")
   catapult_exception("In order to use Catapult Release Management, you must fork the repository so that the committed and encrypted configuration is unique to you! See https://github.com/devopsgroup-io/catapult-release-management for more information.")
 else
-  puts "\n\nSelf updating Catapult:\n\n"
+  puts "\n\nSelf updating Catapult:\n".color(Colors::WHITE)
   `#{@git} fetch`
   # get current branch
   branch = `#{@git} rev-parse --abbrev-ref HEAD`.strip
@@ -205,11 +224,11 @@ if configuration_user["settings"]["gpg_key"] == nil || configuration_user["setti
 end
 
 
-puts "\n\n\nVerification of encrypted Catapult configuration files:\n\n"
+puts "\n\n\nVerification of encrypted Catapult configuration files:\n".color(Colors::WHITE)
 if "#{branch}" == "develop-catapult"
   puts " * You are on the develop-catapult branch, this branch is automatically synced with Catapult core and is meant to contribute back to the core Catapult project."
   puts " * secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg are checked out from the develop branch so that you're able to develop and test."
-  puts " * After you're finished on the develop branch, switch to the master branch and discard secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg"
+  puts " * After you're finished on the develop-catapult branch, switch to your develop branch and discard secrets/configuration.yml.gpg, secrets/id_rsa.gpg, and secrets/id_rsa.pub.gpg"
   puts "\n"
   `#{@git} checkout --force develop -- secrets/configuration.yml.gpg`
   `#{@git} checkout --force develop -- secrets/id_rsa.gpg`
@@ -300,13 +319,13 @@ configuration_example = YAML.load_file("secrets/configuration.yml.template")
 
 
 
-puts "\nVerification of configuration[\"software\"]:\n\n"
+puts "\nVerification of configuration[\"software\"]:\n".color(Colors::WHITE)
 # validate configuration["software"]
 if configuration["software"]["version"] != configuration_example["software"]["version"]
   catapult_exception("Your secrets/configuration.yml file is out of date. To retain your settings please manually duplicate entries from secrets/configuration.yml.template with your specific settings.\n*You may also delete your secrets/configuration.yml and re-run any vagrant command to have a vanilla version created.")
 end
 puts " [verification complete]"
-puts "\nVerification of configuration[\"company\"]:\n\n"
+puts "\nVerification of configuration[\"company\"]:\n".color(Colors::WHITE)
 # validate configuration["company"]
 if configuration["company"]["name"] == nil
   catapult_exception("Please set [\"company\"][\"name\"] in secrets/configuration.yml")
@@ -536,7 +555,29 @@ else
     end
   end
 end
-puts "\nVerification of configuration[\"environments\"]:\n\n"
+# http://www.monitor.us/api/api.html
+if configuration["company"]["monitorus_api_key"] == nil || configuration["company"]["monitorus_secret_key"] == nil
+  catapult_exception("Please set [\"company\"][\"monitorus_api_key\"] and [\"company\"][\"monitorus_secret_key\"] in secrets/configuration.yml")
+else
+    uri = URI("http://monitor.us/api?action=authToken&apikey=#{configuration["company"]["monitorus_api_key"]}&secretkey=#{configuration["company"]["monitorus_secret_key"]}")
+    Net::HTTP.start(uri.host, uri.port) do |http|
+      request = Net::HTTP::Get.new uri.request_uri
+      response = http.request request # Net::HTTPResponse object
+      if response.code.to_f.between?(399,600)
+        catapult_exception("The monitor.us API could not authenticate, please verify [\"company\"][\"monitorus_api_key\"] and [\"company\"][\"monitorus_secret_key\"].")
+      else
+        @api_monitorus = JSON.parse(response.body)
+        if @api_monitorus["error"]
+          catapult_exception("The monitor.us API could not authenticate, please verify [\"company\"][\"monitorus_api_key\"] and [\"company\"][\"monitorus_secret_key\"].")
+        else
+          puts " * monitor.us API authenticated successfully."
+          @api_monitorus_authtoken = @api_monitorus["authToken"]
+          puts "   - Successfully generated an authToken"
+        end
+      end
+    end
+end
+puts "\nVerification of configuration[\"environments\"]:\n".color(Colors::WHITE)
 # validate configuration["environments"]
 configuration["environments"].each do |environment,data|
   unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"]
@@ -586,13 +627,13 @@ configuration["environments"].each do |environment,data|
   end
 end
 puts " [verification complete]"
-puts "\nVerification of configuration[\"websites\"]:\n\n"
+puts "\nVerification of configuration[\"websites\"]:\n".color(Colors::WHITE)
 # add catapult temporarily to verify repo and add bamboo services
 configuration["websites"]["catapult"] = *(["domain" => "#{repo}", "repo" => "#{repo}"])
 # validate configuration["websites"]
 configuration["websites"].each do |service,data|
   if "#{service}" == "catapult"
-    puts "\nVerification of this Catapult instance:\n\n"
+    puts "\nVerification of this Catapult instance:\n".color(Colors::WHITE)
   end
   # create array of domains to later validate repo alpha order per service
   domains = Array.new
@@ -601,6 +642,63 @@ configuration["websites"].each do |service,data|
     puts " [#{service}]"
     configuration["websites"]["#{service}"].each do |instance|
       puts " * #{instance["domain"]}"
+      unless "#{service}" == "catapult"
+        # validate the domain to ensure it only includes the domain and not protocol
+        if instance["domain"].include? "://"
+          catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} is invalid, it must use the format example.com")
+        end
+        # monitor each production domain over http and https
+        uri = URI("http://monitor.us/api")
+        Net::HTTP.start(uri.host, uri.port) do |http|
+          request = Net::HTTP::Post.new uri.request_uri
+          request.body = URI::encode\
+            (""\
+              "action=addExternalMonitor"\
+              "&authToken=#{@api_monitorus_authtoken}"\
+              "&apikey=#{configuration["company"]["monitorus_api_key"]}"\
+              "&interval=30"\
+              "&locationIds=1,3"\
+              "&name=http_#{instance["domain"]}"\
+              "&tag=http_#{instance["domain"]}"\
+              "&timestamp=#{Time.now.getutc}"\
+              "&type=http"\
+              "&url=#{instance["domain"]}"\
+            "")
+          response = http.request request # Net::HTTPResponse object
+          api_monitorus_monitor_http = JSON.parse(response.body)
+          # errorCode 11 => monitorUrlExists
+          if api_monitorus_monitor_http["status"] == "ok" || api_monitorus_monitor_http["errorCode"].to_f == 11
+            puts "   - Configured monitor.us http monitor."
+          else
+            catapult_exception("Unable to configure monitor.us http monitor for websites => #{service} => domain => #{instance["domain"]}.")
+          end
+        end
+        uri = URI("http://monitor.us/api")
+        Net::HTTP.start(uri.host, uri.port) do |http|
+          request = Net::HTTP::Post.new uri.request_uri
+          request.body = URI::encode\
+            (""\
+              "action=addExternalMonitor"\
+              "&authToken=#{@api_monitorus_authtoken}"\
+              "&apikey=#{configuration["company"]["monitorus_api_key"]}"\
+              "&interval=30"\
+              "&locationIds=1,3"\
+              "&name=https_#{instance["domain"]}"\
+              "&tag=https_#{instance["domain"]}"\
+              "&timestamp=#{Time.now.getutc}"\
+              "&type=https"\
+              "&url=#{instance["domain"]}"\
+            "")
+          response = http.request request # Net::HTTPResponse object
+          api_monitorus_monitor_http = JSON.parse(response.body)
+          # errorCode 11 => monitorUrlExists
+          if api_monitorus_monitor_http["status"] == "ok" || api_monitorus_monitor_http["errorCode"].to_f == 11
+            puts "   - Configured monitor.us https monitor."
+          else
+            catapult_exception("Unable to configure monitor.us https monitor for websites => #{service} => domain => #{instance["domain"]}.")
+          end
+        end
+      end
       # validate force_https
       unless "#{instance["force_https"]}" == ""
         unless ["true"].include?("#{instance["force_https"]}")
@@ -911,13 +1009,13 @@ end
 if ["status"].include?(ARGV[0])
   totalwebsites = 0
   # start a new row
-  puts "\n\n\nAvailable websites legend:"
+  puts "\n\n\nAvailable websites legend:".color(Colors::WHITE)
   puts "\n[http response codes]"
   puts " * 200 ok, 301 moved permanently, 302 found, 400 bad request, 401 unauthorized, 403 forbidden, 404 not found, 500 internal server error, 502 bad gateway, 503 service unavailable, 504 gateway timeout"
   puts " * http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html"
   puts "\n[cert signature algorithm]"
   puts " * https://www.openssl.org/docs/apps/ciphers.html"
-  puts "\n\n\nAvailable websites:"
+  puts "\nAvailable websites:".color(Colors::WHITE)
   puts "".ljust(30) + "[software]".ljust(15) + "[dev.]".ljust(22) + "[test.]".ljust(22) + "[qc.]".ljust(22) + "[production / cert expiry, signature algorithm, common name]".ljust(80) + "[alexa rank, 3m delta]".ljust(26)
 
   configuration["websites"].each do |service,data|
@@ -1189,7 +1287,7 @@ Vagrant.configure("2") do |config|
   config.vm.define "#{configuration["company"]["name"]}-dev-windows" do |config|
     config.vm.box = "opentable/win-2012r2-standard-amd64-nocm"
     config.vm.network "private_network", ip: configuration["environments"]["dev"]["servers"]["windows"]["ip"]
-    config.vm.network "forwarded_port", guest: 80, host: configuration["environments"]["dev"]["servers"]["redhat"]["port_80"]
+    config.vm.network "forwarded_port", guest: 80, host: configuration["environments"]["dev"]["servers"]["windows"]["port_80"]
     config.vm.provider :virtualbox do |provider|
       provider.memory = 512
       provider.cpus = 1
@@ -1203,7 +1301,7 @@ Vagrant.configure("2") do |config|
     config.vm.boot_timeout = 60 * 7
     config.ssh.insert_key = false
     config.vm.communicator = "winrm"
-    config.vm.network "forwarded_port", guest: 3389, host: configuration["environments"]["dev"]["servers"]["redhat"]["port_3389"]
+    config.vm.network "forwarded_port", guest: 3389, host: configuration["environments"]["dev"]["servers"]["windows"]["port_3389"]
   end
 
 end

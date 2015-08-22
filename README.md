@@ -5,23 +5,26 @@
 **Welcome to devopsgroup.io Catapult Release Management**, a complete DevOps Release Management solution featuring automated website deployment and continuous integration following Gitflow and SCRUM workflows. Built for Developers, simple enough to use by non-Developers.
 
 * Configuration Management via CloudFlare, DigitalOcean, Git, GPG, Shell, and Vagrant
-* Continuous Integration via AWS and Bamboo
-* Source Code Managment via Bitbucket and GitHub
+* Continuous Integration via Bamboo and AWS
+* Source Code Management via Bitbucket and/or GitHub
+* Website Uptime Monitoring via monitor.us (Monitis)
+
 
 As a **non-Developer** you may think - *I already have a website, why do I need Catapult?* Over time you will find yourself or find yourself paying a freelancer or a development company hundreds or even thousands of dollars to manage or interact with the DevOps (Development Operations) and solve these problems:
 
   * Production is down.
   * We need a test site.
   * Why is this costing so much?
-  * Is my website safe? 
+  * Are my environments safe? 
   * Is my website backed up?
   * Can I easily scale my website for more traffic?
+  * What is my uptime?
 
 As a **Developer**, you have to manage many websites and probably end up using the same tools and APIs over and over again. Why not use something that has been developed just for you from Developers that have been down the same road as you and also have the ability to contribute back?
 
   * Catapult is developed in Ruby and native Shell - no new languages or technologies to learn.
   * Catapult is very simple at its core - there is no black-box to decipher - everything is out in the open.
-  * Catapult uses the most popular APIs and services; inlcuding AWS, Bamboo, Bitbucket, CloudFlare, DigitalOcean, GitHub, and Vagrant.
+  * Catapult uses the most popular APIs and services; including AWS, Bamboo, Bitbucket, CloudFlare, DigitalOcean, GitHub, and Vagrant.
 
 Catapult manages all of this for you and is open-sourced, well-documented, developer-focused, and free to use. We also provide a service if you need some help getting started - if you do, let us know at https://devopsgroup.io. Catapult leverages the Services that you're already using, which collectively, costs $40/month to have a full-stack localDev, Test, Quality Control, and Production environment.
 
@@ -41,6 +44,8 @@ Catapult manages all of this for you and is open-sourced, well-documented, devel
 - [Usage](#usage)
     - [Provision Environments](#provision-environments)
     - [Provision Websites](#provision-websites)
+- [Troubleshooting](#troubleshooting)
+- [Service Justification](#service-justification)
 - [Contributing](#contributing)
     - [Versioning](#versioning)
 
@@ -50,7 +55,7 @@ Catapult manages all of this for you and is open-sourced, well-documented, devel
 
 Catapult supports the following software:
 
-* Any website without a database dependancy built in PHP
+* Any website without a database dependency built in PHP
 * CodeIgniter 2.x
 * Drupal 6.x, Drupal 7.x
     * as required by Drush 7.0.0-rc1
@@ -63,7 +68,7 @@ Catapult supports the following software:
 
 Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#instance-setup), and [Services Setup](#services-setup) as described in the following sections.
 
-**Please Note:** It is advised to turn off any antivirus software that you may have installed during Developer Setup and Usage of Catapult as necessary tasks such as forwarding ports and writing hosts files may be blocked.
+**Please Note:** It is advised to turn off any antivirus software that you may have installed during Developer Setup and Usage of Catapult, because necessary tasks such as forwarding ports and writing hosts files may be blocked.
 
 
 
@@ -113,7 +118,7 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
         2. ~/secrets/id_rsa.pub as ~/secrets/id_rsa.pub.gpg
         3. ~/configuration.yml as ~/configuration.yml.gpg
     2. To enable **GPG Edit Mode**, set `~/configuration-user.yml["settings"]["gpg_edit"]` to true.
-    3. Once gpg_edit is set to true and while on your fork's develop branch, run `vagrant status`, this will encrypt your configuraiton that you will then be able to commit and push safely to your public Catapult fork.
+    3. Once gpg_edit is set to true and while on your fork's develop branch, run `vagrant status`, this will encrypt your configuration that you will then be able to commit and push safely to your public Catapult fork.
 
 
 
@@ -124,6 +129,7 @@ Catapult uses several third-party services to pull everything off - below is a l
 1. **Hosting:**    
     1. **DigitalOcean** sign-up and configuration
         1. Create an account at http://digitalocean.com
+           * Get a $10 credit and give us $25 once you spend $25 https://www.digitalocean.com/?refcode=6127912f3462
         2. Create a Personal Access Token at https://cloud.digitalocean.com/settings/applications named "Vagrant" and place the token value at `~/configuration.yml["company"]["digitalocean_personal_access_token"]`
         3. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key in https://cloud.digitalocean.com/settings/security named "Vagrant"
 2. **Repositories:**    
@@ -195,10 +201,17 @@ Catapult uses several third-party services to pull everything off - below is a l
 4. **DNS:**    
     1. **CloudFlare** sign-up and configuration
         1. Create a CloudFlare account at https://www.cloudflare.com
-        2. Sign in your new CloudFlare account
+        2. Sign in to your new CloudFlare account
         3. Visit your My Account section at https://www.cloudflare.com/a/account/my-account and scroll down to your API Key and place the token value at `~/configuration.yml["company"]["cloudflare_api_key"]`
         4. Place the email address of the email address that you used to sign up for CloudFlare at `~/configuration.yml["company"]["cloudflare_email"]`
-5. **Verify Configuration:**    
+5. **Monitoring:**
+    1. **monitor.us** sign-up and configuration
+        1. Create a monitor.us account at http://www.monitor.us
+        2. Sign in to your new monitor.us account
+        3. Go to Tools > API > API Key.
+        4. Place your API key at `~/configuration.yml["company"]["monitorus_api_key"]`
+        5. Place your Secret key at `~/configuration.yml["company"]["monitorus_secret_key"]`
+6. **Verify Configuration:**    
     1. To verify all of the configuration that you just set, open your command line and cd into your fork of Catapult, then run `vagrant status`. Catapult will confirm connection to all of the Services and inform you of any problems.
 
 | Service                       | Description                                                      | Monthly Cost |
@@ -218,6 +231,8 @@ Catapult uses several third-party services to pull everything off - below is a l
 | Bamboo                        | Continuous Integration                                           | $10          |
 | **DNS:**                      |                                                                  |              |
 | CloudFlare                    | test., qc., and production global DNS                            | Free         |
+| **Monitoring:**               |                                                                  |              |
+| monitor.us                    | Production website updtime monitoring                            | Free         |
 | **Total**                     |                                                                  | $41 - $55    |
 
 
@@ -304,7 +319,7 @@ Once you add a new website to configuration.yml, it's time to test in localdev:
   * `vagrant provision ~/configuration.yml["company"]["name"]-dev-redhat`
   * `vagrant provision ~/configuration.yml["company"]["name"]-dev-redhat-mysql`
 
-Once you're satisfied with new website in localdev, it's time to commit configuration.yml.gpg to your Catapult fork's develop branch, this will kick off a automated deployment of test. Once you're satisifed with the website in test, it's time to create a pull request from your Catapult fork's develop branch into master - once the pull request is merged, this will kick off an automated deployment to qc. Once you're satisifed with the website in qc, it's time to login to Bamboo and press the deployment button for production.
+Once you're satisfied with new website in localdev, it's time to commit configuration.yml.gpg to your Catapult fork's develop branch, this will kick off a automated deployment of test. Once you're satisfied with the website in test, it's time to create a pull request from your Catapult fork's develop branch into master - once the pull request is merged, this will kick off an automated deployment to qc. Once you're satisfied with the website in qc, it's time to login to Bamboo and press the deployment button for production.
 
 Once a website exists in the upstream environments (test, qc, production), automated deployments will kick off if changes are detected on their respected branches (see chart below). The same workflow of moving a website upstream, exists when you make changes to a specific website's repository.
 
@@ -322,14 +337,25 @@ Once a website exists in the upstream environments (test, qc, production), autom
 
 # Troubleshooting #
 
-Below is a list of known nuances split out by Service that are worth mentioning:
+Below is a list of known limitations with Catapult, if you're still having issues with Catapult, [submit a GitHub Issue](https://github.com/devopsgroup-io/catapult-release-management/issues/new).
 
 * **CloudFlare**
-    * If your `~/configuration.yml["websites"]["apache/iis"]["domain"]` includes more than 1 subdomain (drupal7.devopsgroup.io) the `force_https` option will not work as CloudFlare only supports a first-level subdomain. https://www.cloudflare.com/ssl
+    * [07-27-2015] If your `~/configuration.yml["websites"]["apache/iis"]["domain"]` is a subdomain (drupal7.devopsgroup.io) the `force_https` option will only work in localdev and production as CloudFlare only supports a first-level subdomain. https://www.cloudflare.com/ssl
+* **monitor.us**
+    * [08-10-2015] If your `~/configuration.yml["websites"]["apache/iis"]["domain"]` includes the `force_https` option, you will need to login to monitor.us and enable SNI from Monitors > Monitor List > Actions > Basic Settings > Enable SNI support. 
 * **Vagrant**
-    * If your `~/configuration.yml["websites"]["apache/iis"]["domain"]` includes the `force_https` option, during `vagrant status` you will receive an err for the http response code for `.dev` as this is a self-signed cert and not routing through CloudFlare.
+    * [07-27-2015] If your `~/configuration.yml["websites"]["apache/iis"]["domain"]` includes the `force_https` option, during `vagrant status` you will receive an err for the http response code for `.dev` as this is a self-signed cert and not routing through CloudFlare.
 
-If you're still having issues with Catapult, [submit a GitHub Issue](https://github.com/devopsgroup-io/catapult-release-management/issues/new).
+
+
+# Service Justification #
+
+Catapult uses many factors to make the best decision when it comes to choosing **Services**, the following are taken into account - popularity, cost, API support, and user experience. The following is an outline of what we think the common questions may be when you see Catapult using a particular **Service**. Have your own perspective? [Let us know](https://github.com/devopsgroup-io/catapult-release-management/issues/new).
+
+* **monitor.us**
+    * [08-10-2015] monitor.us does not have the greatest user interface, branding, or technology. However, it does something that no other application monitoring services do - it offers free http/https monitoring and an API that allows Catapult to add these monitors for you.
+        * A service to watch would be New Relic, however, the blocker is that there is no API support for their synthetic monitoring.
+        * Other services researched were AppDynamics, DataDog, and StatusCake which all fell short in pricing or API functionality.
 
 
 
@@ -345,7 +371,7 @@ So you want to contribute... Great! Open source projects like Catapult Release M
   * Contribute to the Catapult wiki
   * Blog about your experiences with Catapult
 
-When you first setup Catapult a develop branch is created for you under your forked repository, with an upstream set to `https://github.com/devopsgroup-io/catapult-release-management.git` so that you can easily create a pull request. Also keep in mind when closing issues to submit a pull requst that includes [GitHub's: Closing issues via commit messages](https://help.github.com/articles/closing-issues-via-commit-messages/).
+When you first setup Catapult a `develop-catapult` branch is created for you under your forked repository, with an upstream set to `https://github.com/devopsgroup-io/catapult-release-management.git` so that you can easily create a pull request. Also keep in mind when closing issues to submit a pull request that includes [GitHub's: Closing issues via commit messages](https://help.github.com/articles/closing-issues-via-commit-messages/).
 
 
 
