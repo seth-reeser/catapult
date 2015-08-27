@@ -50,22 +50,9 @@ end=$(date +%s)
 echo "==> completed in ($(($end - $start)) seconds)"
 
 
-echo -e "\n\n\n==> Installing Drush and WP-CLI"
+echo -e "\n\n==> Installing software tools"
 start=$(date +%s)
-sudo yum install -y php-cli
-sudo yum install -y mariadb
-# install drush
-if [ ! -f /usr/bin/drush  ]; then
-    curl -sS https://getcomposer.org/installer | php
-    mv composer.phar /usr/local/bin/composer
-    ln -s /usr/local/bin/composer /usr/bin/composer
-    git clone https://github.com/drush-ops/drush.git /usr/local/src/drush
-    cd /usr/local/src/drush
-    git checkout 7.0.0-rc1
-    ln -s /usr/local/src/drush/drush /usr/bin/drush
-    composer install
-fi
-drush --version
+source /catapult/provisioners/redhat/modules/software_tools.sh
 end=$(date +%s)
 echo "==> completed in ($(($end - $start)) seconds)"
 
@@ -85,6 +72,20 @@ start=$(date +%s)
 source /catapult/provisioners/redhat/modules/git.sh
 end=$(date +%s)
 echo -e "\n==> completed in ($(($end - $start)) seconds)"
+
+
+echo -e "\n\n==> RSYNCing files"
+start=$(date +%s)
+source /catapult/provisioners/redhat/modules/rsync.sh
+end=$(date +%s)
+echo "==> completed in ($(($end - $start)) seconds)"
+
+
+echo -e "\n\n==> Generating software database config files"
+start=$(date +%s)
+source /catapult/provisioners/redhat/modules/software_database_config.sh
+end=$(date +%s)
+echo "==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n\n==> Configuring MySQL"
@@ -166,11 +167,22 @@ while IFS='' read -r -d '' key; do
     if ! test -n "${software}"; then
         echo -e "\t* this website has no software setting, skipping database workflow"
     else
+        # grant mysql user to database
+        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%'";
+        # grant maintenance user to database
+        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO 'maintenance'@'%'";
+        # flush privileges
+        mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
         # respect software_workflow option
         if ([ "${1}" = "production" ] && [ "${software_workflow}" = "downstream" ] && [ "${software_dbexist}" != "" ]) || ([ "${1}" = "test" ] && [ "${software_workflow}" = "upstream" ] && [ "${software_dbexist}" != "" ]); then
             echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, performing a database backup"
             # database dumps are always committed to the develop branch to respect software_workflow
-            cd "/var/www/repositories/apache/${domain}" && git checkout develop
+            cd "/var/www/repositories/apache/${domain}" && git checkout develop | sed "s/^/\t/"
+            cd "/var/www/repositories/apache/${domain}" && git reset -q --hard HEAD -- | sed "s/^/\t/"
+            cd "/var/www/repositories/apache/${domain}" && git checkout . | sed "s/^/\t/"
+            cd "/var/www/repositories/apache/${domain}" && git clean -fd | sed "s/^/\t/"
+            cd "/var/www/repositories/apache/${domain}" && sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git fetch" | sed "s/^/\t/"
+            cd "/var/www/repositories/apache/${domain}" && sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git pull origin develop" | sed "s/^/\t/"
             if ! [ -f /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql ]; then
                 mkdir -p "/var/www/repositories/apache/${domain}/_sql"
                 mysqldump --defaults-extra-file=$dbconf --single-transaction --quick ${1}_${domainvaliddbname} > /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql
@@ -185,7 +197,11 @@ while IFS='' read -r -d '' key; do
             # after verifying database dump, checkout the correct branch again
             cd "/var/www/repositories/apache/${domain}" && git checkout $(echo "${configuration}" | shyaml get-value environments.${1}.branch)
         else
-            echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, performing a database restore"
+            if [ -z "${software_dbexist}" ]; then
+                echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, performing a database restore"
+            else
+                echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, however this is a new website and the database does not exist, performing a database restore"
+            fi
             # drop the database
             # the loop is necessary just in case the database doesn't yet exist
             for database in $(mysql --defaults-extra-file=$dbconf -e "show databases" | egrep -v "Database|mysql|information_schema|performance_schema"); do
@@ -213,32 +229,44 @@ while IFS='' read -r -d '' key; do
                         echo -e "\t\t\trestoring..."
                         # support domain_tld_override for URL replacements
                         if [ -z "${domain_tld_override}" ]; then
-                            domain_url="${1}.${domain}"
+                            if [ "${1}" = "production" ]; then
+                                domain_url="${domain}"
+                            else
+                                domain_url="${1}.${domain}"
+                            fi
                         else
-                            domain_url="${1}.${domain}.${domain_tld_override}"
+                            if [ "${1}" = "production" ]; then
+                                domain_url="${domain}.${domain_tld_override}"
+                            else
+                                domain_url="${1}.${domain}.${domain_tld_override}"
+                            fi
                         fi
+                        # for software without a search and replace tool (handles serialized arrays, etc), use sed
                         # match http:// and optionally www. then replace with http:// + optionally www. + either dev., test., or the production domain
-                        if [[ "${software}" != "wordpress" ]]; then
-                            echo -e "\t* updating ${software} database with ${domain_url} URLs"
-                            sed -r -e "s/:\/\/(www\.)?${domain}/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
+                        if ([ "${software}" = "codeigniter2" ] || [ "${software}" = "drupal6" ] || [ "${software}" = "drupal7" ] || [ "${software}" = "silverstripe" ] || [ "${software}" = "xenforo" ]); then
+                            # replace production, test, and dev urls in the case of downstream software_workflow
+                            sed -r -e "s/:\/\/(www\.)?(dev\.|test\.)?${domain}/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         else
                             cp "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         fi
+                        # restore the database
                         mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} < "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         rm -f "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         if [[ "${software}" = "drupal6" ]]; then
                             echo -e "\t* resetting ${software} admin password..."
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}users SET name='admin', mail='$(echo "${configuration}" | shyaml get-value company.email)', pass=MD5('$(echo "${configuration}" | shyaml get-value environments.${1}.software.drupal.admin_password)'), status='1' WHERE uid = 1;"
-                        fi
-                        if [[ "${software}" = "drupal7" ]]; then
+                        elif [[ "${software}" = "drupal7" ]]; then
                             echo -e "\t* resetting ${software} admin password..."
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}users SET name='admin', mail='$(echo "${configuration}" | shyaml get-value company.email)', status='1' WHERE uid = 1;"
-                        fi
-                        if [[ "${software}" = "wordpress" ]]; then
+                        elif [[ "${software}" = "wordpress" ]]; then
                             echo -e "\t* resetting ${software} admin password..."
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}users SET user_login='admin', user_email='$(echo "${configuration}" | shyaml get-value company.email)', user_pass=MD5('$(echo "${configuration}" | shyaml get-value environments.${1}.software.wordpress.admin_password)'), user_status='0' WHERE id = 1;"
-                            echo -e "\t* updating ${software} database with ${domain_url} URLs"
-                            php /catapult/provisioners/redhat/installers/wp-cli.phar --path="/var/www/repositories/apache/${domain}/" search-replace "${domain}" "${domain_url}" | sed "s/^/\t\t/"
+                            # replace production urls in the case of downstream software_workflow
+                            php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/" search-replace "${domain}" "${domain_url}" | sed "s/^/\t\t/"
+                            # replace test urls in the case of upstream software_workflow
+                            php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/" search-replace "test.${domain}" "${domain_url}" | sed "s/^/\t\t/"
+                            # replace dev urls in the case of upstream software_workflow
+                            php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/" search-replace "dev.${domain}" "${domain_url}" | sed "s/^/\t\t/"
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='$(echo "${configuration}" | shyaml get-value company.email)' WHERE option_name = 'admin_email';"
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='http://${domain_url}' WHERE option_name = 'home';"
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='http://${domain_url}' WHERE option_name = 'siteurl';"
@@ -247,12 +275,6 @@ while IFS='' read -r -d '' key; do
                 done
             fi
         fi
-        # grant mysql user to database
-        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%'";
-        # grant maintenance user to database
-        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO 'maintenance'@'%'";
-        # flush privileges
-        mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
     fi
 
 done
