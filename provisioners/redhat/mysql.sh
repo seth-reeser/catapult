@@ -13,30 +13,7 @@
 
 echo -e "==> Updating existing packages and installing utilities"
 start=$(date +%s)
-# only allow authentication via ssh key pair
-# suppress this - There were 34877 failed login attempts since the last successful login.
-if ! grep -q "PasswordAuthentication no" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo "PasswordAuthentication no" >> /etc/ssh/sshd_config'
-fi
-sudo systemctl stop sshd.service
-sudo systemctl start sshd.service
-# update yum
-sudo yum update -y
-# git clones
-sudo yum install -y git
-# parse yaml
-sudo easy_install pip
-sudo pip install --upgrade pip
-sudo pip install shyaml --upgrade
-configuration=$(gpg --batch --passphrase ${3} --decrypt /catapult/secrets/configuration.yml.gpg)
-gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa --decrypt /catapult/secrets/id_rsa.gpg
-gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa.pub --decrypt /catapult/secrets/id_rsa.pub.gpg
-chmod 700 /catapult/secrets/id_rsa
-chmod 700 /catapult/secrets/id_rsa.pub
-# forward root's mail to company mail
-sudo cat > "/root/.forward" << EOF
-"$(echo "${configuration}" | shyaml get-value company.email)"
-EOF
+source /catapult/provisioners/redhat/modules/system.sh
 end=$(date +%s)
 echo "==> completed in ($(($end - $start)) seconds)"
 
@@ -192,7 +169,7 @@ while IFS='' read -r -d '' key; do
                 cd "/var/www/repositories/apache/${domain}" && git config --global user.name "Catapult" 2>&1 | sed "s/^/\t/"
                 cd "/var/www/repositories/apache/${domain}" && git config --global user.email "$(echo "${configuration}" | shyaml get-value company.email)" 2>&1 | sed "s/^/\t/"
                 cd "/var/www/repositories/apache/${domain}" && git add "/var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql" 2>&1 | sed "s/^/\t/"
-                cd "/var/www/repositories/apache/${domain}" && git commit -m "Catapult auto-commit." 2>&1 | sed "s/^/\t/"
+                cd "/var/www/repositories/apache/${domain}" && git commit -m "Catapult auto-commit from ${1} driven by this website's software_workflow being set to ${software_workflow}. See https://github.com/devopsgroup-io/catapult-release-management for more information. *This is the only type of commit that Catapult makes for you, this is to ensure the database of the website travels with the website's repository." 2>&1 | sed "s/^/\t/"
                 cd "/var/www/repositories/apache/${domain}" && sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git push origin develop" 2>&1 | sed "s/^/\t/"
             else
                 echo -e "\t\ta backup was already performed today"
@@ -201,9 +178,9 @@ while IFS='' read -r -d '' key; do
             cd "/var/www/repositories/apache/${domain}" && git checkout $(echo "${configuration}" | shyaml get-value environments.${1}.branch) 2>&1 | sed "s/^/\t/"
         else
             if [ -z "${software_dbexist}" ]; then
-                echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, performing a database restore"
-            else
                 echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, however this is a new website and the database does not exist, performing a database restore"
+            else
+                echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, performing a database restore"
             fi
             # drop the database
             # the loop is necessary just in case the database doesn't yet exist
@@ -244,11 +221,26 @@ while IFS='' read -r -d '' key; do
                                 domain_url="${1}.${domain}.${domain_tld_override}"
                             fi
                         fi
-                        # for software without a search and replace tool (handles serialized arrays, etc), use sed
-                        # match http:// and optionally www. then replace with http:// + optionally www. + either dev., test., or the production domain
+                        # replace variances of the following during a restore to match the environment
+                        # for software that does not have a CLI tool, use sed to replace via a file beforehand, otherwise, replace afterwards
+                        # pay attention to the order of the (${domain}.${domain_tld_override|${domain}}) rule
+                        # https://regex101.com/r/vF7hY9/2
+                        # :\/\/(www\.)?(dev\.|test\.)?(devopsgroup.io.example.com|devopsgroup.io)
+                        # ://dev.devopsgroup.io
+                        # ://www.dev.devopsgroup.io
+                        # ://test.devopsgroup.io
+                        # ://www.test.devopsgroup.io
+                        # ://devopsgroup.io
+                        # ://www.devopsgroup.io
+                        # ://dev.devopsgroup.io.example.com
+                        # ://www.dev.devopsgroup.io.example.com
+                        # ://test.devopsgroup.io.example.com
+                        # ://www.test.devopsgroup.io.example.com
+                        # ://devopsgroup.io.example.com
+                        # ://www.devopsgroup.io.example.com
                         if ([ "${software}" = "codeigniter2" ] || [ "${software}" = "drupal6" ] || [ "${software}" = "drupal7" ] || [ "${software}" = "silverstripe" ] || [ "${software}" = "xenforo" ]); then
-                            # replace production, test, and dev urls in the case of downstream software_workflow
-                            sed -r -e "s/:\/\/(www\.)?(dev\.|test\.)?${domain}/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
+                            echo -e "\t* replacing URLs in the database to align with the enivronment..."
+                            sed -r --expression="s/:\/\/(www\.)?(dev\.|test\.)?(${domain}.${domain_tld_override}|${domain})/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         else
                             cp "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         fi
@@ -264,12 +256,8 @@ while IFS='' read -r -d '' key; do
                         elif [[ "${software}" = "wordpress" ]]; then
                             echo -e "\t* resetting ${software} admin password..."
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}users SET user_login='admin', user_email='$(echo "${configuration}" | shyaml get-value company.email)', user_pass=MD5('$(echo "${configuration}" | shyaml get-value environments.${1}.software.wordpress.admin_password)'), user_status='0' WHERE id = 1;"
-                            # replace production urls in the case of downstream software_workflow
-                            php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/" search-replace "${domain}" "${domain_url}" | sed "s/^/\t\t/"
-                            # replace test urls in the case of upstream software_workflow
-                            php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/" search-replace "test.${domain}" "${domain_url}" | sed "s/^/\t\t/"
-                            # replace dev urls in the case of upstream software_workflow
-                            php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/" search-replace "dev.${domain}" "${domain_url}" | sed "s/^/\t\t/"
+                            echo -e "\t* replacing URLs in the database to align with the enivronment..."
+                            php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/" search-replace ":\/\/(www\.)?(dev\.|test\.)?(${domain}.${domain_tld_override}|${domain})" "://${domain_url}" --regex | sed "s/^/\t\t/"
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='$(echo "${configuration}" | shyaml get-value company.email)' WHERE option_name = 'admin_email';"
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='http://${domain_url}' WHERE option_name = 'home';"
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='http://${domain_url}' WHERE option_name = 'siteurl';"

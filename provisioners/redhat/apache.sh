@@ -13,26 +13,7 @@
 
 echo -e "==> Updating existing packages and installing utilities"
 start=$(date +%s)
-# only allow authentication via ssh key pair
-# suppress this - There were 34877 failed login attempts since the last successful login.
-if ! grep -q "PasswordAuthentication no" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo "PasswordAuthentication no" >> /etc/ssh/sshd_config'
-fi
-sudo systemctl stop sshd.service
-sudo systemctl start sshd.service
-# update yum
-sudo yum update -y
-# git clones
-sudo yum install -y git
-# parse yaml
-sudo easy_install pip
-sudo pip install --upgrade pip
-sudo pip install shyaml --upgrade
-configuration=$(gpg --batch --passphrase ${3} --decrypt /catapult/secrets/configuration.yml.gpg)
-gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa --decrypt /catapult/secrets/id_rsa.gpg
-gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa.pub --decrypt /catapult/secrets/id_rsa.pub.gpg
-chmod 700 /catapult/secrets/id_rsa
-chmod 700 /catapult/secrets/id_rsa.pub
+source /catapult/provisioners/redhat/modules/system.sh
 end=$(date +%s)
 echo "==> completed in ($(($end - $start)) seconds)"
 
@@ -150,19 +131,24 @@ while IFS='' read -r -d '' key; do
 done < <(echo "${configuration}" | shyaml get-values-0 websites.apache)
 # cleanup /var/log/httpd/*/access.log and /var/log/httpd/*/error.log
 for directory in /var/log/httpd/*/; do
-    folder_domain_environment=$(basename $directory)
-    if ! [[ "${array_domain_environment[*]}" =~ "${folder_domain_environment}" ]]; then
-        echo -e "\t * cleaning up /var/log/httpd/${folder_domain_environment}/ as the website has been removed for your configuration..."
-        sudo chmod 0777 -R $directory
-        sudo rm -rf $directory
-    else
-        echo -e "\t * emptying log files in /var/log/httpd/${folder_domain_environment}/..."
-        sudo cat /dev/null > /var/log/httpd/${folder_domain_environment}/access.log
-        sudo cat /dev/null > /var/log/httpd/${folder_domain_environment}/error.log
+    # when there are no matches, for defaults to the match /var/log/httpd/*/, ignore this result
+    # on a new provision, there will be no log directories
+    if [ -e "$directory" ]; then
+        folder_domain_environment=$(basename $directory)
+        if ! [[ "${array_domain_environment[*]}" =~ "${folder_domain_environment}" ]]; then
+            echo -e "\t * cleaning up /var/log/httpd/${folder_domain_environment}/ as the website has been removed for your configuration..."
+            sudo chmod 0777 -R $directory
+            sudo rm -rf $directory
+        else
+            echo -e "\t * emptying log files in /var/log/httpd/${folder_domain_environment}/..."
+            sudo cat /dev/null > /var/log/httpd/${folder_domain_environment}/access.log
+            sudo cat /dev/null > /var/log/httpd/${folder_domain_environment}/error.log
+        fi
     fi
 done
 # cleanup /etc/httpd/sites-enabled/*.htpasswd files
 for file in /etc/httpd/sites-enabled/*.htpasswd; do
+    # when there are no matches, for defaults to the match /etc/httpd/sites-enabled/*.htpasswd, ignore this result
     # there may not be a .htpasswd
     if [ -e "$file" ]; then
         file_domain_environment=$(basename $file)
@@ -175,20 +161,28 @@ for file in /etc/httpd/sites-enabled/*.htpasswd; do
 done
 # cleanup /etc/httpd/sites-enabled/*.conf files
 for file in /etc/httpd/sites-enabled/*.conf; do
-    file_domain_environment=$(basename $file)
-    if ! [[ "${array_conf_domain_environment[*]}" =~ "${file_domain_environment}" ]]; then
-        echo -e "\t * cleaning up /etc/httpd/sites-enabled/${file_domain_environment} as the website has been removed for your configuration..."
-        sudo chmod 0777 -R $file
-        sudo rm -f $file
+    # when there are no matches, for defaults to the match /etc/httpd/sites-enabled/*.conf, ignore this result
+    # on a new provision, the .conf files do not exist yet
+    if [ -e "$file" ]; then
+        file_domain_environment=$(basename $file)
+        if ! [[ "${array_conf_domain_environment[*]}" =~ "${file_domain_environment}" ]]; then
+            echo -e "\t * cleaning up /etc/httpd/sites-enabled/${file_domain_environment} as the website has been removed for your configuration..."
+            sudo chmod 0777 -R $file
+            sudo rm -f $file
+        fi
     fi
 done
 # cleanup /etc/httpd/sites-available/*.conf files
 for file in /etc/httpd/sites-available/*.conf; do
-    file_domain_environment=$(basename $file)
-    if ! [[ "${array_conf_domain_environment[*]}" =~ "${file_domain_environment}" ]]; then
-        echo -e "\t * cleaning up /etc/httpd/sites-available/${file_domain_environment} as the website has been removed for your configuration.."
-        sudo chmod 0777 -R $file
-        sudo rm -f $file
+    # when there are no matches, for defaults to the match /etc/httpd/sites-available/*.conf, ignore this result
+    # on a new provision, the .conf files do not exist yet
+    if [ -e "$file" ]; then
+        file_domain_environment=$(basename $file)
+        if ! [[ "${array_conf_domain_environment[*]}" =~ "${file_domain_environment}" ]]; then
+            echo -e "\t * cleaning up /etc/httpd/sites-available/${file_domain_environment} as the website has been removed for your configuration.."
+            sudo chmod 0777 -R $file
+            sudo rm -f $file
+        fi
     fi
 done
 
