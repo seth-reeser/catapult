@@ -2,7 +2,7 @@
 
 
 
-**Welcome to devopsgroup.io Catapult Release Management**, a complete DevOps Release Management solution featuring automated website deployment and continuous integration following Gitflow and SCRUM workflows. Built for Developers, simple enough to use by non-Developers.
+**Welcome to devopsgroup.io Catapult Release Management**, a complete DevOps Release Management solution featuring automated website deployment and continuous integration, while following Gitflow and SCRUM workflows. Built for Developers, but simple enough to use by non-Developers. Catapult's core technologies and features include:
 
 * Configuration Management via CloudFlare, DigitalOcean, Git, GPG, Shell, and Vagrant
 * Continuous Integration via Bamboo and AWS
@@ -10,7 +10,7 @@
 * Website Uptime Monitoring via monitor.us (Monitis)
 
 
-As a **non-Developer** you may think - *I already have a website, why do I need Catapult?* Over time you will find yourself or find yourself paying a freelancer or a development company hundreds or even thousands of dollars to manage or interact with the DevOps (Development Operations) and solve these problems:
+As a **non-Developer** you may think - *I already have a website, why do I need Catapult?* Over time you may find yourself overwhelmed with managing the the day to day Devops process of infrastrucrure , and end up paying a freelancer or a development company hundreds or even thousands of dollars to manage or interact with the DevOps (Development Operations) to solve these problems:
 
   * Production is down.
   * We need a test site.
@@ -20,13 +20,13 @@ As a **non-Developer** you may think - *I already have a website, why do I need 
   * Can I easily scale my website for more traffic?
   * What is my uptime?
 
-As a **Developer**, you have to manage many websites and probably end up using the same tools and APIs over and over again. Why not use something that has been developed just for you from Developers that have been down the same road as you and also have the ability to contribute back?
+As a **Developer**, you have to manage many websites and probably end up using the same set of tools and APIs over and over again. Why not use something that has been created from it's foundations by Devlopers that have been down the same road as you, and contribute back to the project at the same time?
 
-  * Catapult is developed in Ruby and native Shell - no new languages or technologies to learn.
-  * Catapult is very simple at its core - there is no black-box to decipher - everything is out in the open.
-  * Catapult uses the most popular APIs and services; including AWS, Bamboo, Bitbucket, CloudFlare, DigitalOcean, GitHub, and Vagrant.
+  * Catapult is developed in Ruby and native Shell - there are no new languages or technologies to learn.
+  * Catapult's simplicity is it's strength. There is no black-box to decipher - the functionality and methodology is out in      the open and accessible to anyone.
+  * Catapult uses the most popular APIs and services; including AWS, Bamboo, Bitbucket, CloudFlare, DigitalOcean, GitHub, and     Vagrant.
 
-Catapult manages all of this for you and is open-sourced, well-documented, developer-focused, and free to use. We also provide a service if you need some help getting started - if you do, let us know at https://devopsgroup.io. Catapult leverages the Services that you're already using, which collectively, costs $40/month to have a full-stack localDev, Test, Quality Control, and Production environment.
+Catapult can manage all of this for you through an open-source and well-documented platform, with a developer-focused point of view. We also provide a service and assistance if you need help getting started, or just have a question - just contact us at https://devopsgroup.io. Catapult leverages the Services that you're already using, which collectively, costs $40/month to have a full-stack localDev, Test, Quality Control, and Production environment.
 
 *Go ahead, give* **Catapult** *a* **shot**.
 
@@ -47,7 +47,7 @@ Catapult manages all of this for you and is open-sourced, well-documented, devel
 - [Troubleshooting](#troubleshooting)
 - [Service Justification](#service-justification)
 - [Contributing](#contributing)
-    - [Versioning](#versioning)
+    - [Releases](#releases)
 
 
 
@@ -58,9 +58,11 @@ Catapult supports the following software:
 * Any website without a database dependency built in PHP
 * CodeIgniter 2.x
 * Drupal 6.x, Drupal 7.x
-    * as required by Drush 7.0.0-rc1
+    * as required by Drush 7.0.0
+* SilverStripe 2.x
 * WordPress 3.5.2+, WordPress 4.x
     * as required by WP-CLI
+* XenForo 1.x
 
 
 
@@ -171,33 +173,27 @@ Catapult uses several third-party services to pull everything off - below is a l
                     1. Project > New Project
                     2. Project name: Catapult
                     3. Project key: CAT
-                    4. Plan name: test
+                    4. Plan name: TEST
                     5. Plan key: TEST
                     6. Plan description:
                 * *Link repository to new build plan*
-                    1. Repository host: Link new repository > Other > GitHub
-                    2. Display name: Catapult
-                    3. Username: `~/configuration.yml["company"]["github_username"]`
-                    4. Password: `~/configuration.yml["company"]["github_password"]`
-                    5. Repository: Load Repositories > github_username/catapult-release-management
-                    6. Branch: master
-                    7. Repository access: Allow all users to reuse the configuration of this repository
+                    1. Repository host: Other > None
             2. **Create QC Plan**
                 * *Project and build plan name*
                     1. Project: Catapult
-                    4. Plan name: qc
+                    4. Plan name: QC
                     5. Plan key: QC
                     6. Plan description:
                 * *Link repository to new build plan*
-                    1. Repository host: Previously linked repository > github_username/catapult-release-management
+                    1. Repository host: Other > None
             2. **Create PROD Plan**
                 * *Project and build plan name*
                     1. Project: Catapult
-                    4. Plan name: production
+                    4. Plan name: PRODUCTION
                     5. Plan key: PROD
                     6. Plan description:
                 * *Link repository to new build plan*
-                    1. Repository host: Previously linked repository > github_username/catapult-release-management
+                    1. Repository host: Other > None
 4. **DNS:**    
     1. **CloudFlare** sign-up and configuration
         1. Create a CloudFlare account at https://www.cloudflare.com
@@ -291,7 +287,11 @@ The following options are available:
         * dev.example.com, test.example.com, qc.example.com, example.com are replaced by dev.example.com.mycompany.com, test.example.com.mycompany.com, qc.example.com.mycompany.com, example.com.mycompany.com
 * force_auth:
     * `example`
-        * forces http basic authentication, `example` is both the username and password
+        * forces http basic authentication in test, qc, and production
+        * `example` is both the username and password
+* force_auth_exclude:
+    * `["test","qc","production"]`
+        * array of exclusions exclusive to the force_auth option
 * force_https:
     * `true`
         * rewrite all http traffic to https
@@ -302,23 +302,25 @@ The following options are available:
     * `codeigniter2`
         * generates codeigniter2 database config file ~/application/config/database.php, restores database
     * `drupal6`
-        * generates drupal6 database config file ~/sites/default/settings.php, resets drupal6 admin password, rsyncs ~/sites/default/files from production source, restores database
+        * generates drupal6 database config file ~/sites/default/settings.php, resets Drupal admin password, rsyncs ~/sites/default/files, restores database
     * `drupal7`
-        * generates drupal7 database config file ~/sites/default/settings.php, resets drupal7 admin password, rsyncs ~/sites/default/files from production source, restores database
+        * generates drupal7 database config file ~/sites/default/settings.php, resets Drupal admin password, rsyncs ~/sites/default/files, restores database
+    * `silverstripe`
+        * generates silverstripe database config file ~/mysite/_config.php, restores database
     * `wordpress`
-        * generates WordPress database config file ~/installers/wp-config.php, resets WordPress admin password, rsyncs ~/wp-content/uploads from production source, restores database
+        * generates WordPress database config file ~/installers/wp-config.php, resets WordPress admin password, rsyncs ~/wp-content/uploads, restores database
     * `xenforo`
         * generates xenforo database config file ~/library/config.php, restores database
 * software_dbprefix:
     * `wp_`
-        * usually used in Drupal for multisite installations (`wp_ is required for base Wordpress installs, Drupal has no prefix by default`)
+        * usually used in Drupal for multisite installations (`wp_` is required for base Wordpress installs, Drupal has no prefix by default)
 * software_workflow:
     * `downstream`
-        * production is the source for the database and untracked files
+        * production is the source for the database and upload directories of drupal and wordpress
         * this option is used when maintaining a website
         * see the below chart for more details
     * `upstream`
-        * test is the source for the database and untracked files
+        * test is the source for the database and upload directories of drupal and wordpress
         * this option is used when launching a new website
         * see the below chart for more details
 * webroot:
@@ -331,19 +333,19 @@ Once you add a new website to configuration.yml, it's time to test in localdev:
   * `vagrant provision ~/configuration.yml["company"]["name"]-dev-redhat`
   * `vagrant provision ~/configuration.yml["company"]["name"]-dev-redhat-mysql`
 
-Once you're satisfied with new website in localdev, it's time to commit configuration.yml.gpg to your Catapult fork's develop branch, this will kick off a automated deployment of test. Once you're satisfied with the website in test, it's time to create a pull request from your Catapult fork's develop branch into master - once the pull request is merged, this will kick off an automated deployment to qc. Once you're satisfied with the website in qc, it's time to login to Bamboo and press the deployment button for production.
+Once you're satisfied with new website in localdev, it's time to commit configuration.yml.gpg to your Catapult fork's develop branch, this will kick off a automated deployment of test. Once you're satisfied with the website in test, it's time to create a pull request from your Catapult fork's develop branch into release - once the pull request is merged, this will kick off an automated deployment to qc. Once you're satisfied with the website in qc, it's time to create a pull request from your Catapult fork's release branch into master. Production does not have any automated deployments, to deploy your website to production it's time to login to Bamboo and press the deployment button for production.
 
 Once a website exists in the upstream environments (test, qc, production), automated deployments will kick off if changes are detected on their respected branches (see chart below). The same workflow of moving a website upstream, exists when you make changes to a specific website's repository.
 
 | Environment                    | dev                                                         | test                                                            | qc                                                             | production                                                    |
 |--------------------------------|-------------------------------------------------------------|-----------------------------------------------------------------|----------------------------------------------------------------|---------------------------------------------------------------|
-| **Running Branch**             | *develop*                                                   | *develop*                                                       | *master*                                                       | *master*                                                      |
-| **New Website Provisioning**   | Manually via Vagrant                                        | Automatically via Bamboo (new commits to **develop**)           | Automatically via Bamboo (new commits to **master**)           | Manually via Bamboo                                           |
+| **Running Branch**             | *develop*                                                   | *develop*                                                       | *release*                                                      | *master*                                                      |
+| **New Website Provisioning**   | Manually via Vagrant                                        | Automatically via Bamboo (new commits to **develop**)           | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo                                           |
 | **Downstream Database**        | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo          | Restore from **master** ~/_sql folder of website repo          | Daily backup to **develop** ~/_sql folder of website repo     |
 | **Upstream Database**          | Restore from **develop** ~/_sql folder of website repo      | Daily backup to **develop** ~/_sql folder of website repo       | Restore from **master** ~/_sql folder of website repo          | Restore from **master** ~/_sql folder of website repo         |
 | **Downstream Untracked Files** | rsync files from **production**                             | rsync files from **production**                                 | rsync files from **production**                                | --                                                            |
 | **Upstream Untracked Files**   | rsync files from **test**                                   | --                                                              | rsync files from **test**                                      | rsync files from **test**                                     |
-| **Automated Deployments**      | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)           | Automatically via Bamboo (new commits to **master**)           | Manually via Bamboo                                           |
+| **Automated Deployments**      | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)           | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo                                           |
 
 
 
@@ -353,6 +355,10 @@ Below is a list of known limitations with Catapult, if you're still having issue
 
 * **CloudFlare**
     * [07-27-2015] If your `~/configuration.yml["websites"]["apache/iis"]["domain"]` is a subdomain (drupal7.devopsgroup.io) the `force_https` option will only work in localdev and production as CloudFlare only supports a first-level subdomain. https://www.cloudflare.com/ssl
+* **DigitalOcean**
+    * [09-01-2015] vagrant rebuild was failing with a `The configured shell (config.ssh.shell) is invalid and unable to properly execute commands.` it is due to DigitalOcean's API not re-inserting the SSH key that was originally used during the first vagrant up (creation of the droplet). To rebuild, you must use the DigitalOcean console, run through the first root password reset workflow that was emailed to you, then vi /etc/sudoers and remove the Defaults requiretty line and save and exit. You can then run vagrant provision successfully.
+* **Git**
+    * [09-08-2015] Some database dumps exceed 100MB, so it's recommened to use Bitbucket in those instances as Catapult auto-commits database dumps to your website's repository, up to 500MB worth of database dumps or the one, newest database dump. [Bitbucket](https://help.github.com/articles/what-is-my-disk-quota/) has a 2GB hard repo push limit with no documented file limit and [GitHub](https://help.github.com/articles/what-is-my-disk-quota/) has a 1GB soft repo limit with a 100MB file size limit.
 * **monitor.us**
     * [08-10-2015] If your `~/configuration.yml["websites"]["apache/iis"]["domain"]` includes the `force_https` option, you will need to login to monitor.us and enable SNI from Monitors > Monitor List > Actions > Basic Settings > Enable SNI support. 
 * **Vagrant**
@@ -387,12 +393,16 @@ When you first setup Catapult a `develop-catapult` branch is created for you und
 
 
 
-## Versioning ##
+## Releases ##
 
-Given a version number MAJOR.MINOR.PATCH, increment the:
+Releases are driven by the devopsgroup.io team and occur when accepting new pull requests from contributors like you. Releases follow Semantic Versioning 2.0.0., given a version number MAJOR.MINOR.PATCH, increment the:
 
 1. MAJOR version when you make incompatible API changes,
 2. MINOR version when you add functionality in a backwards-compatible manner, and
 3. PATCH version when you make backwards-compatible bug fixes.
 
-See http://semver.org/ for more information.
+In addition, the release will be prefaced with a `v` (v1.0.0) to conform standard practice.
+
+During a new release, the version number in VERSION.yml will be incremented and tagged with the same version number along with a [GitHub Release](https://help.github.com/articles/about-releases/).
+
+See http://semver.org/spec/v2.0.0.html for more information.
