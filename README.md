@@ -10,7 +10,7 @@
 * Website Uptime Monitoring via monitor.us (Monitis)
 
 
-As a **non-Developer** you may think - *I already have a website, why do I need Catapult?* Over time you may find yourself overwhelmed with managing the the day to day Devops process of infrastrucrure , and end up paying a freelancer or a development company hundreds or even thousands of dollars to manage or interact with the DevOps (Development Operations) to solve these problems:
+As a **non-Developer** you may think - *I already have a website, why do I need Catapult?* Over time you may find yourself overwhelmed with managing the the day to day DevOps process of infrastrucrure , and end up paying a freelancer or a development company hundreds or even thousands of dollars to manage or interact with the DevOps (Development Operations) to solve these problems:
 
   * Production is down.
   * We need a test site.
@@ -23,10 +23,10 @@ As a **non-Developer** you may think - *I already have a website, why do I need 
 As a **Developer**, you have to manage many websites and probably end up using the same set of tools and APIs over and over again. Why not use something that has been created from it's foundations by Devlopers that have been down the same road as you, and contribute back to the project at the same time?
 
   * Catapult is developed in Ruby and native Shell - there are no new languages or technologies to learn.
-  * Catapult's simplicity is it's strength. There is no black-box to decipher - the functionality and methodology is out in      the open and accessible to anyone.
-  * Catapult uses the most popular APIs and services; including AWS, Bamboo, Bitbucket, CloudFlare, DigitalOcean, GitHub, and     Vagrant.
+  * Catapult's simplicity is it's strength. There is no black-box to decipher - the functionality and methodology is out in the open and accessible to anyone.
+  * Catapult uses the most popular APIs and services; including AWS, Bamboo, Bitbucket, CloudFlare, DigitalOcean, GitHub, and Vagrant.
 
-Catapult can manage all of this for you through an open-source and well-documented platform, with a developer-focused point of view. We also provide a service and assistance if you need help getting started, or just have a question - just contact us at https://devopsgroup.io. Catapult leverages the Services that you're already using, which collectively, costs $40/month to have a full-stack localDev, Test, Quality Control, and Production environment.
+Catapult manages all of this for you through an open-source and well-documented platform, with a developer-focused point of view. We also provide a service and assistance if you need help getting started, or just have a question - just contact us at https://devopsgroup.io. Catapult leverages the Services that you're already using, which collectively, costs $40/month to have a full-stack localDev, Test, Quality Control, and Production environment.
 
 *Go ahead, give* **Catapult** *a* **shot**.
 
@@ -43,6 +43,7 @@ Catapult can manage all of this for you through an open-source and well-document
     - [Services Setup](#services-setup)
 - [Usage](#usage)
     - [Provision Environments](#provision-environments)
+    - [Configure Automated Deployments](#configure-automated-deployments)
     - [Provision Websites](#provision-websites)
 - [Troubleshooting](#troubleshooting)
 - [Service Justification](#service-justification)
@@ -152,7 +153,7 @@ Catapult uses several third-party services to pull everything off - below is a l
         2. Sign in to your new AWS console https://console.aws.amazon.com
         3. Go to your AWS Identity and Access Management (IAM) Users Dashboard https://console.aws.amazon.com/iam/home#users
             1. Create a "Bamboo" user.
-            2. Please note both the Access Key ID and Secret Access Key.
+            2. **Please note both the Access Key ID and Secret Access Key.**
         4. Go to your AWS Identity and Access Management (IAM) Groups Dashboard https://console.aws.amazon.com/iam/home#groups
             1. Create a "Bamboo" group.
             2. Attach the "AmazonEC2FullAccess" policy to the "Bamboo" group.
@@ -162,12 +163,35 @@ Catapult uses several third-party services to pull everything off - below is a l
     2. **Bamboo** sign-up and configuration
         1. Create a Bamboo Cloud account at https://www.atlassian.com/software/bamboo
         2. Sign in to your new custom Bamboo instance https://[your-name-here].atlassian.net
-        3. Go to your Elastic Bamboo configuration https://[your-name-here].atlassian.net/builds/admin/elastic/editElasticConfig.action
-            1. Set your AWS EC2 "Bamboo" Access Key ID and Secret Access Key
-        4. Place your Bamboo base URL at `~/configuration.yml["company"]["bamboo_base_url"]`, the format should be https://[your-name-here].atlassian.net/builds/
-        5. Place your Bamboo username (usually admin) at `~/configuration.yml["company"]["bamboo_username"]`
-        6. Place your Bamboo password (usually admin) at `~/configuration.yml["company"]["bamboo_password"]`
-        7. Click Create > Create a new plan from the header:
+        3. Place your Bamboo base URL at `~/configuration.yml["company"]["bamboo_base_url"]`, the format should be https://[your-name-here].atlassian.net/builds/
+        4. Place your Bamboo username (usually admin) at `~/configuration.yml["company"]["bamboo_username"]`
+        5. Place your Bamboo password (usually admin) at `~/configuration.yml["company"]["bamboo_password"]`
+        6. Click the settings gear from the top right in the header and select Elastic instances:
+            1. Click Configuration from the left
+            2. Click Edit configuration
+                1. **Amazon Web Services configuration**
+                    1. Set your AWS EC2 "Bamboo" Access Key ID and Secret Access Key
+                    2. Region: `US East (Northern Virginia)`
+                2. **Automatic elastic instance management**
+                    1. Elastic instance management: `Custom`
+                    2. Idle agent shutdown delay: `10`
+                    3. Allowed non-Bamboo instances: `1`
+                    4. Maximum number of instances to start at once: `2`
+                    5. Number of builds in queue threshold: `1`
+                    6. Number of elastic builds in queue threshold: `1`
+                    7. Average queue time threshold: `2`
+                3. Click Save
+        7. Click the settings gear from the top right in the header and select Elastic instances:
+            1. Click Image configurations from the left
+                1. Disable all of the elastic images
+                2. Create elastic image configuration:
+                    1. Name: `Catapult`
+                    2. AMI ID: `ami-eb5b8080`
+                    3. Instance type: `T2 Burstable Performance Micro`
+                    4. Availability Zone: `Chosen by EC2`
+                    5. Product: `Linux/UNIX`
+                    6. Click Save
+        8. Click Create > Create a new plan from the header:
             1. **Create Catapult Project and create TEST Plan**
                 * *Project and build plan name*
                     1. Project > New Project
@@ -235,7 +259,7 @@ Catapult uses several third-party services to pull everything off - below is a l
 
 # Usage #
 
-To use Catapult you will first need to [Provision Environments](#provision-environments) then [Provision Websites](#provision-websites).
+To use Catapult you will need to [Provision Environments](#provision-environments), [Configure Automated Deployments](#configure-automated-deployments), then [Provision Websites](#provision-websites).
 
 
 
@@ -247,6 +271,7 @@ To use Catapult you will first need to [Provision Environments](#provision-envir
 | **Server Provisioning**       | Manually via Vagrant                                        | Manually via Vagrant                                          | Manually via Vagrant                                          | Manually via Vagrant                                          |
 
 For each **Environment** you will need to:
+
 * **Web Servers**
     * `vagrant up ~/configuration.yml["company"]["name"]-dev-redhat`
     * `vagrant up ~/configuration.yml["company"]["name"]-test-redhat`
@@ -257,6 +282,76 @@ For each **Environment** you will need to:
     * `vagrant up ~/configuration.yml["company"]["name"]-test-redhat-mysql`
     * `vagrant up ~/configuration.yml["company"]["name"]-qc-redhat-mysql`
     * `vagrant up ~/configuration.yml["company"]["name"]-production-redhat-mysql`
+
+
+
+## Configure Automated Deployments ##
+
+Once the Web and Database Servers are up and running, it's then time to configure your Bamboo Catapult project's TEST, QC, and PROD plans.
+
+1. Sign in to your new custom Bamboo instance https://[your-name-here].atlassian.net
+2. Click Build > All build plans from the header:
+3. From the Build Dashboard and under the Catapult project:
+    * **Configure Catapult Project TEST Plan**
+        1. Click the edit icon for the TEST plan
+        2. From the Stages tab, select Default Job
+        3. Remove all tasks that may have been added by default during initial setup
+        4. Click Add task
+            1. Search for SSH Task and select it
+            2. Host: `~/configuration.yml["environments"]["test"]["servers"]["redhat"]["ip"]`
+            3. Username: `root`
+            4. Authentication Type: `Key without passphrase`
+            5. SSH Key: `~/secrets/id_rsa`
+            6. SSH command: `bash /catapult/provisioners/redhat/provision.sh "test" "https://github.com/[your-name-here]/catapult-release-management" "~/configuration-user.yml["settings"]["gpg_key"]" "apache"`
+            7. Click Save
+        5. Click Add task
+            1. Search for SSH Task and select it
+            2. Host: `~/configuration.yml["environments"]["test"]["servers"]["redhat_mysql"]["ip"]`
+            3. Username: `root`
+            4. Authentication Type: `Key without passphrase`
+            5. SSH Key: `~/secrets/id_rsa`
+            6. SSH command: `bash /catapult/provisioners/redhat/provision.sh "test" "https://github.com/[your-name-here]/catapult-release-management" "~/configuration-user.yml["settings"]["gpg_key"]" "mysql"`
+            7. Click Save
+    * **Configure Catapult Project QC Plan**
+        1. Click the edit icon for the QC plan
+        2. From the Stages tab, select Default Job
+        3. Remove all tasks that may have been added by default during initial setup
+        4. Click Add task
+            1. Search for SSH Task and select it
+            2. Host: `~/configuration.yml["environments"]["qc"]["servers"]["redhat"]["ip"]`
+            3. Username: `root`
+            4. Authentication Type: `Key without passphrase`
+            5. SSH Key: `~/secrets/id_rsa`
+            6. SSH command: `bash /catapult/provisioners/redhat/provision.sh "qc" "https://github.com/[your-name-here]/catapult-release-management" "~/configuration-user.yml["settings"]["gpg_key"]" "apache"`
+            7. Click Save
+        5. Click Add task
+            1. Search for SSH Task and select it
+            2. Host: `~/configuration.yml["environments"]["qc"]["servers"]["redhat_mysql"]["ip"]`
+            3. Username: `root`
+            4. Authentication Type: `Key without passphrase`
+            5. SSH Key: `~/secrets/id_rsa`
+            6. SSH command: `bash /catapult/provisioners/redhat/provision.sh "qc" "https://github.com/[your-name-here]/catapult-release-management" "~/configuration-user.yml["settings"]["gpg_key"]" "mysql"`
+            7. Click Save
+    * **Configure Catapult Project PRODUCTION Plan**
+        1. Click the edit icon for the PRODUCTION plan
+        2. From the Stages tab, select Default Job
+        3. Remove all tasks that may have been added by default during initial setup
+        4. Click Add task
+            1. Search for SSH Task and select it
+            2. Host: `~/configuration.yml["environments"]["production"]["servers"]["redhat"]["ip"]`
+            3. Username: `root`
+            4. Authentication Type: `Key without passphrase`
+            5. SSH Key: `~/secrets/id_rsa`
+            6. SSH command: `bash /catapult/provisioners/redhat/provision.sh "production" "https://github.com/[your-name-here]/catapult-release-management" "~/configuration-user.yml["settings"]["gpg_key"]" "apache"`
+            7. Click Save
+        5. Click Add task
+            1. Search for SSH Task and select it
+            2. Host: `~/configuration.yml["environments"]["production"]["servers"]["redhat_mysql"]["ip"]`
+            3. Username: `root`
+            4. Authentication Type: `Key without passphrase`
+            5. SSH Key: `~/secrets/id_rsa`
+            6. SSH command: `bash /catapult/provisioners/redhat/provision.sh "production" "https://github.com/your-name-here/catapult-release-management" "~/configuration-user.yml["settings"]["gpg_key"]" "mysql"`
+            7. Click Save
 
 
 

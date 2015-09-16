@@ -7,15 +7,21 @@
 # $2 => repository
 # $3 => gpg key
 # $4 => instance
-# $5 => software_validation
 
 
 
-echo -e "==> Updating existing packages and installing utilities"
+echo -e "\n\n\n==> Updating existing packages and installing utilities"
 start=$(date +%s)
 source /catapult/provisioners/redhat/modules/system.sh
 end=$(date +%s)
-echo "==> completed in ($(($end - $start)) seconds)"
+echo -e "\n==> completed in ($(($end - $start)) seconds)"
+
+
+echo -e "\n\n\n==> Configuring IPTables"
+start=$(date +%s)
+#source /catapult/provisioners/redhat/modules/iptables.sh
+end=$(date +%s)
+echo -e "\n==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n\n==> Configuring time"
@@ -24,14 +30,14 @@ source /catapult/provisioners/redhat/modules/time.sh
 provisionstart=$(date +%s)
 sudo touch /catapult/provisioners/redhat/logs/mysql.log
 end=$(date +%s)
-echo "==> completed in ($(($end - $start)) seconds)"
+echo -e "\n==> completed in ($(($end - $start)) seconds)"
 
 
-echo -e "\n\n==> Installing software tools"
+echo -e "\n\n\n==> Installing software tools"
 start=$(date +%s)
 source /catapult/provisioners/redhat/modules/software_tools.sh
 end=$(date +%s)
-echo "==> completed in ($(($end - $start)) seconds)"
+echo -e "\n==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n\n==> Installing MySQL"
@@ -51,18 +57,18 @@ end=$(date +%s)
 echo -e "\n==> completed in ($(($end - $start)) seconds)"
 
 
-echo -e "\n\n==> RSyncing files"
+echo -e "\n\n\n==> RSyncing files"
 start=$(date +%s)
 source /catapult/provisioners/redhat/modules/rsync.sh
 end=$(date +%s)
-echo "==> completed in ($(($end - $start)) seconds)"
+echo -e "\n==> completed in ($(($end - $start)) seconds)"
 
 
-echo -e "\n\n==> Generating software database config files"
+echo -e "\n\n\n==> Generating software database config files"
 start=$(date +%s)
 source /catapult/provisioners/redhat/modules/software_database_config.sh
 end=$(date +%s)
-echo "==> completed in ($(($end - $start)) seconds)"
+echo -e "\n==> completed in ($(($end - $start)) seconds)"
 
 
 echo -e "\n\n\n==> Configuring MySQL"
@@ -85,10 +91,6 @@ fi
 mysql --defaults-extra-file=$dbconf -e "DELETE FROM mysql.user WHERE user='root' AND host NOT IN ('localhost', '127.0.0.1', '::1')"
 # remove anonymous user
 mysql --defaults-extra-file=$dbconf -e "DELETE FROM mysql.user WHERE user=''"
-
-# configure outside access to mysql
-iptables -I INPUT -p tcp --dport 3306 -m state --state NEW,ESTABLISHED -j ACCEPT
-iptables -I OUTPUT -p tcp --sport 3306 -m state --state ESTABLISHED -j ACCEPT
 
 # clear out all users except root
 mysql --defaults-extra-file=$dbconf -e "DELETE FROM mysql.user WHERE user!='root'"
@@ -166,6 +168,13 @@ while IFS='' read -r -d '' key; do
             # dump the database as long as it hasn't been dumped for the day already
             # @todo this is intended so that a developer can commit a dump from active work in localdev then the process detect this and kick off the restore rather than dump workflow
             if ! [ -f /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql ]; then
+                # flush meta tables before mysqldump to cut size, prevent potential issues restoring, and good house cleaning
+                if ([ "${software}" = "drupal6" ] || [ "${software}" = "drupal7" ]); then
+                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush watchdog-delete all -y | sed "s/^/\t\t/"
+                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush cache-clear all -y | sed "s/^/\t\t/"
+                elif [ "${software}" = "wordpress" ]; then
+                    php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root cache flush
+                fi
                 mkdir -p "/var/www/repositories/apache/${domain}/_sql"
                 mysqldump --defaults-extra-file=$dbconf --single-transaction --quick ${1}_${domainvaliddbname} > /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql
                 # ensure no more than 500mb or at least the one, newest, .sql file exists
@@ -202,7 +211,7 @@ while IFS='' read -r -d '' key; do
             cd "/var/www/repositories/apache/${domain}" && git checkout $(echo "${configuration}" | shyaml get-value environments.${1}.branch) 2>&1 | sed "s/^/\t/"
         else
             if [ -z "${software_dbexist}" ]; then
-                echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, however this is a new website and the database does not exist, performing a database restore"
+                echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, however, the database does not exist. performing a database restore"
             else
                 echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, performing a database restore"
             fi

@@ -636,13 +636,22 @@ configuration["environments"].each do |environment,data|
     droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"].downcase}-#{environment}-redhat" }
     # if redhat digitalocean droplet has been created
     if droplet != nil
+      droplet_ip = droplet["networks"]["v4"].find { |element| element["type"] == "public" }
+      droplet_ip_private = droplet["networks"]["v4"].find { |element| element["type"] == "private" }
       puts " * DigitalOcean droplet #{configuration["company"]["name"].downcase}-#{environment}-redhat has been found."
       puts "   - [status] #{droplet["status"]} [memory] #{droplet["size"]["memory"]} [vcpus] #{droplet["size"]["vcpus"]} [disk] #{droplet["size"]["disk"]} [$/month] $#{droplet["size"]["price_monthly"]}"
       puts "   - [created] #{droplet["created_at"]} [slug] #{droplet["size"]["slug"]} [region] #{droplet["region"]["name"]} [kernel] #{droplet["kernel"]["name"]}"
-      puts "   - [ipv4] #{droplet["networks"]["v4"].first["ip_address"]} [ipv6] #{droplet["networks"]["v6"].first["ip_address"]}"
-      # get ip address and write to secrets/configuration.yml
-      unless configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
-        configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
+      puts "   - [ipv4_public] #{droplet_ip["ip_address"]} [ipv4_private] #{droplet_ip_private["ip_address"]}"
+      # get public ip address and write to secrets/configuration.yml
+      unless configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] == droplet_ip["ip_address"]
+        configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip"] = "#{droplet_ip["ip_address"]}"
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+      # get private ip address and write to secrets/configuration.yml
+      unless configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip_private"] == droplet_ip_private["ip_address"]
+        configuration["environments"]["#{environment}"]["servers"]["redhat"]["ip_private"] = "#{droplet_ip_private["ip_address"]}"
         `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
         File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
         `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
@@ -667,13 +676,22 @@ configuration["environments"].each do |environment,data|
     droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{configuration["company"]["name"].downcase}-#{environment}-redhat-mysql" }
     # if redhat_mysql digitalocean droplet has been created
     if droplet != nil
+      droplet_ip = droplet["networks"]["v4"].find { |element| element["type"] == "public" }
+      droplet_ip_private = droplet["networks"]["v4"].find { |element| element["type"] == "private" }
       puts " * DigitalOcean droplet #{configuration["company"]["name"].downcase}-#{environment}-redhat_mysql has been found."
       puts "   - [status] #{droplet["status"]} [memory] #{droplet["size"]["memory"]} [vcpus] #{droplet["size"]["vcpus"]} [disk] #{droplet["size"]["disk"]} [$/month] $#{droplet["size"]["price_monthly"]}"
       puts "   - [created] #{droplet["created_at"]} [slug] #{droplet["size"]["slug"]} [region] #{droplet["region"]["name"]} [kernel] #{droplet["kernel"]["name"]}"
-      puts "   - [ipv4] #{droplet["networks"]["v4"].first["ip_address"]} [ipv6] #{droplet["networks"]["v6"].first["ip_address"]}"
-      # get ip address and write to secrets/configuration.yml
-      unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] == droplet["networks"]["v4"].first["ip_address"]
-        configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] = droplet["networks"]["v4"].first["ip_address"]
+      puts "   - [ipv4_public] #{droplet_ip["ip_address"]} [ipv4_private] #{droplet_ip_private["ip_address"]}"
+      # get public ip address and write to secrets/configuration.yml
+      unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] == droplet_ip["ip_address"]
+        configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip"] = "#{droplet_ip["ip_address"]}"
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+      # get private ip address and write to secrets/configuration.yml
+      unless configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip_private"] == droplet_ip_private["ip_address"]
+        configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["ip_private"] = "#{droplet_ip_private["ip_address"]}"
         `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
         File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
         `gpg --verbose --batch --yes --passphrase "#{configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
@@ -1280,12 +1298,24 @@ if ["status"].include?(ARGV[0])
                 response = Net::HTTP.get_response(URI(uri_str))
                 case response
                 when Net::HTTPSuccess then
-                  return response.code
+                  if response.code.to_f.between?(200,399)
+                    return response.code.color(Colors::GREEN)
+                  elsif response.code.to_f.between?(400,499)
+                    return response.code.color(Colors::YELLOW)
+                  elsif response.code.to_f.between?(500,599)
+                    return response.code.color(Colors::RED)
+                  end
                 when Net::HTTPRedirection then
                   location = response['location']
                   http_repsonse(location, limit - 1)
                 else
-                  return response.code
+                  if response.code.to_f.between?(200,399)
+                    return response.code.color(Colors::GREEN)
+                  elsif response.code.to_f.between?(400,499)
+                    return response.code.color(Colors::YELLOW)
+                  elsif response.code.to_f.between?(500,599)
+                    return response.code.color(Colors::RED)
+                  end
                 end
               end
             end
@@ -1295,17 +1325,17 @@ if ["status"].include?(ARGV[0])
               row.push(http_repsonse("http://#{environment}#{instance["domain"]}.#{instance["domain_tld_override"]}").ljust(4))
             end
           rescue SocketError
-            row.push("down".ljust(4))
+            row.push("down".color(Colors::RED).ljust(4))
           rescue Errno::ECONNREFUSED
-            row.push("down".ljust(4))
+            row.push("down".color(Colors::RED).ljust(4))
           rescue EOFError
-            row.push("down".ljust(4))
+            row.push("down".color(Colors::RED).ljust(4))
           rescue Net::ReadTimeout
-            row.push("down".ljust(4))
+            row.push("down".color(Colors::RED).ljust(4))
           rescue OpenSSL::SSL::SSLError
-            row.push("err".ljust(4))
+            row.push("err".color(Colors::RED).ljust(4))
           rescue Exception => ex
-            row.push("#{ex.class}".ljust(4))
+            row.push("#{ex.class}".color(Colors::RED).ljust(4))
           end
           # nslookup production top-level domain
           begin
@@ -1315,7 +1345,7 @@ if ["status"].include?(ARGV[0])
               row.push((Resolv.getaddress "#{environment}#{instance["domain"]}.#{instance["domain_tld_override"]}").ljust(16))
             end
           rescue
-            row.push("down".ljust(16))
+            row.push("down".ljust(15).color(Colors::RED))
           end
         end
         # ssl cert lookup
@@ -1338,7 +1368,7 @@ if ["status"].include?(ARGV[0])
             row.push("#{date.strftime('%F')} #{cert.signature_algorithm} #{cert.subject.to_a.select{|name, _, _| name == 'CN' }.first[1]}".downcase.ljust(57))
           end
         rescue SocketError
-          row.push("down".ljust(57))
+          row.push("down".ljust(57).color(Colors::RED))
         rescue Errno::ECONNREFUSED
           row.push("connection refused".ljust(57))
         rescue Errno::ECONNRESET
@@ -1387,7 +1417,7 @@ Vagrant.configure("2") do |config|
     config.hostmanager.aliases = redhathostsfile
     config.vm.synced_folder ".", "/vagrant", disabled: true
     config.vm.synced_folder ".", "/catapult", type: "nfs"
-    # this takes place of git clones
+    # sym link the git clones for local access
     config.vm.synced_folder "repositories", "/var/www/repositories", type: "nfs"
     config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["dev","#{repo}","#{configuration_user["settings"]["gpg_key"]}","apache","#{configuration_user["settings"]["software_validation"]}"]
   end
@@ -1400,7 +1430,7 @@ Vagrant.configure("2") do |config|
     end
     config.vm.synced_folder ".", "/vagrant", disabled: true
     config.vm.synced_folder ".", "/catapult", type: "nfs"
-    # this takes place of git clones
+    # sym link the git clones for local access
     config.vm.synced_folder "repositories", "/var/www/repositories", type: "nfs"
     config.vm.provision :hostmanager
     config.vm.provision "shell", path: "provisioners/redhat/provision.sh", args: ["dev","#{repo}","#{configuration_user["settings"]["gpg_key"]}","mysql","#{configuration_user["settings"]["software_validation"]}"]
@@ -1417,6 +1447,7 @@ Vagrant.configure("2") do |config|
       provider.region = "nyc3"
       provider.size = "#{configuration["environments"]["test"]["servers"]["redhat"]["slug"]}"
       provider.ipv6 = true
+      provider.private_networking = true
       provider.backups_enabled = true
     end
     config.vm.synced_folder ".", "/vagrant", disabled: true
@@ -1432,6 +1463,7 @@ Vagrant.configure("2") do |config|
       provider.region = "nyc3"
       provider.size = "#{configuration["environments"]["test"]["servers"]["redhat_mysql"]["slug"]}"
       provider.ipv6 = true
+      provider.private_networking = true
       provider.backups_enabled = true
     end
     config.vm.synced_folder ".", "/vagrant", disabled: true
@@ -1449,6 +1481,7 @@ Vagrant.configure("2") do |config|
       provider.region = "nyc3"
       provider.size = "#{configuration["environments"]["qc"]["servers"]["redhat"]["slug"]}"
       provider.ipv6 = true
+      provider.private_networking = true
       provider.backups_enabled = true
     end
     config.vm.synced_folder ".", "/vagrant", disabled: true
@@ -1464,6 +1497,7 @@ Vagrant.configure("2") do |config|
       provider.region = "nyc3"
       provider.size = "#{configuration["environments"]["qc"]["servers"]["redhat_mysql"]["slug"]}"
       provider.ipv6 = true
+      provider.private_networking = true
       provider.backups_enabled = true
     end
     config.vm.synced_folder ".", "/vagrant", disabled: true
@@ -1481,6 +1515,7 @@ Vagrant.configure("2") do |config|
       provider.region = "nyc3"
       provider.size = "#{configuration["environments"]["production"]["servers"]["redhat"]["slug"]}"
       provider.ipv6 = true
+      provider.private_networking = true
       provider.backups_enabled = true
     end
     config.vm.synced_folder ".", "/vagrant", disabled: true
@@ -1496,6 +1531,7 @@ Vagrant.configure("2") do |config|
       provider.region = "nyc3"
       provider.size = "#{configuration["environments"]["production"]["servers"]["redhat_mysql"]["slug"]}"
       provider.ipv6 = true
+      provider.private_networking = true
       provider.backups_enabled = true
     end
     config.vm.synced_folder ".", "/vagrant", disabled: true
