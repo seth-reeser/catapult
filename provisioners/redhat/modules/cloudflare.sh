@@ -1,3 +1,5 @@
+source "/catapult/provisioners/redhat/modules/catapult.sh"
+
 if [ "$1" = "dev" ]; then
 
     echo -e "\t * skipping cloudflare as global dns is not required in dev..."
@@ -427,18 +429,6 @@ else
             --data "{\"value\":\"on\"}")
             if [ "$(echo "${cloudflare_zone_tls_client_auth}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["success"]' )" == "False" ]; then
                 echo "${cloudflare_zone_tls_client_auth}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["errors"][0]["message"]' | sed "s/^/\t\t/"
-            else
-                echo "success" | sed "s/^/\t\t/"
-            fi
-
-            echo "* clearing cloudflare zone cache" | sed "s/^/\t/"
-            cloudflare_zone_cache=$(curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${cloudflare_zone_id}/purge_cache"\
-            -H "X-Auth-Email: ${cloudflare_email}"\
-            -H "X-Auth-Key: ${cloudflare_api_key}"\
-            -H "Content-Type: application/json"\
-            --data "{\"purge_everything\":true}")
-            if [ "$(echo "${cloudflare_zone_cache}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["success"]' )" == "False" ]; then
-                echo "${cloudflare_zone_cache}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["errors"][0]["message"]' | sed "s/^/\t\t/"
             else
                 echo "success" | sed "s/^/\t\t/"
             fi

@@ -1,40 +1,13 @@
-#!/usr/bin/env bash
+source "/catapult/provisioners/redhat/modules/catapult.sh"
 
+# install apache
+sudo yum install -y httpd
+sudo systemctl enable httpd.service
+sudo systemctl start httpd.service
+sudo yum install -y mod_ssl
+sudo bash /etc/ssl/certs/make-dummy-cert "/etc/ssl/certs/httpd-dummy-cert.key.cert"
 
-
-# variables inbound from provisioner args
-# $1 => environment
-# $2 => repository
-# $3 => gpg key
-# $4 => instance
-
-
-
-echo -e "\n\n\n==> Updating existing packages and installing utilities"
-start=$(date +%s)
-source /catapult/provisioners/redhat/modules/system.sh
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> Configuring IPTables"
-start=$(date +%s)
-#source /catapult/provisioners/redhat/modules/iptables.sh
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> Configuring time"
-start=$(date +%s)
-source /catapult/provisioners/redhat/modules/time.sh
-provisionstart=$(date +%s)
-sudo touch /catapult/provisioners/redhat/logs/apache.log
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> Installing PHP"
-start=$(date +%s)
+# install php
 #@todo think about having directive per website that lists php module dependancies
 sudo yum install -y php
 sudo yum install -y php-mysql
@@ -43,59 +16,7 @@ sudo yum install -y php-gd
 sudo yum install -y php-dom
 sudo yum install -y php-mbstring
 sed -i -e "s#\;date\.timezone.*#date.timezone = \"$(echo "${configuration}" | shyaml get-value company.timezone_redhat)\"#g" /etc/php.ini
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
 
-
-echo -e "\n\n\n==> Installing software tools"
-start=$(date +%s)
-source /catapult/provisioners/redhat/modules/software_tools.sh
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> Installing Apache"
-start=$(date +%s)
-# install httpd
-sudo yum install -y httpd
-sudo systemctl enable httpd.service
-sudo systemctl start httpd.service
-sudo yum install -y mod_ssl
-sudo bash /etc/ssl/certs/make-dummy-cert "/etc/ssl/certs/httpd-dummy-cert.key.cert"
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> Configuring git repositories (This may take a while...)"
-start=$(date +%s)
-source /catapult/provisioners/redhat/modules/git.sh
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> RSyncing files"
-start=$(date +%s)
-source /catapult/provisioners/redhat/modules/rsync.sh
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> Generating software database config files"
-start=$(date +%s)
-source /catapult/provisioners/redhat/modules/software_database_config.sh
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> Configuring CloudFlare"
-start=$(date +%s)
-source /catapult/provisioners/redhat/modules/cloudflare.sh
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> Configuring Apache"
-start=$(date +%s)
 # set variables from secrets/configuration.yml
 mysql_user="$(echo "${configuration}" | shyaml get-value environments.$1.servers.redhat_mysql.mysql.user)"
 mysql_user_password="$(echo "${configuration}" | shyaml get-value environments.$1.servers.redhat_mysql.mysql.user_password)"
@@ -319,48 +240,14 @@ EOF
         sudo ln -s /etc/httpd/sites-available/$domain_environment.conf /etc/httpd/sites-enabled/$domain_environment.conf
     fi
 
-    # set ownership of uploads directory in upstream servers
-    if [ "$1" != "dev" ]; then
-        if [ "$software" = "drupal6" ]; then
-            if [ -d "/var/www/repositories/apache/${domain}/${webroot}sites/default/files" ]; then
-                echo -e "\t * setting permissions for $software upload directory ~/sites/default/files"
-                sudo chown -R apache /var/www/repositories/apache/${domain}/${webroot}sites/default/files
-                sudo chmod -R 0700 /var/www/repositories/apache/${domain}/${webroot}sites/default/files
-            fi
-        elif [ "$software" = "drupal7" ]; then
-            if [ -d "/var/www/repositories/apache/${domain}/${webroot}sites/default/files" ]; then
-                echo -e "\t * setting permissions for $software upload directory ~/sites/default/files"
-                sudo chown -R apache /var/www/repositories/apache/${domain}/${webroot}sites/default/files
-                sudo chmod -R 0700 /var/www/repositories/apache/${domain}/${webroot}sites/default/files
-            fi
-        elif [ "$software" = "wordpress" ]; then
-            if [ -d "/var/www/repositories/apache/${domain}/${webroot}wp-content/uploads" ]; then
-                echo -e "\t * setting permissions for $software upload directory ~/wp-content/uploads"
-                sudo chown -R apache /var/www/repositories/apache/${domain}/${webroot}wp-content/uploads
-                sudo chmod -R 0700 /var/www/repositories/apache/${domain}/${webroot}wp-content/uploads
-            fi
-        fi
-    fi
-
 done
 
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-echo -e "\n\n\n==> Restarting Apache"
-start=$(date +%s)
-sudo apachectl graceful
-# sometimes there are zombie processes left over, httpd graceful cleans this up properly? (service httpd only supports start|stop|restart)
-sudo service httpd graceful
-sudo service httpd configtest
-sudo systemctl is-active httpd.service
-end=$(date +%s)
-echo -e "\n==> completed in ($(($end - $start)) seconds)"
-
-
-provisionend=$(date +%s)
-echo -e "\n\n==> Provision complete ($(($provisionend - $provisionstart)) total seconds)"
-
-
-exit 0
+# reload apache
+sudo systemctl reload httpd.service
+if [ $? -eq 0 ]; then
+  echo "'sudo systemctl reload httpd.service' was successful"
+else
+  echo "'sudo systemctl reload httpd.service' was unsuccessful, trying 'sudo apachectl -k graceful'"
+  sudo apachectl -k graceful
+fi
+sudo systemctl status httpd.service
