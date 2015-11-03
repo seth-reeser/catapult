@@ -2,43 +2,57 @@
 redhat:
     modules:
         apache:
+          configuration: true
           description: "Installs and configures Apache HTTP daemon, then configures virtual hosts for websites."
-          configuration: true
-        catapult:
-          description: "Decrypts Catapult secrets."
+          multithreading: false
         cloudflare:
-          description: "Configures DNS via the CloudFlare API for websites."
           configuration: true
+          description: "Configures DNS via the CloudFlare API for websites."
+          multithreading: false
         cloudflare_cache:
-          description: "Clears CloudFlare cache for websites."
           configuration: false
+          description: "Clears CloudFlare zone cache for websites."
+          multithreading: true
         git:
+          configuration: false
           description: "Clones Git repositories for websites."
-          configuration: false
+          multithreading: true
+        git_clean:
+          configuration: true
+          description: "Removes Git repositories for websites."
+          multithreading: false
         iptables:
+          configuration: false
           description: "Configures firewall via IPTables to only allow necessary traffic."
-          configuration: false
+          multithreading: false
         mysql:
+          configuration: false
           description: "Installs and configures MariaDB server, then configures databases for websites with software."
-          configuration: false
+          multithreading: false
         rsync:
+          configuration: false
           description: "Copies meta files contingent on the software_workflow for websites with software."
-          configuration: false
+          multithreading: true
         software_config:
+          configuration: false
           description: "Creates database configuration files and sets upload directory permissions for websites with software."
-          configuration: false
+          multithreading: false
         software_tools:
+          configuration: false
           description: "Installs and configures software CLI tools."
-          configuration: false
+          multithreading: false
         system:
+          configuration: false
           description: "Installs and configures initial system requirements."
-          configuration: false
+          multithreading: false
         time:
-          description: "Installs and configures NTP daemon based on the company timezone."
           configuration: false
+          description: "Installs and configures NTP daemon based on the company timezone."
+          multithreading: false
     servers:
         redhat:
-            modules: ["system","iptables","time","software_tools","git","rsync","software_config","apache","cloudflare","cloudflare_cache"]
-        redhat_mysql:
-            modules: ["system","iptables","time","software_tools","git","rsync","software_config","mysql"]
+          apache:
+            modules: ["system","iptables","time","software_tools","git_clean","git","rsync","software_config","apache","cloudflare","cloudflare_cache"]
+          mysql:
+            modules: ["system","iptables","time","software_tools","git_clean","git","software_config","mysql"]
 windows:
