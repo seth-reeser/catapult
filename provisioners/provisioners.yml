@@ -2,16 +2,28 @@
 redhat:
     modules:
         apache:
-          configuration: true
-          description: "Installs and configures Apache HTTP daemon, then configures virtual hosts for websites."
+          configuration: false
+          description: "Installs and configures Apache HTTP daemon."
           multithreading: false
-        cloudflare:
+        apache_vhosts_clean:
           configuration: true
-          description: "Configures DNS via the CloudFlare API for websites."
+          description: "Removes virtual hosts for websites."
+          multithreading: false
+        apache_vhosts:
+          configuration: true
+          description: "Configures virtual hosts for websites."
           multithreading: false
         cloudflare_cache:
           configuration: false
           description: "Clears CloudFlare zone cache for websites."
+          multithreading: true
+        cloudflare_dns:
+          configuration: true
+          description: "Configures CloudfFlare DNS A records for websites."
+          multithreading: true
+        cloudflare_zones:
+          configuration: true
+          description: "Configures CloudfFlare zone for websites."
           multithreading: true
         git:
           configuration: false
@@ -29,6 +41,10 @@ redhat:
           configuration: false
           description: "Installs and configures MariaDB server, then configures databases for websites with software."
           multithreading: false
+        php:
+          configuration: false
+          description: "Installs and updates PHP and PHP modules."
+          multithreading: false
         rsync:
           configuration: false
           description: "Copies meta files contingent on the software_workflow for websites with software."
@@ -36,7 +52,7 @@ redhat:
         software_config:
           configuration: false
           description: "Creates database configuration files and sets upload directory permissions for websites with software."
-          multithreading: false
+          multithreading: true
         software_tools:
           configuration: false
           description: "Installs and configures software CLI tools."
@@ -52,7 +68,7 @@ redhat:
     servers:
         redhat:
           apache:
-            modules: ["system","iptables","time","software_tools","git_clean","git","rsync","software_config","apache","cloudflare","cloudflare_cache"]
+            modules: ["system","iptables","time","software_tools","git_clean","git","rsync","software_config","php","apache","apache_vhosts_clean","apache_vhosts","cloudflare_zones","cloudflare_dns","cloudflare_cache"]
           mysql:
             modules: ["system","iptables","time","software_tools","git_clean","git","software_config","mysql"]
 windows:
