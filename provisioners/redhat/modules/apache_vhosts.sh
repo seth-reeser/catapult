@@ -80,9 +80,18 @@ while IFS='' read -r -d '' key; do
     fi
     # handle the force_https option
     if [ "${force_https}" = true ]; then
+        force_http_value=""
         force_https_value="Redirect Permanent / https://${domain_environment}"
     else
+        force_http_value="Redirect Permanent / http://${domain_environment}"
         force_https_value=""
+    fi
+    # enable cors for localdev http response codes from dashboard
+    if [ "$1" = "dev" ]; then
+        cors="SetEnvIf Origin \"^(.*\.?devopsgroup\.io)$\" ORIGIN_SUB_DOMAIN=\$1
+        Header set Access-Control-Allow-Origin \"%{ORIGIN_SUB_DOMAIN}e\" env=ORIGIN_SUB_DOMAIN"
+    else
+        cors=""
     fi
     # write vhost apache conf file
     sudo cat > /etc/httpd/sites-available/$domain_environment.conf << EOF
@@ -97,6 +106,7 @@ while IFS='' read -r -d '' key; do
         DocumentRoot /var/www/repositories/apache/$domain/$webroot
         ErrorLog /var/log/httpd/$domain_environment/error.log
         CustomLog /var/log/httpd/$domain_environment/access.log combined
+        LogLevel warn
         $force_auth_value
         $force_https_value
     </VirtualHost> 
@@ -109,10 +119,32 @@ while IFS='' read -r -d '' key; do
             DocumentRoot /var/www/repositories/apache/$domain/$webroot
             ErrorLog /var/log/httpd/$domain_environment/error.log
             CustomLog /var/log/httpd/$domain_environment/access.log combined
+            LogLevel warn
             SSLEngine on
+            # allow only secure protocols for client to connect
+            # SSLv2: FUBAR
+            # SSLv3: POODLE
+            SSLProtocol all -SSLv2 -SSLv3
+            # SSLCompression: CRIME
+            SSLCompression off
+            # add support for HSTS
+            # HSTS: SSLstrip, MITM
+            # Firefox 4, Chrome 4, IE 11, Opera 12, Safari (OS X 10.9)
+            Header always set Strict-Transport-Security "max-age=15768000"
+            # allow only secure ciphers that client can negotiate
+            # https://wiki.mozilla.org/Security/Server_Side_TLS
+            # Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1
+            SSLHonorCipherOrder On
+            SSLCipherSuite ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA
+            # disable the SSL_ environment variable (usually CGI and SSI requests only)
+            SSLOptions -StdEnvVars
+            # help old browsers
+            BrowserMatch "MSIE [2-5]" nokeepalive ssl-unclean-shutdown downgrade-1.0 force-response-1.0
+            # set the server certificate
             SSLCertificateFile /etc/ssl/certs/httpd-dummy-cert.key.cert
             SSLCertificateKeyFile /etc/ssl/certs/httpd-dummy-cert.key.cert
             $force_auth_value
+            $force_http_value
         </VirtualHost>
     </IfModule>
 
@@ -120,6 +152,7 @@ while IFS='' read -r -d '' key; do
     <Directory "/var/www/repositories/apache/$domain/${webroot}">
         AllowOverride All
         Options -Indexes +FollowSymlinks
+        $cors
     </Directory>
 
     # deny access to _sql folders
