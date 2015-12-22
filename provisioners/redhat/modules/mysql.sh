@@ -43,16 +43,32 @@ for database in $(mysql --defaults-extra-file=$dbconf -e "show databases" | egre
     fi
 done
 
-# create mysql user
+# clear and create mysql user
 # @todo user per db? 16 char limit
 mysql --defaults-extra-file=$dbconf -e "GRANT USAGE ON *.* TO '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%'"
 mysql --defaults-extra-file=$dbconf -e "DROP USER '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%'"
 mysql --defaults-extra-file=$dbconf -e "CREATE USER '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%' IDENTIFIED BY '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user_password)'"
 
-# create maintenance user
+# clear and create maintenance user
 mysql --defaults-extra-file=$dbconf -e "GRANT USAGE ON *.* TO 'maintenance'@'%'"
 mysql --defaults-extra-file=$dbconf -e "DROP USER 'maintenance'@'%'"
 mysql --defaults-extra-file=$dbconf -e "CREATE USER 'maintenance'@'%'"
+
+# apply mysql and maintenance user grant to website => software databases
+echo "${configuration}" | shyaml get-values-0 websites.apache |
+while IFS='' read -r -d '' key; do
+
+    domainvaliddbname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_")
+    software=$(echo "$key" | grep -w "software" | cut -d ":" -f 2 | tr -d " ")
+
+    if test -n "${software}"; then
+        # grant mysql user to database
+        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%'";
+        # grant maintenance user to database
+        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO 'maintenance'@'%'";
+    fi
+
+done
 
 # flush privileges
 mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
@@ -83,12 +99,6 @@ while IFS='' read -r -d '' key; do
     if ! test -n "${software}"; then
         echo -e "\t* this website has no software setting, skipping database workflow"
     else
-        # grant mysql user to database
-        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%'";
-        # grant maintenance user to database
-        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO 'maintenance'@'%'";
-        # flush privileges
-        mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
         # respect software_workflow option
         if ([ "${1}" = "production" ] && [ "${software_workflow}" = "downstream" ] && [ "${software_db}" != "" ] && [ "${software_db_tables}" != "0" ]) || ([ "${1}" = "test" ] && [ "${software_workflow}" = "upstream" ] && [ "${software_db}" != "" ] && [ "${software_db_tables}" != "0" ]); then
             echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, performing a database backup"
@@ -178,12 +188,18 @@ while IFS='' read -r -d '' key; do
                         echo -e "\t\t\trestoring..."
                         # support domain_tld_override for URL replacements
                         if [ -z "${domain_tld_override}" ]; then
+                            # create replace string and make sure to escape periods
+                            domain_url_replace=$(echo -e "${domain}" | sed 's/\./\\./g')
+                            # create string of final url
                             if [ "${1}" = "production" ]; then
                                 domain_url="${domain}"
                             else
                                 domain_url="${1}.${domain}"
                             fi
                         else
+                            # create replace string and make sure to escape periods
+                            domain_url_replace=$(echo -e "${domain}.${domain_tld_override}|${domain}" | sed 's/\./\\./g')
+                            # create string of final url
                             if [ "${1}" = "production" ]; then
                                 domain_url="${domain}.${domain_tld_override}"
                             else
@@ -193,7 +209,7 @@ while IFS='' read -r -d '' key; do
                         # replace variances of the following urls during a restore to match the environment
                         # pay attention to the order of the (${domain}.${domain_tld_override|${domain}}) rule
                         # https://regex101.com/r/vF7hY9/2
-                        # :\/\/(www\.)?(dev\.|test\.)?(devopsgroup.io.example.com|devopsgroup.io)
+                        # :\/\/(www\.)?(dev\.|test\.)?(devopsgroup\.io\.example.com|devopsgroup\.io)
                         # ://dev.devopsgroup.io
                         # ://www.dev.devopsgroup.io
                         # ://test.devopsgroup.io
@@ -209,7 +225,7 @@ while IFS='' read -r -d '' key; do
                         # for software without a cli tool, use sed via the sql file to replace urls
                         if ([ "${software}" = "codeigniter2" ] || [ "${software}" = "codeigniter3" ] || [ "${software}" = "drupal6" ] || [ "${software}" = "drupal7" ] || [ "${software}" = "silverstripe" ] || [ "${software}" = "xenforo" ]); then
                             echo -e "\t* replacing URLs in the database to align with the enivronment..."
-                            sed -r --expression="s/:\/\/(www\.)?(dev\.|test\.)?(${domain}.${domain_tld_override}|${domain})/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
+                            sed -r --expression="s/:\/\/(www\.)?(dev\.|test\.)?(${domain_url_replace})/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         else
                             cp "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         fi
@@ -219,10 +235,8 @@ while IFS='' read -r -d '' key; do
                         # for software with a cli tool, use cli tool to replace urls
                         if [[ "${software}" = "wordpress" ]]; then
                             echo -e "\t* replacing URLs in the database to align with the enivronment..."
-                            php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" search-replace ":\/\/(www\.)?(dev\.|test\.)?(${domain}.${domain_tld_override}|${domain})" "://${domain_url}" --regex | sed "s/^/\t\t/"
+                            php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" search-replace ":\/\/(www\.)?(dev\.|test\.)?(${domain_url_replace})" "://${domain_url}" --regex | sed "s/^/\t\t/"
                             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='$(echo "${configuration}" | shyaml get-value company.email)' WHERE option_name = 'admin_email';"
-                            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='http://${domain_url}' WHERE option_name = 'home';"
-                            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='http://${domain_url}' WHERE option_name = 'siteurl';"
                         fi
                     fi
                 done
