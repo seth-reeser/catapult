@@ -234,6 +234,13 @@ Catapult uses several third-party services to pull everything off - below is a l
         3. Go to Tools > API > API Key.
         4. Place your API key at `~/secrets/configuration.yml["company"]["monitorus_api_key"]`
         5. Place your Secret key at `~/secrets/configuration.yml["company"]["monitorus_secret_key"]`
+    1. **New Relic** sign-up and configuration
+        1. Create a New Relic account at http://newrelic.com/
+        2. Sign in to your New Relic account
+        3. Go to your Account Settings > Integrations > API keys.
+        4. Generate and place your REST API key at `~/secrets/configuration.yml["company"]["newrelic_api_key"]`
+        3. Go to your Account Settings > Account > Summary.
+        5. Place your License key at `~/secrets/configuration.yml["company"]["newrelic_license_key"]`
 6. **Verify Configuration:**    
     1. To verify all of the configuration that you just set, open your command line and cd into your fork of Catapult, then run `vagrant status`. Catapult will confirm connection to all of the Services and inform you of any problems.
 
@@ -381,7 +388,9 @@ The following options are available:
     * `mycompany.com`
         * a domain name that will override the tld of the domain for when you do not have control of the domain (example.com), but still need a localdev and externally accessible test and qc instance
         * this drives the domains of localdev (via hosts file) and test, qc, production (via cloudflare)
-            * to seamlessly cutover to example.com, remove this option
+            * PLEASE NOTE: When removing this option from a website with `software`, you need to manually replace URLs in the database respective to the `software_workflow` option.
+                * ie `vagrant ssh mycompany.com-test-redhat-mysql`
+                * `php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/example.com/(webroot if applicable)" search-replace ":\/\/(www\.)?(dev\.|test\.)?(example\.com\.mycompany\.com)" "://example.com" --regex`
         * dev.example.com, test.example.com, qc.example.com, example.com are replaced by dev.example.com.mycompany.com, test.example.com.mycompany.com, qc.example.com.mycompany.com, example.com.mycompany.com
 * force_auth:
     * `example`
