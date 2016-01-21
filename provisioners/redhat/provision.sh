@@ -26,6 +26,7 @@ echo "   \_\__/   \_\__/          \_\__/   \_\__/     "
 
 echo -e "\n\n\n==> SYSTEM INFORMATION"
 echo -e "SYSTEM"
+cat /etc/centos-release
 hostnamectl status
 echo -e "\nCPU"
 cat /proc/cpuinfo | grep 'model name' | cut -d: -f2 | awk 'NR==1' | tr -d " "
@@ -50,8 +51,34 @@ sudo yum install -y git
 # initialize known_hosts
 sudo mkdir -p ~/.ssh
 sudo touch ~/.ssh/known_hosts
-sudo ssh-keyscan -T 10 bitbucket.org > ~/.ssh/known_hosts
-sudo ssh-keyscan -T 10 github.com >> ~/.ssh/known_hosts
+# ssh-keyscan bitbucket.org for a maximum of 10 tries
+n=0
+until [ $n -ge 10 ]
+do
+    sudo ssh-keyscan bitbucket.org > ~/.ssh/known_hosts
+    if ! grep -q "bitbucket\.org" ~/.ssh/known_hosts; then
+        echo "ssh-keyscan for bitbucket.org failed, retrying!"
+    else
+        echo "ssh-keyscan for bitbucket.org successful"
+        break
+    fi
+    n=$[$n+1]
+    sleep 1
+done
+# ssh-keyscan github.com for a maximum of 10 tries
+n=0
+until [ $n -ge 10 ]
+do
+    sudo ssh-keyscan github.com >> ~/.ssh/known_hosts
+    if ! grep -q "github\.com" ~/.ssh/known_hosts; then
+        echo "ssh-keyscan for github.com failed, retrying!"
+    else
+        echo "ssh-keyscan for github.com successful"
+        break
+    fi
+    n=$[$n+1]
+    sleep 1
+done
 # clone and pull catapult
 if ([ $1 = "dev" ] || [ $1 = "test" ]); then
     branch="develop"
@@ -96,12 +123,12 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
         # if multithreading is supported
         if ([ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.multithreading) == "True" ]); then
             # cleanup leftover utility files
-            for file in "/catapult/provisioners/redhat/logs/${module}.*.log"; do
+            for file in /catapult/provisioners/redhat/logs/${module}.*.log; do
                 if [ -e "$file" ]; then
                     rm $file
                 fi
             done
-            for file in "/catapult/provisioners/redhat/logs/${module}.*.complete"; do
+            for file in /catapult/provisioners/redhat/logs/${module}.*.complete; do
                 if [ -e "$file" ]; then
                     rm $file
                 fi
@@ -143,12 +170,16 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
             done
             cpu_load_samples_total="${#cpu_load_samples[@]}"
             echo -e "==> CPU USAGE: $((cpu_load_samples_sum / cpu_load_samples_total))% from $cpu_load_samples_total samples"
-            # cleanup utility files
-            for file in "/catapult/provisioners/redhat/logs/${module}.*.log"; do
-                rm $file
+            # cleanup leftover utility files
+            for file in /catapult/provisioners/redhat/logs/${module}.*.log; do
+                if [ -e "$file" ]; then
+                    rm $file
+                fi
             done
-            for file in "/catapult/provisioners/redhat/logs/${module}.*.complete"; do
-                rm $file
+            for file in /catapult/provisioners/redhat/logs/${module}.*.complete; do
+                if [ -e "$file" ]; then
+                    rm $file
+                fi
             done
         else
             bash "/catapult/provisioners/redhat/modules/${module}.sh" $1 $2 $3 $4

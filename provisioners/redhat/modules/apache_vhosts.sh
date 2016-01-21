@@ -84,26 +84,19 @@ while IFS='' read -r -d '' key; do
     else
         force_https_value=""
     fi
-    # enable cors for localdev http response codes from dashboard
-    if [ "$1" = "dev" ]; then
-        cors="SetEnvIf Origin \"^(.*\.?devopsgroup\.io)$\" ORIGIN_SUB_DOMAIN=\$1
-        Header set Access-Control-Allow-Origin \"%{ORIGIN_SUB_DOMAIN}e\" env=ORIGIN_SUB_DOMAIN"
-    else
-        cors=""
-    fi
     # write vhost apache conf file
-    sudo cat > /etc/httpd/sites-available/$domain_environment.conf << EOF
+    sudo cat > /etc/httpd/sites-available/${domain_environment}.conf << EOF
 
     RewriteEngine On
 
     <VirtualHost *:80> # must listen * to support cloudflare
-        ServerAdmin $company_email
-        ServerName $domain_environment
-        ServerAlias www.$domain_environment
+        ServerAdmin ${company_email}
+        ServerName ${domain_environment}
+        ServerAlias www.${domain_environment}
         $domain_tld_override_alias_additions
-        DocumentRoot /var/www/repositories/apache/$domain/$webroot
-        ErrorLog /var/log/httpd/$domain_environment/error.log
-        CustomLog /var/log/httpd/$domain_environment/access.log combined
+        DocumentRoot /var/www/repositories/apache/${domain}/${webroot}
+        ErrorLog /var/log/httpd/${domain_environment}/error.log
+        CustomLog /var/log/httpd/${domain_environment}/access.log combined
         LogLevel warn
         $force_auth_value
         $force_https_value
@@ -111,12 +104,12 @@ while IFS='' read -r -d '' key; do
 
     <IfModule mod_ssl.c>
         <VirtualHost *:443> # must listen * to support cloudflare
-            ServerAdmin $company_email
-            ServerName $domain_environment
-            ServerAlias www.$domain_environment
-            DocumentRoot /var/www/repositories/apache/$domain/$webroot
-            ErrorLog /var/log/httpd/$domain_environment/error.log
-            CustomLog /var/log/httpd/$domain_environment/access.log combined
+            ServerAdmin ${company_email}
+            ServerName ${domain_environment}
+            ServerAlias www.${domain_environment}
+            DocumentRoot /var/www/repositories/apache/${domain}/${webroot}
+            ErrorLog /var/log/httpd/${domain_environment}/error.log
+            CustomLog /var/log/httpd/${domain_environment}/access.log combined
             LogLevel warn
             SSLEngine on
 
@@ -149,20 +142,23 @@ while IFS='' read -r -d '' key; do
             SSLCertificateFile /etc/ssl/certs/httpd-dummy-cert.key.cert
             SSLCertificateKeyFile /etc/ssl/certs/httpd-dummy-cert.key.cert
             
-            $force_auth_value
-
+            ${force_auth_value}
+            
         </VirtualHost>
     </IfModule>
 
     # allow .htaccess in apache 2.4+
-    <Directory "/var/www/repositories/apache/$domain/${webroot}">
+    <Directory "/var/www/repositories/apache/${domain}/${webroot}">
         AllowOverride All
         Options -Indexes +FollowSymlinks
-        $cors
+        # define new relic appname
+        <IfModule php5_module>
+            php_value newrelic.appname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat;${domain_environment}"
+        </IfModule>
     </Directory>
 
     # deny access to _sql folders
-    <Directory "/var/www/repositories/apache/$domain/${webroot}_sql">
+    <Directory "/var/www/repositories/apache/${domain}/${webroot}_sql">
         Order Deny,Allow
         Deny From All
     </Directory>
@@ -175,7 +171,6 @@ EOF
     fi
 
 done
-
 # reload apache
 sudo systemctl reload httpd.service
 sudo systemctl status httpd.service
