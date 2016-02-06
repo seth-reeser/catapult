@@ -81,24 +81,29 @@ Catapult supports the following software:
 
 ## Competition ##
 
-The free market and competition is great - it pushes the envelope of innovation. Here, we compare similar platforms to shed light on where we are and we're headed.
+The free market and competition is great - it pushes the envelope of innovation. Here, we compare similar platforms to shed light on where we are and we're headed. Catapult's approach is holistic, meaning, there are no optional features - the platform includes everything in its default state and its default state is the only state of the platform. Some platforms offer and support optional third-party features that need configured - these are excluded.
 
-Feature | Catapult | Pantheon
---------|----------|---------
-Source | Open | Closed
-Base Monthly Cost | $40 | $400
-Approach | Virtual Machine | Container
-Methodology | SCRUM | :x:
-Workflow | Git Flow | Git Flow
-Environments | LocalDev, Test, QC, Production | Multidev, Dev, Test, Live
-Scaling | \*Resize | Smooth
-Development Environment | Unlimited Local | 5 Cloud
-Dashboard | CLI & **Web-based | Web-based
-Git | GitHub & Bitbucket | Proprietary
-DNS | CloudFlare | :x:
-HTTPS | Free | $30/mo
-Monitoring | New Relic | Proprietary
-Supported Software | Numerous | 2
+Platform Feature | Catapult | Pantheon | Acquia
+-----------------|----------|----------|--------
+Source                              | Open                           | Closed                    | Closed
+Feature Set                         | Bundled                        | Separated                 | Separated
+Minimum Bundled<br>Monthly Cost     | $40                            | $400                      | $134
+Methodology                         | SCRUM                          | :x:                       | :x:
+Workflow                            | Git Flow                       | Git Flow                  | Git Flow
+Workflow Model                      | Upstream or Downstream         | :x:                       | :x:
+Environments                        | LocalDev, Test, QC, Production | Multidev, Dev, Test, Live | Dev Desktop, Dev, Stage, Prod
+Approach                            | Virtual Machine                | Container                 | Virtual Machine
+Data Center                         | DigitalOcean                   | Rackspace                 | AWS
+Scaling                             | \*Resize                       | Smooth                    | Resize
+Development Environment             | Unlimited Local                | 5 Cloud                   | Unlimited Local
+Development Environment<br>Approach | Exact                          | Exact                     | Similar
+Dashboard - Control                 | CLI                            | CLI & Web                 | CLI & Web
+Dashboard - Monitor                 | CLI & \*Web                    | CLI & Web                 | CLI & Web
+Git                                 | GitHub & Bitbucket             | Proprietary               | Proprietary 
+DNS Management                      | CloudFlare                     | :x:                       | :x: 
+HTTPS                               | Free                           | $30/mo + $cert            | $cert
+Monitoring                          | New Relic                      | Proprietary               | Proprietary
+Supported Software                  | Numerous                       | 2                         | 1
 
 \* Catapult rolls out new features on a regular basis - this feature is highlighted for improvement or a future release.
 See an error or have a suggestion? Email competition@devopsgroup.io
@@ -459,6 +464,8 @@ The following options are available:
 * force_https:
     * `true`
         * rewrite all http traffic to https
+        * subdomains are not supported as limited by CloudFlare
+        * you will receive an unsigned cert error in LocalDev
 * repo:
     * `git@github.com:devopsgroup-io/devopsgroup-io.git`
         * GitHub and Bitbucket over SSH are supported, HTTPS is not supported
@@ -527,14 +534,12 @@ Once you Provision Websites and it's time to work on a website, there are a few 
 
 Below is a log of service related troubleshooting, if you're still having issues with Catapult, [submit a GitHub Issue](https://github.com/devopsgroup-io/catapult/issues/new).
 
-* **CloudFlare**
-    * [07-27-2015] If your `~/secrets/configuration.yml["websites"]["apache/iis"]["domain"]` is a subdomain (drupal7.devopsgroup.io) the `force_https` option will only work in LocalDev and Production as CloudFlare only supports a first-level subdomain. https://www.cloudflare.com/ssl
 * **DigitalOcean**
     * [09-01-2015] vagrant rebuild was failing with a `The configured shell (config.ssh.shell) is invalid and unable to properly execute commands.` it is due to DigitalOcean's API not re-inserting the SSH key that was originally used during the first vagrant up (creation of the droplet). To rebuild, you must use the DigitalOcean console, run through the first root password reset workflow that was emailed to you, then vi /etc/sudoers and remove the Defaults requiretty line and save and exit. You can then run vagrant provision successfully.
 * **Git**
     * [09-08-2015] Some database dumps exceed 100MB, so it's recommened to use Bitbucket in those instances as Catapult auto-commits database dumps to your website's repository, up to 500MB worth of database dumps or the one, newest database dump. [Bitbucket](https://help.github.com/articles/what-is-my-disk-quota/) has a 2GB hard repo push limit with no documented file limit and [GitHub](https://help.github.com/articles/what-is-my-disk-quota/) has a 1GB soft repo limit with a 100MB file size limit.
 * **Vagrant**
-    * [07-27-2015] If your `~/secrets/configuration.yml["websites"]["apache/iis"]["domain"]` includes the `force_https` option, during `vagrant status` you will receive an err for the http response code for `.dev` as this is a self-signed cert and not routing through CloudFlare.
+   * [02-04-2015] When upgrading Vagrant you may run into errors - the most common issue are mismatched plugins, running this command has a good chance of success `sudo rm -Rf ~/.vagrant.d/gems/ && sudo rm ~/.vagrant.d/plugins.json`
 
 
 
@@ -571,6 +576,14 @@ See http://semver.org/spec/v2.0.0.html for more information.
 
 
 # Community #
+
+
+## Partnerships ##
+
+The Catapult team values partnerships and the great services and teams that have built them.
+
+* [01-28-2016] Pantheon provides feedback
+* [01-22-2016] New Relic provides private beta access to their Synthetics API along side Breather, Carfax, Ring Central, Rackspace, and IBM.
 
 
 
