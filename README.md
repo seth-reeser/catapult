@@ -1,5 +1,5 @@
 # Catapult #
-<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" align="center" alt="Catapult" width="200">
+<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" alt="Catapult" width="200">
 
 :boom: **Catapult** is a pre-defined website and workflow management platform built from leading and affordable technology.
 
@@ -56,9 +56,7 @@ Catapult leverages the following technologies and technology services to impleme
     * Server Resources and Uptime - New Relic Servers
     * Application - New Relic APM
     * Browser - New Relic Browsers
-    * Website Uptime - \*New Relic Synthetics
-
-\* This technology is currently not integrated into Catapult due to limitations of the service - manual configuration is required.
+    * Website Uptime - New Relic Synthetics
 
 
 
@@ -88,24 +86,25 @@ Platform Feature | Catapult | Pantheon | Acquia
 Source                              | Open                           | Closed                    | Closed
 Feature Set                         | Bundled                        | Separated                 | Separated
 Minimum Bundled<br>Monthly Cost     | $40                            | $400                      | $134
-Methodology                         | SCRUM                          | :x:                       | :x:
+Methodology                         | Scrum                          | :x:                       | :x:
 Workflow                            | Git Flow                       | Git Flow                  | Git Flow
 Workflow Model                      | Upstream or Downstream         | :x:                       | :x:
 Environments                        | LocalDev, Test, QC, Production | Multidev, Dev, Test, Live | Dev Desktop, Dev, Stage, Prod
 Approach                            | Virtual Machine                | Container                 | Virtual Machine
-Data Center                         | DigitalOcean                   | Rackspace                 | AWS
-Scaling                             | \*Resize                       | Smooth                    | Resize
+Data Center                         | DigitalOcean and AWS           | Rackspace                 | AWS
+Scaling                             | Vertical                       | Horizontal                | Vertical
+Scaling Management                  | *Manual                        | Automatic                 | Manual
 Development Environment             | Unlimited Local                | 5 Cloud                   | Unlimited Local
 Development Environment<br>Approach | Exact                          | Exact                     | Similar
 Dashboard - Control                 | CLI                            | CLI & Web                 | CLI & Web
 Dashboard - Monitor                 | CLI & \*Web                    | CLI & Web                 | CLI & Web
 Git                                 | GitHub & Bitbucket             | Proprietary               | Proprietary 
-DNS Management                      | CloudFlare                     | :x:                       | :x: 
-HTTPS                               | Free                           | $30/mo + $cert            | $cert
-Monitoring                          | New Relic                      | Proprietary               | Proprietary
+Managed DNS                         | CloudFlare                     | :x:                       | :x: 
+Managed HTTPS                       | Free                           | $30/mo + $cert            | $cert
+Managed Monitoring                  | New Relic                      | Proprietary               | Proprietary
 Supported Software                  | Numerous                       | 2                         | 1
 
-\* Catapult rolls out new features on a regular basis - this feature is highlighted for improvement or a future release.
+\* Catapult introduces new features on a regular basis - this feature is highlighted as a milestone for future release.
 See an error or have a suggestion? Email competition@devopsgroup.io
 
 
@@ -118,15 +117,23 @@ See an error or have a suggestion? Email competition@devopsgroup.io
     - [Supported Software](#supported-software)
     - [Competition](#competition)
     - [Table of Contents](#table-of-contents)
-- [Setup](#setup)
+- [Setup Catapult](#setup-catapult)
     - [Developer Setup](#developer-setup)
     - [Instance Setup](#instance-setup)
     - [Services Setup](#services-setup)
-- [Usage](#usage)
+- [Setup Environments](#setup-environments)
     - [Provision Environments](#provision-environments)
     - [Configure Automated Deployments](#configure-automated-deployments)
-    - [Provision Websites](#provision-websites)
-    - [Develop Websites](#develop-websites)
+- [Release Management](#release-management)
+    - [Catapult Configuration](#catapult-configuration)
+        - [Company](#company)
+        - [Environments](#environments)
+        - [Websites](#websites)
+    - [Website Development](#website-development)
+    - [Performance Testing](#performance-testing)
+    - [Disaster Recovery](#disaster-recovery)
+        - [Server Rebuilding](#server-rebuilding) 
+        - [Website Rollbacks](#website-rollbacks) 
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
     - [Releases](#releases)
@@ -134,7 +141,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io
 
 
 
-# Setup #
+# Setup Catapult #
 
 Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#instance-setup), and [Services Setup](#services-setup) as described in the following sections.
 
@@ -148,6 +155,7 @@ Catapult is controlled via Vagrant and the command line of a Developer's compute
 
 1. **Vagrant**
     1. Please download and install from https://www.vagrantup.com/downloads.html
+    2. Using OSX ? Please ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
 2. **VirtualBox**
     1. Please download and install from https://www.virtualbox.org/wiki/Downloads
 3. **SourceTree**
@@ -168,11 +176,12 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
     1. Fork https://github.com/devopsgroup-io/catapult and clone via SourceTree or the git utility of your choice.
 2. **Vagrant Plugins**
     1. Open your command line and cd into the newly cloned repository and install the following Vagrant plugins.
-        1. `vagrant plugin install vagrant-digitalocean` [![Gem](https://img.shields.io/gem/dt/vagrant-digitalocean.svg)](https://rubygems.org/gems/vagrant-digitalocean)
+        1. `vagrant plugin install vagrant-aws` [![Gem](https://img.shields.io/gem/dt/vagrant-aws.svg)](https://rubygems.org/gems/vagrant-aws)
+        2. `vagrant plugin install vagrant-digitalocean` [![Gem](https://img.shields.io/gem/dt/vagrant-digitalocean.svg)](https://rubygems.org/gems/vagrant-digitalocean)
             * We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-digitalocean)
-        2. `vagrant plugin install vagrant-hostmanager` [![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager)
+        3. `vagrant plugin install vagrant-hostmanager` [![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager)
             * We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-hostmanager)
-        3. `vagrant plugin install vagrant-vbguest` [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
+        4. `vagrant plugin install vagrant-vbguest` [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
 3. **SSH Key Pair**
     1. You will need to create a *passwordless* SSH key pair that will drive authentication for Catapult.
         1. For instructions please see https://help.github.com/articles/generating-ssh-keys/
@@ -223,9 +232,33 @@ New Relic | Application, Browser, and Server Monitoring | Free
 1. **Cloud Hosting:**    
     1. **DigitalOcean** sign-up and configuration
         1. Create an account at http://digitalocean.com
-           * Get a $10 credit and give us $25 once you spend $25 https://www.digitalocean.com/?refcode=6127912f3462
-        2. Create a Personal Access Token at https://cloud.digitalocean.com/settings/applications named "Vagrant" and place the token value at `~/secrets/configuration.yml["company"]["digitalocean_personal_access_token"]`
-        3. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key in https://cloud.digitalocean.com/settings/security named "Vagrant"
+           * [Free Stuff] Get a $10 credit and give us $25 once you spend $25 https://www.digitalocean.com/?refcode=6127912f3462
+        2. Go to your DigitalOcean Applications & API Dashboard https://cloud.digitalocean.com/settings/api
+            1. Create a Personal Access Token named "Vagrant" and place the token value at `~/secrets/configuration.yml["company"]["digitalocean_personal_access_token"]`
+        3. Go to your DigitalOcean Security Dashboard https://cloud.digitalocean.com/settings/security
+            1. Add a new SSH Key named "Vagrant" with your newly created id_rsa.pub from ~/secrets/id_rsa.pub key 
+    2. **Amazon Web Services** (AWS) sign-up and configuration
+        1. Create an account https://portal.aws.amazon.com/gp/aws/developer/registration
+        2. Sign in to your new AWS console https://console.aws.amazon.com
+        3. Go to your AWS Identity and Access Management (IAM) Users Dashboard https://console.aws.amazon.com/iam/home#users
+            1. Create a "Catapult" user.
+            2. Place the Access Key ID at `~/secrets/configuration.yml["company"]["aws_access_key"]`
+            3. Place the Secret Access Key at `~/secrets/configuration.yml["company"]["aws_secret_key"]`
+        4. Go to your AWS Identity and Access Management (IAM) Groups Dashboard https://console.aws.amazon.com/iam/home#groups
+            1. Create a "Catapult" group.
+            2. Attach the "AmazonEC2FullAccess" policy to the "Catapult" group.
+        5. Go back to your AWS Identity and Access Management (IAM) Groups Dashboard https://console.aws.amazon.com/iam/home#groups
+            1. Select your newly created "Catapult" group.
+            2. Select Add Users to Group and add your newly created "Catapult" user.
+        6. Go to your AWS EC2 Key Pairs Dashboard https://console.aws.amazon.com/ec2/home#KeyPairs
+            1. Click Import Key Pair
+            2. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key
+            3. Set the Key pair name to "Catapult"
+        7. Go to your AWS EC2 Security Groups Dashboard https://console.aws.amazon.com/ec2/home#SecurityGroups
+            1. Select the "default" Group Name
+            2. Select the Inbound tab and click Edit
+            3. Change Source to "Anywhere"
+            4. Click Save
 2. **Repositories:**    
     Bitbucket provides free private repositories and GitHub provides free public repositories, you will need to sign up for both. If you already have Bitbucket and GitHub accounts you may use them, however, it's best to setup a [machine user](https://developer.github.com/guides/managing-deploy-keys/#machine-users) if you're using Catapult with your team.
     1. **Bitbucket** sign-up and configuration
@@ -238,20 +271,7 @@ New Relic | Application, Browser, and Server Monitoring | Free
             1. Place the username (not the email address) that you used to sign up for GitHub at `~/secrets/configuration.yml["company"]["github_username"]`
             2. Place the password of the account for GitHub at `~/secrets/configuration.yml["company"]["github_password"]`
         2. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key in https://github.com/settings/ssh named "Catapult"
-3. **Automated Deployments:**    
-    1. **Amazon Web Services** (AWS) EC2 sign-up and configuration (Required for Bamboo)
-        1. Create an AWS account https://portal.aws.amazon.com/gp/aws/developer/registration
-        2. Sign in to your new AWS console https://console.aws.amazon.com
-        3. Go to your AWS Identity and Access Management (IAM) Users Dashboard https://console.aws.amazon.com/iam/home#users
-            1. Create a "Bamboo" user.
-            2. Place the Access Key ID at `~/secrets/configuration.yml["company"]["aws_access_key"]`
-            3. Place the Secret Access Key at `~/secrets/configuration.yml["company"]["aws_secret_key"]`
-        4. Go to your AWS Identity and Access Management (IAM) Groups Dashboard https://console.aws.amazon.com/iam/home#groups
-            1. Create a "Bamboo" group.
-            2. Attach the "AmazonEC2FullAccess" policy to the "Bamboo" group.
-        5. Go back to your AWS Identity and Access Management (IAM) Groups Dashboard https://console.aws.amazon.com/iam/home#groups
-            1. Select your newly created "Bamboo" group.
-            2. Select Add Users to Group and add your newly created "Bamboo" user.
+3. **Automated Deployments:**
     2. **Bamboo** sign-up and configuration
         1. Create a Bamboo Cloud account at https://www.atlassian.com/software/bamboo
         2. Sign in to your new custom Bamboo instance https://[your-name-here].atlassian.net
@@ -319,9 +339,12 @@ New Relic | Application, Browser, and Server Monitoring | Free
 5. **Monitoring:**
     1. **New Relic** sign-up and configuration
         1. Create a New Relic account at http://newrelic.com/
+            * [Free Stuff] Sign-up up for New Relic and get a Data Nerd shirt! http://newrelic.com/lp/datanerd
+            * [Free Stuff] Refer Catapult and get a New Relic hoodie! http://newrelic.com/referral
         2. Sign in to your New Relic account
         3. Go to your Account Settings > Integrations > API keys.
         4. Generate and place your REST API key at `~/secrets/configuration.yml["company"]["newrelic_api_key"]`
+        5. Generate and place your Admin API key at `~/secrets/configuration.yml["company"]["newrelic_admin_api_key"]`
         3. Go to your Account Settings > Account > Summary.
         5. Place your License key at `~/secrets/configuration.yml["company"]["newrelic_license_key"]`
 6. **Verify Configuration:**    
@@ -329,9 +352,9 @@ New Relic | Application, Browser, and Server Monitoring | Free
 
 
 
-# Usage #
+# Setup Environments #
 
-To use Catapult you will need to [Provision Environments](#provision-environments), [Configure Automated Deployments](#configure-automated-deployments), then [Provision Websites](#provision-websites).
+To start using Catapult you will need to [Provision Environments](#provision-environments) and [Configure Automated Deployments](#configure-automated-deployments).
 
 
 
@@ -427,9 +450,64 @@ Once the Web and Database Servers are up and running, it's then time to configur
 
 
 
-## Provision Websites ##
+# Release Management #
 
-Adding websites to Catapult is easy. The only requirement is that the website needs to be contained in its own repo on GitHub or Bitbucket. Websites are then added to configuration.yml, a minimal addition looks like this:
+Catapult follows Gitflow for its configuration and development model - each environment runs a specific branch and changesets are introduced into each environment by pull requests from one branch to the next.
+
+<img src="https://www.atlassian.com/git/images/tutorials/collaborating/comparing-workflows/gitflow-workflow/05.svg" alt="Gitflow" width="600">
+[1](#references)
+
+
+Environment | LocalDev | Test | QC | Production
+------------|----------|------|----|-----------
+**Running Branch**                       | *develop*                                                   | *develop*                                                         | *release*                                                      | *master*
+**Deployments**                          | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+**Testing Activities**                   | Component Test                                              | Integration Test, System Test                                     | Acceptance Test, Release Test                                  | Operational Qualification
+**Scrum Activity**                       | Sprint Start: Development of User Stories                   | Daily Scrum                                                       | Sprint Review                                                  | Sprint End: Accepted Product Release
+**Scrum Roles**                          | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)          | Scrum Master, Development Team, Product Owner                  | Product Owner
+**Downstream Workflow - Database**       | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy
+**Upstream Workflow - Database**         | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
+**Downstream Workflow - Software Files** | rsync files from **Production** if untracked                | rsync files from **Production** if untracked                      | rsync files from **Production** if untracked                   | --
+**Upstream Workflow - Software Files**   | rsync files from **Test** if untracked                      | --                                                                | rsync files from **Test** if untracked                         | rsync files from **Test** if untracked
+
+
+
+## Catapult Configuration ##
+
+All instance specific configuration is stored in ~/secrets/configuration.yml and encrypted as ~/secrets/configuration.yml.gpg. There are three main sections - [Company](#company), [Environments](#environments), and [Websites](#websites).
+
+
+
+### Company ###
+
+The Company section contains globally used credentials and company information - all of which will be completed during [Setup Catapult](#setup-catapult).
+
+* name:
+    * `required: true`
+        * Your company's name or your name
+* email:
+    * `required: true`
+        * Your company's email or your email that is used for software admin accounts and virtual host admin
+* timezone_redhat:
+    * `required: true`
+        * Your timezone in tz database format that is used to for setting within operating systems and applications
+        * https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html
+* timezone_windows:
+    * `required: true`
+        * Your timezone in windows standard format that is used to for setting within operating systems and applications
+        * https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html
+
+
+
+### Environments ###
+
+The Company section contains environment configuration such as IP addresses and system credentials - most of which are automatically set during [Setup Catapult](#setup-catapult) and [Setup Environments](#setup-environments).
+
+
+
+### Websites ###
+
+Adding websites to Catapult is easy. The only requirement is that the website needs to be contained in its own repo at GitHub or Bitbucket. Websites are then added to configuration.yml, a minimal addition looks like this:
 
 ```
 websites:
@@ -441,13 +519,16 @@ websites:
 The following options are available:
 
 * domain:
-    * `example.com`
+    * `required: true`
+    * `example: example.com`
         * the domain name of what the website is/will be in Production
         * a maximum of one subdomain is supported (subdomain.example.com)
         * this drives the domains of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
         * dev.example.com, test.example.com, qc.example.com, example.com
 * domain_tld_override:
-    * `mycompany.com`
+    * `required: false`
+    * `default: null`
+    * `example: mycompany.com`
         * a domain name that will override the tld of the domain for when you do not have control of the domain (example.com), but still need a LocalDev and externally accessible Test and QC instance
         * this drives the domains of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
             * PLEASE NOTE: When removing this option from a website with `software`, you need to manually replace URLs in the database respective to the `software_workflow` option.
@@ -455,78 +536,134 @@ The following options are available:
                 * `php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/example.com/(webroot if applicable)" search-replace ":\/\/(www\.)?(dev\.|test\.)?(example\.com\.mycompany\.com)" "://example.com" --regex`
         * dev.example.com, test.example.com, qc.example.com, example.com are replaced by dev.example.com.mycompany.com, test.example.com.mycompany.com, qc.example.com.mycompany.com, example.com.mycompany.com
 * force_auth:
-    * `example`
+    * `required: false`
+    * `default: null`
+    * `example: example`
         * forces http basic authentication in Test, QC, and Production
         * `example` is both the username and password
 * force_auth_exclude:
-    * `["test","qc","production"]`
+    * `dependancy: force_auth`
+    * `required: false`
+    * `default: null`
+    * `values: ["test","qc","production"]`
         * array of exclusions exclusive to the force_auth option
 * force_https:
-    * `true`
+    * `required: false`
+    * `default: false`
+    * `value: true`
         * rewrite all http traffic to https
         * subdomains are not supported as limited by CloudFlare
         * you will receive an unsigned cert error in LocalDev
 * repo:
-    * `git@github.com:devopsgroup-io/devopsgroup-io.git`
+    * `required: true`
+    * `example: git@github.com:devopsgroup-io/devopsgroup-io.git`
         * GitHub and Bitbucket over SSH are supported, HTTPS is not supported
 * software:
-    * `codeigniter2`
-        * generates codeigniter2 database config file ~/application/config/database.php, restores database
-    * `codeigniter3`
-        * generates codeigniter3 database config file ~/application/config/database.php, restores database
-    * `drupal6`
-        * generates drupal6 database config file ~/sites/default/settings.php, resets Drupal admin password, rsyncs ~/sites/default/files, restores database
-    * `drupal7`
-        * generates drupal7 database config file ~/sites/default/settings.php, resets Drupal admin password, rsyncs ~/sites/default/files, restores database
-    * `silverstripe`
-        * generates silverstripe database config file ~/mysite/_config.php, restores database
-    * `wordpress`
-        * generates WordPress database config file ~/installers/wp-config.php, resets WordPress admin password, rsyncs ~/wp-content/uploads, restores database
-    * `xenforo`
-        * generates xenforo database config file ~/library/config.php, restores database
+    * `required: false`
+    * `default: null`
+    * `value: codeigniter2`
+        * generates codeigniter2 database config file ~/application/config/database.php
+        * rsyncs untracked ~/uploads
+        * sets permissions for ~/uploads
+        * dumps and restores database at ~/sql
+    * `value: codeigniter3`
+        * generates codeigniter3 database config file ~/application/config/database.php
+        * rsyncs untracked ~/uploads
+        * sets permissions for ~/uploads
+        * dumps and restores database at ~/sql
+    * `value: drupal6`
+        * generates drupal6 database config file ~/sites/default/settings.php
+        * rsyncs untracked ~/sites/default/files
+        * sets permissions for ~/sites/default/files
+        * dumps and restores database at ~/sql
+        * invokes drush updatedb
+        * resets drupal6 admin password
+    * `value: drupal7`
+        * generates drupal7 database config file ~/sites/default/settings.php
+        * rsyncs untracked ~/sites/default/files
+        * sets permissions for ~/sites/default/files
+        * dumps and restores database at ~/sql
+        * invokes drush updatedb
+        * resets drupal7 admin password
+    * `value: silverstripe`
+        * generates silverstripe database config file ~/mysite/_config.php
+        * restores newest database from ~/sql
+    * `value: wordpress`
+        * generates wordpress database config file ~/installers/wp-config.php
+        * rsyncs untracked ~/wp-content/uploads
+        * sets permissions for ~/wp-content/uploads
+        * dumps and restores database at ~/sql
+        * invokes wp-cli core update-db
+        * resets wordpress admin password
+    * `value: xenforo`
+        * generates xenForo database config file ~/library/config.php
+        * rsyncs untracked ~/data and ~/internal_data
+        * sets permissions for ~/data and ~/internal_data
+        * dumps and restores database at ~/sql
 * software_dbprefix:
-    * `wp_`
-        * usually used in Drupal for multisite installations (`wp_` is required for base Wordpress installs, Drupal has no prefix by default)
+    * `dependancy: software`
+    * `required: false`
+    * `default: null`
+    * `example: wp_`
+        * `wp_` is required for base Wordpress installs, Drupal has no prefix by default
 * software_workflow:
-    * `downstream`
-        * Production is the source for the database and upload directories of drupal and wordpress
+    * `dependancy: software`
+    * `required: true`
+    * `default: null`
+    * `value: downstream`
+        * Production is the source for the database and software upload directories
         * this option is used when maintaining a website
-        * see the below chart for more details
-    * `upstream`
-        * Test is the source for the database and upload directories of drupal and wordpress
+    * `value: upstream`
+        * Test is the source for the database and software upload directories
         * this option is used when launching a new website
-        * see the below chart for more details
 * webroot:
-    * `www/`
+    * `required: false`
+    * `default: null`
+    * `example: www/`
         * if the webroot differs from the repo root, specify it here
         * must include the trailing slash
 
-Once you add a new website to configuration.yml, it's time to test in LocalDev:
 
-  * `vagrant provision ~/secrets/configuration.yml["company"]["name"]-dev-redhat`
-  * `vagrant provision ~/secrets/configuration.yml["company"]["name"]-dev-redhat-mysql`
 
-Once you're satisfied with new website in LocalDev, it's time to commit configuration.yml.gpg to your Catapult fork's develop branch, this will kick off a automated deployment of Test. Once you're satisfied with the website in Test, it's time to create a pull request from your Catapult fork's develop branch into release - once the pull request is merged, this will kick off an automated deployment to QC. Once you're satisfied with the website in QC, it's time to create a pull request from your Catapult fork's release branch into master. Production does not have any automated deployments, to deploy your website to Production it's time to login to Bamboo and press the deployment button for Production.
+## Website Development ##
 
-Once a website exists in the upstream environments (Test, QC, Production), automated deployments will kick off if changes are detected on their respected branches (see chart below). The same workflow of moving a website upstream, exists when you make changes to a specific website's repository.
+The importance of a LocalDev environment is critical to reducing risk by exacting the environment that exists upstream by leveraging Vagrant and VirtualBox.
 
-Environment | LocalDev | Test | QC | Production
-------------|----------|------|----|-----------
-**Running Branch**             | *develop*                                                   | *develop*                                                         | *release*                                                      | *master*
-**New Website Provisioning**   | Manually via Vagrant                                        | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
-**Downstream Database**        | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy
-**Upstream Database**          | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
-**Downstream Untracked Files** | rsync files from **Production**                             | rsync files from **Production**                                   | rsync files from **Production**                                | --
-**Upstream Untracked Files**   | rsync files from **Test**                                   | --                                                                | rsync files from **Test**                                      | rsync files from **Test**
-**Deployments**                | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+* Repositories for websites are cloned into the Catapult instance at ~/repositories and in the respective apache or iis folder, listed by domain name.
+* Repositories are linked between the host and guest for realtime developing.
+* Need a fresh database backup? Just delete and commit today's backup from the ~/sql folder.
 
 
 
-## Develop Websites ##
+## Performance Testing ##
 
-Once you Provision Websites and it's time to work on a website, there are a few things to consider:
+Often disregarded, performance testing is a key step in ensuring 100% uptime and an excellent user experience. ApacheBench is a great tool to test request performance and concurrency - OSX includes ApacheBench out of the box, see [this StackOverflow](http://stackoverflow.com/a/7407602/4838803) post to get up and running on Windows.
 
-* Using the `software_workflow` flag for `upstream` websites is great, you can develop your code in LocalDev then have anyone in your company enter content into Drupal, Wordpress, etc. However, in the cercumstance that you absolutely need to move your LocalDev database `upstream`, it's as easy as saving a .sql dump to your website's repository develop branch under the _sql folder with today's date (following the YYYYMMDD.sql format). You can then `vagrant rebuild` the `~/secrets/configuration.yml["company"]["name"]-test-redhat-mysql` server and it will restore from your new sql dump.
+ApacheBench enables us to profile requests `-n` (number of requests to perform) and concurrency `-c` (number of multiple requests to make at a time) to test for [C10k and C10M](http://highscalability.com/blog/2013/5/13/the-secret-to-10-million-concurrent-connections-the-kernel-i.html). An example command looks like this:
+````
+ab -n 1000 -c 100 http://test.devopsgroup.io/
+````
+Keep bumping up `-n` and `-c` and notate failed requests and requests per second.
+
+
+
+## Disaster Recovery ##
+
+No one likes when bad things happen - but being able to react immediately is crucial. Catapult affords you fast rebuilding and rollbacks.
+
+
+
+### Server Rebuilding ###
+
+* LocalDev is rebuildable by running `vagrant destroy` then `vagrant up` for the respective virtual machine.
+* Test, QC, and Production are rebuildable by running `vagrant rebuild` for the respective virtual machine - this is necessary (rather than a destroy and up) to retain the IP addresses of the machine.
+
+
+
+### Website Rollbacks ###
+
+* `software_workflow: upstream` The production database is dropped and restored from the latest sql file in the ~/sql folder. To rollback, reverse the merge commit and run the production deployment.
+* `software_workflow: downstream` The production database is dumped once per day when the production build is run. To rollback, reverse the merge commit and manually restore the production database.
 
 
 
@@ -552,7 +689,6 @@ So you want to contribute... Great! Open source projects like Catapult succeed o
   * Verify and track down a reported bug
   * Add documentation to the README
   * Answer project specific questions
-  * Contribute to the Catapult wiki
   * Blog about your experiences with Catapult
 
 When you first setup Catapult a `develop-catapult` branch is created for you under your forked repository, with an upstream set to `https://github.com/devopsgroup-io/catapult.git` so that you can easily create a pull request. Also keep in mind when closing issues to submit a pull request that includes [GitHub's: Closing issues via commit messages](https://help.github.com/articles/closing-issues-via-commit-messages/).
@@ -576,6 +712,7 @@ See http://semver.org/spec/v2.0.0.html for more information.
 
 
 # Community #
+
 
 
 ## Partnerships ##
@@ -607,3 +744,8 @@ Catapult will also be seen throughout local meetups in the Philadelphia and Grea
 * [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 1.5k+ technologists
 * [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 700+ technologists
 * [Greater Philadelphia Drupal Meetup Group](http://www.meetup.com/drupaldelphia/) 500+ technologists
+
+
+
+# References #
+1. Atlassian. Comparing Workflows. https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow. Accessed February 15, 2016.
