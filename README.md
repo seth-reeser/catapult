@@ -1,11 +1,11 @@
 # Catapult #
 <img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" alt="Catapult" width="200">
 
-:boom: **Catapult** is a pre-defined website and workflow management platform built from leading and affordable technology.
+:boom: **Catapult** is a complete website and workflow management platform built from leading and affordable technologies.
 
-:earth_americas: **Our mission** is to create a lean platform that orchestrates every DevOps task of a common website's life-cycle.
+:earth_americas: **Our mission** is to create a lean platform which orchestrates DevOps for website lifecycles with familiar technologies.
 
-:rocket: **Our vision** is to afford developers an accelerated path to reducing risk and increasing performance at minimal cost.
+:rocket: **Our vision** is to afford organizations reduced risk and improved performance while lowering barriers to entry.
 
 <br>
 
@@ -90,6 +90,7 @@ Methodology                         | Scrum                          | :x:      
 Workflow                            | Git Flow                       | Git Flow                  | Git Flow
 Workflow Model                      | Upstream or Downstream         | :x:                       | :x:
 Environments                        | LocalDev, Test, QC, Production | Multidev, Dev, Test, Live | Dev Desktop, Dev, Stage, Prod
+Exacting Configuration              | :white_check_mark:             | :x:[2](#references)       | :x:[3](#references)
 Approach                            | Virtual Machine                | Container                 | Virtual Machine
 Data Center                         | DigitalOcean and AWS           | Rackspace                 | AWS
 Scaling                             | Vertical                       | Horizontal                | Vertical
@@ -461,15 +462,15 @@ Catapult follows Gitflow for its configuration and development model - each envi
 
 Environment | LocalDev | Test | QC | Production
 ------------|----------|------|----|-----------
-**Running Branch**                       | *develop*                                                   | *develop*                                                         | *release*                                                      | *master*
-**Deployments**                          | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
-**Testing Activities**                   | Component Test                                              | Integration Test, System Test                                     | Acceptance Test, Release Test                                  | Operational Qualification
-**Scrum Activity**                       | Sprint Start: Development of User Stories                   | Daily Scrum                                                       | Sprint Review                                                  | Sprint End: Accepted Product Release
-**Scrum Roles**                          | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)          | Scrum Master, Development Team, Product Owner                  | Product Owner
-**Downstream Workflow - Database**       | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy
-**Upstream Workflow - Database**         | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
-**Downstream Workflow - Software Files** | rsync files from **Production** if untracked                | rsync files from **Production** if untracked                      | rsync files from **Production** if untracked                   | --
-**Upstream Workflow - Software Files**   | rsync files from **Test** if untracked                      | --                                                                | rsync files from **Test** if untracked                         | rsync files from **Test** if untracked
+**Running Branch**                              | *develop*                                                   | *develop*                                                         | *release*                                                      | *master*
+**Deployments**                                 | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+**Testing Activities**                          | Component Test                                              | Integration Test, System Test                                     | Acceptance Test, Release Test                                  | Operational Qualification
+**Scrum Activity**                              | Sprint Start: Development of User Stories                   | Daily Scrum                                                       | Sprint Review                                                  | Sprint End: Accepted Product Release
+**Scrum Roles**                                 | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)          | Scrum Master, Development Team, Product Owner                  | Product Owner
+**Downstream Software Workflow - Database**     | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy
+**Upstream Software Workflow - Database**       | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
+**Downstream Software Workflow - File Store**   | rsync files from **Production** if git untracked            | rsync files from **Production** if untracked                      | rsync files from **Production** if git untracked               | --
+**Upstream Software Workflow - File Store**     | rsync files from **Test** if git untracked                  | --                                                                | rsync files from **Test** if git untracked                     | rsync files from **Test** if git untracked
 
 
 
@@ -481,7 +482,7 @@ All instance specific configuration is stored in ~/secrets/configuration.yml and
 
 ### Company ###
 
-The Company section contains globally used credentials and company information - all of which will be completed during [Setup Catapult](#setup-catapult).
+The exclusive Company entry contains top-level global credentials and company information - all of which will be configured during [Setup Catapult](#setup-catapult).
 
 * name:
     * `required: true`
@@ -495,26 +496,27 @@ The Company section contains globally used credentials and company information -
         * https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html
 * timezone_windows:
     * `required: true`
-        * Your timezone in windows standard format that is used to for setting within operating systems and applications
+        * Your timezone in Windows Standard Format that is used to for setting within operating systems and applications
         * https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html
 
 
 
 ### Environments ###
 
-The Environments section contains environment configuration such as IP addresses and system credentials - all of which are automatically set during [Setup Catapult](#setup-catapult) and [Setup Environments](#setup-environments).
+The setup- and maintenance-free Environments entries contain environment configurations such as IP addresses and system credentials - all of which are automatically set during [Setup Catapult](#setup-catapult) and [Setup Environments](#setup-environments).
 
 
 
 ### Websites ###
 
-Adding websites to Catapult is easy. The only requirement is that the website needs to be contained in its own repo at GitHub or Bitbucket. Websites are then added to configuration.yml, a minimal addition looks like this:
-
+Adding websites to Catapult is driven by simple configuration. After establishing a repository at GitHub or Bitbucket, simply add entries to configuration.yml. The entries must be ordered alphabetically by domain name and all entries exist under the single `websites` key as reflected in this example:
 ```
 websites:
   apache:
   - domain: devopsgroup.io
     repo: git@github.com:devopsgroup-io/devopsgroup-io.git
+  - domain: example.com
+    repo: git@github.com:example-company/example.com.git
 ```
 
 The following options are available:
@@ -522,39 +524,40 @@ The following options are available:
 * domain:
     * `required: true`
     * `example: example.com`
-        * the domain name of what the website is/will be in Production
-        * a maximum of one subdomain is supported (subdomain.example.com)
+        * the Production canonical domain name without `www.`
+            * one subdomain level is supported (subdomain.example.com)
         * this drives the domains of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
-        * dev.example.com, test.example.com, qc.example.com, example.com
+            * dev.example.com, test.example.com, qc.example.com, example.com
 * domain_tld_override:
     * `required: false`
     * `default: null`
     * `example: mycompany.com`
-        * a domain name that will override the tld of the domain for when you do not have control of the domain (example.com), but still need a LocalDev and externally accessible Test and QC instance
-        * this drives the domains of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
-            * PLEASE NOTE: When removing this option from a website with `software`, you need to manually replace URLs in the database respective to the `software_workflow` option.
-                * ie `vagrant ssh mycompany.com-test-redhat-mysql`
-                * `php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/example.com/(webroot if applicable)" search-replace ":\/\/(www\.)?(dev\.|test\.)?(example\.com\.mycompany\.com)" "://example.com" --regex`
-        * dev.example.com, test.example.com, qc.example.com, example.com are replaced by dev.example.com.mycompany.com, test.example.com.mycompany.com, qc.example.com.mycompany.com, example.com.mycompany.com
+        * a domain name under your [name server authority](https://en.wikipedia.org/wiki/Domain_Name_System#Authoritative_name_server) to append to the top-level-domain (e.g. `.com`)
+            * useful when you cannot or do not wish to host the Test/QC website at the `domain`
+        * appends the `domain_tld_override` for Environments
+            * dev.example.com.mycompany.com, test.example.com.mycompany.com, qc.example.com.mycompany.com, example.com.mycompany.com
+        * PLEASE NOTE: When removing this option from a website with `software`, you need to manually replace URLs in the database respective to the `software_workflow` option.
+            * ie `vagrant ssh mycompany.com-test-redhat-mysql`
+            * `php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/example.com/(webroot if applicable)" search-replace ":\/\/(www\.)?(dev\.|test\.)?(example\.com\.mycompany\.com)" "://example.com" --regex`
 * force_auth:
     * `required: false`
     * `default: null`
-    * `example: example`
-        * forces http basic authentication in Test, QC, and Production
-        * `example` is both the username and password
+    * `example: letmein`
+        * forces [http basic authentication](https://en.wikipedia.org/wiki/Basic_access_authentication) in Test, QC, and Production (see `force_auth_exclude`)
+        * `letmein` is both the username and password
 * force_auth_exclude:
-    * `dependancy: force_auth`
+    * `dependency: force_auth`
     * `required: false`
     * `default: null`
     * `values: ["test","qc","production"]`
-        * array of exclusions exclusive to the force_auth option
+        * array of Environments to exclude from the `force_auth` option
 * force_https:
     * `required: false`
     * `default: false`
-    * `value: true`
-        * rewrite all http traffic to https
+    * `values: true, false`
+        * rewrites all http traffic to https
         * subdomains are not supported as limited by CloudFlare
-        * you will receive an unsigned cert error in LocalDev
+        * causes an unsigned cert error in LocalDev
 * repo:
     * `required: true`
     * `example: git@github.com:devopsgroup-io/devopsgroup-io.git`
@@ -563,60 +566,68 @@ The following options are available:
     * `required: false`
     * `default: null`
     * `value: codeigniter2`
-        * generates codeigniter2 database config file ~/application/config/database.php
-        * rsyncs untracked ~/uploads
+        * maintains codeigniter2 database config file ~/application/config/database.php
+        * rsyncs git untracked ~/uploads
         * sets permissions for ~/uploads
-        * dumps and restores database at ~/sql
+        * dumps and restores database at ~/_sql
+        * updates url references in database
     * `value: codeigniter3`
-        * generates codeigniter3 database config file ~/application/config/database.php
-        * rsyncs untracked ~/uploads
+        * maintains codeigniter3 database config file ~/application/config/database.php
+        * rsyncs git untracked ~/uploads
         * sets permissions for ~/uploads
-        * dumps and restores database at ~/sql
+        * dumps and restores database at ~/_sql
+        * updates url references in database
     * `value: drupal6`
-        * generates drupal6 database config file ~/sites/default/settings.php
-        * rsyncs untracked ~/sites/default/files
+        * maintains drupal6 database config file ~/sites/default/settings.php
+        * rsyncs git untracked ~/sites/default/files
         * sets permissions for ~/sites/default/files
-        * dumps and restores database at ~/sql
-        * invokes drush updatedb
+        * invokes `drush updatedb`
+        * dumps and restores database at ~/_sql
+        * updates url references in database
         * resets drupal6 admin password
     * `value: drupal7`
-        * generates drupal7 database config file ~/sites/default/settings.php
-        * rsyncs untracked ~/sites/default/files
+        * maintains drupal7 database config file ~/sites/default/settings.php
+        * rsyncs git untracked ~/sites/default/files
         * sets permissions for ~/sites/default/files
-        * dumps and restores database at ~/sql
-        * invokes drush updatedb
+        * invokes `drush updatedb`
+        * dumps and restores database at ~/_sql
+        * updates url references in database
         * resets drupal7 admin password
     * `value: silverstripe`
-        * generates silverstripe database config file ~/mysite/_config.php
-        * restores newest database from ~/sql
+        * maintains silverstripe database config file ~/mysite/_config.php
+        * dumps and restores database at ~/_sql
+        * updates url references in database
     * `value: wordpress`
-        * generates wordpress database config file ~/installers/wp-config.php
-        * rsyncs untracked ~/wp-content/uploads
+        * maintains wordpress database config file ~/wp-config.php
+        * rsyncs git untracked ~/wp-content/uploads
         * sets permissions for ~/wp-content/uploads
-        * dumps and restores database at ~/sql
-        * invokes wp-cli core update-db
+        * invokes `wp-cli core update-db`
+        * dumps and restores database at ~/_sql
+        * updates url references in database
         * resets wordpress admin password
     * `value: xenforo`
-        * generates xenForo database config file ~/library/config.php
-        * rsyncs untracked ~/data and ~/internal_data
+        * maintains xenForo database config file ~/library/config.php
+        * rsyncs git untracked ~/data and ~/internal_data
         * sets permissions for ~/data and ~/internal_data
-        * dumps and restores database at ~/sql
+        * dumps and restores database at ~/_sql
+        * updates url references in database
 * software_dbprefix:
-    * `dependancy: software`
+    * `dependency: software`
     * `required: false`
     * `default: null`
     * `example: wp_`
-        * `wp_` is required for base Wordpress installs, Drupal has no prefix by default
+        * the value that prefixes table names within the database
+            * PLEASE NOTE: table prefixes included in software distributions, such as WordPress' `wp_`, must be specified if desired
 * software_workflow:
-    * `dependancy: software`
+    * `dependency: software`
     * `required: true`
-    * `default: null`
     * `value: downstream`
-        * Production is the source for the database and software upload directories
-        * this option is used when maintaining a website
+        * specifies Production as the source for the database and software file store
+        * this option is useful for maintaining a website
     * `value: upstream`
-        * Test is the source for the database and software upload directories
-        * this option is used when launching a new website
+        * specifies Test as the source for the database and software file store
+        * this option is useful for launching a new website
+        * PLEASE NOTE: affects the Production website instance - see [Release Management](#release-management)
 * webroot:
     * `required: false`
     * `default: null`
@@ -628,29 +639,32 @@ The following options are available:
 
 ## Website Development ##
 
-The importance of a LocalDev environment is critical to reducing risk by exacting the environment that exists upstream by leveraging Vagrant and VirtualBox.
+Performing development in a local environment is critical to reducing risk by exacting the environments that exist upstream, accomplished with Vagrant and VirtualBox.
 
 * Repositories for websites are cloned into the Catapult instance at ~/repositories and in the respective apache or iis folder, listed by domain name.
-* Repositories are linked between the host and guest for realtime developing.
-* Need a fresh database backup? Just delete and commit today's backup from the ~/sql folder.
+* Repositories are linked between the host and guest for realtime development.
+* Leverage Catapult's workflow model (configured by `software_workflow`).
+    * To trigger a database refresh, from the develop branch, commit a deletion of today's database backup from the ~/_sql folder.
 
 
 
 ## Performance Testing ##
 
-Often disregarded, performance testing is a key step in ensuring 100% uptime and an excellent user experience. ApacheBench is a great tool to test request performance and concurrency - OSX includes ApacheBench out of the box, see [this StackOverflow](http://stackoverflow.com/a/7407602/4838803) post to get up and running on Windows.
+Often disregarded, performance testing is a crucial component of quality assurance. The risks of neglecting performance testing include downtime, SEO impacts, gaps in analytics, poor user experience, and unknown ability to scale.
 
-ApacheBench enables us to profile requests `-n` (number of requests to perform) and concurrency `-c` (number of multiple requests to make at a time) to test for [C10k and C10M](http://highscalability.com/blog/2013/5/13/the-secret-to-10-million-concurrent-connections-the-kernel-i.html). An example command looks like this:
+With Catapult's exactly duplicated configuration, even the Test environment can accurately represent the performance potential of the Production environment. ApacheBench is a powerful tool to test request performance and concurrency - OSX includes ApacheBench out of the box, while [this StackOverflow post](http://stackoverflow.com/a/7407602/4838803) details how to get up and running on Windows.
+
+ApacheBench enables us to profile request performance (`-n` represents the number of requests to perform) and concurrency (`-c` represents the number of multiple requests to make at a time) to test for performance, including common limits such as [C10k and C10M](http://highscalability.com/blog/2013/5/13/the-secret-to-10-million-concurrent-connections-the-kernel-i.html). An example command looks like this:
 ````
 ab -n 1000 -c 100 http://test.devopsgroup.io/
 ````
-Keep bumping up `-n` and `-c` and notate failed requests and requests per second.
+Notate failed requests and requests per second while incrementing `-n` and `-c` values.
 
 
 
 ## Disaster Recovery ##
 
-No one likes when bad things happen - but being able to react immediately is crucial. Catapult affords you fast rebuilding and rollbacks.
+Being able to react to disasters immediately and consistently is crucial - Catapult affords you fast rebuilding and rollbacks.
 
 
 
@@ -663,18 +677,18 @@ No one likes when bad things happen - but being able to react immediately is cru
 
 ### Website Rollbacks ###
 
-* `software_workflow: upstream` The production database is dropped and restored from the latest sql file in the ~/sql folder. To rollback, reverse the merge commit and run the production deployment.
-* `software_workflow: downstream` The production database is dumped once per day when the production build is run. To rollback, reverse the merge commit and manually restore the production database.
+* `software_workflow: upstream` The production database is dumped and restored from the latest sql dump file in the ~/_sql folder. To rollback, reverse the offending merge commit from the master branch and run the production deployment.
+* `software_workflow: downstream` The production database is dumped once per day when the production build is run. To rollback, reverse the offending database dump auto-commit from the develop branch and manually restore the production database from the desired sql dump file in the ~/_sql folder.
 
 
 
 # Troubleshooting #
 
-Below is a log of service related troubleshooting, if you're still having issues with Catapult, [submit a GitHub Issue](https://github.com/devopsgroup-io/catapult/issues/new).
+Below is a log of service related troubleshooting. If you're having issues related to Catapult, [submit a GitHub Issue](https://github.com/devopsgroup-io/catapult/issues/new).
 
 * **DigitalOcean**
-    * [09-01-2015] vagrant rebuild was failing with a `The configured shell (config.ssh.shell) is invalid and unable to properly execute commands.` it is due to DigitalOcean's API not re-inserting the SSH key that was originally used during the first vagrant up (creation of the droplet). To rebuild, you must use the DigitalOcean console, run through the first root password reset workflow that was emailed to you, then vi /etc/sudoers and remove the Defaults requiretty line and save and exit. You can then run vagrant provision successfully.
-* **Git**
+    * [09-01-2015] vagrant rebuild was failing with a `The configured shell (config.ssh.shell) is invalid and unable to properly execute commands.` it is due to DigitalOcean's API not re-inserting the SSH key that was originally used during the first vagrant up (creation of the droplet). To rebuild, you must use the DigitalOcean console, run through the first root password reset workflow that was emailed to you, then vi /etc/sudoers and remove the `Defaults requiretty` line and save and exit. You can then run vagrant provision successfully.
+* **GitHub**
     * [09-08-2015] Some database dumps exceed 100MB, so it's recommened to use Bitbucket in those instances as Catapult auto-commits database dumps to your website's repository, up to 500MB worth of database dumps or the one, newest database dump. [Bitbucket](https://help.github.com/articles/what-is-my-disk-quota/) has a 2GB hard repo push limit with no documented file limit and [GitHub](https://help.github.com/articles/what-is-my-disk-quota/) has a 1GB soft repo limit with a 100MB file size limit.
 * **Vagrant**
    * [02-04-2015] When upgrading Vagrant you may run into errors - the most common issue are mismatched plugins, running this command has a good chance of success `sudo rm -Rf ~/.vagrant.d/gems/ && sudo rm ~/.vagrant.d/plugins.json`
@@ -683,32 +697,29 @@ Below is a log of service related troubleshooting, if you're still having issues
 
 # Contributing #
 
-So you want to contribute... Great! Open source projects like Catapult succeed or fail upon the involvement of a thriving community of developers, who often offer various levels of code skills and time commitment. Here are some ways you can begin contributing right away, at whatever level is most comfortable for you.
+Here are some ways which we welcome you to contribute to Catapult:
 
-  * Submit a feature
-  * Report a bug
-  * Verify and track down a reported bug
-  * Add documentation to the README
-  * Answer project specific questions
-  * Blog about your experiences with Catapult
+  * Submit a pull request
+  * Report an issue
+  * Provide feedback on open issues
+  * Improve documentation in the README
+  * Share your experiences with Catapult
 
-When you first setup Catapult a `develop-catapult` branch is created for you under your forked repository, with an upstream set to `https://github.com/devopsgroup-io/catapult.git` so that you can easily create a pull request. Also keep in mind when closing issues to submit a pull request that includes [GitHub's: Closing issues via commit messages](https://help.github.com/articles/closing-issues-via-commit-messages/).
+When you first setup Catapult, a `develop-catapult` branch is created for you under your forked repository with the git remote upstream set to `https://github.com/devopsgroup-io/catapult.git` so that you can easily create a pull request. Also keep in mind when closing issues to submit a pull request that includes [GitHub's: Closing issues via commit messages](https://help.github.com/articles/closing-issues-via-commit-messages/).
 
 
 
 ## Releases ##
 
-Releases are driven by the devopsgroup.io team and occur when accepting new pull requests from contributors like you. Releases follow Semantic Versioning 2.0.0, given a version number MAJOR.MINOR.PATCH, increment the:
+Releases are driven by the devopsgroup.io team and occur when accepting new pull requests from contributors like you. Releases follow [Semantic Versioning 2.0.0](http://semver.org/spec/v2.0.0.html). Given a version number MAJOR.MINOR.PATCH, increment the:
 
-1. MAJOR version when you make incompatible API changes,
-2. MINOR version when you add functionality in a backwards-compatible manner, and
-3. PATCH version when you make backwards-compatible bug fixes.
+* MAJOR version when you make incompatible API changes,
+* MINOR version when you add functionality in a backwards-compatible manner, and
+* PATCH version when you make backwards-compatible bug fixes.
 
-In addition, the release will be prefaced with a `v` (v1.0.0) to conform standard practice.
+In addition, the release version number will be prefaced with a `v` (v1.0.0) to conform to standard practice.
 
-During a new release, the version number in VERSION.yml will be incremented and tagged with the same version number along with a [GitHub Release](https://help.github.com/articles/about-releases/).
-
-See http://semver.org/spec/v2.0.0.html for more information.
+As part of a new release, the version number in VERSION.yml will be incremented and git tagged with the same version number along with a [GitHub Release](https://help.github.com/articles/about-releases/).
 
 
 
@@ -718,7 +729,7 @@ See http://semver.org/spec/v2.0.0.html for more information.
 
 ## Partnerships ##
 
-The Catapult team values partnerships and the great services and teams that have built them.
+The Catapult team values partnerships and continuous improvement.
 
 * [01-28-2016] Pantheon provides feedback
 * [01-22-2016] New Relic provides private beta access to their Synthetics API along side Breather, Carfax, Ring Central, Rackspace, and IBM.
@@ -727,7 +738,7 @@ The Catapult team values partnerships and the great services and teams that have
 
 ## Conferences ##
 
-Catapult is making the conference tour! We plan to attend the following the conferences, with more to come. Get a chance to see Catapult in action, presented by it's core developers.
+Catapult is making the conference tour! We plan to attend the following conferences, with more to come. Get a chance to see Catapult in action, presented by it's core developers.
 
 * Spring 2016 [04-08-2016] [Drupaldelphia](http://drupaldelphia.com/)
 * Summer 2016 [Wharton Web Conference](http://www.sas.upenn.edu/wwc/)
@@ -741,7 +752,7 @@ Catapult will also be seen throughout local meetups in the Philadelphia and Grea
 
 * [Philly Tech Meetup](http://www.meetup.com/philly-tech/) 4k+ technologists
 * [Princeton Tech ](http://www.meetup.com/Princeton-Tech/) 3.5k+ technologists
-* [Technical.ly Philly](http://www.meetup.com/Technically-Philly/) 3k+
+* [Technical.ly Philly](http://www.meetup.com/Technically-Philly/) 3k+ technologists
 * [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 1.5k+ technologists
 * [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 700+ technologists
 * [Greater Philadelphia Drupal Meetup Group](http://www.meetup.com/drupaldelphia/) 500+ technologists
@@ -750,3 +761,5 @@ Catapult will also be seen throughout local meetups in the Philadelphia and Grea
 
 # References #
 1. Atlassian. Comparing Workflows. https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow. Accessed February 15, 2016.
+2. Pantheon. Load and Performance Testing: Before You Begin. https://pantheon.io/docs/articles/load-and-performance-testing/. Accessed February 20, 2016.
+3. Acquia. Acquia Dev Desktop. https://www.acquia.com/products-services/dev-desktop. Accessed February 20, 2016.
