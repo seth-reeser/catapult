@@ -177,23 +177,26 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
     1. Fork https://github.com/devopsgroup-io/catapult and clone via SourceTree or the git utility of your choice.
 2. **Vagrant Plugins**
     1. Open your command line and cd into the newly cloned repository and install the following Vagrant plugins.
-        1. `vagrant plugin install vagrant-aws` [![Gem](https://img.shields.io/gem/dt/vagrant-aws.svg)](https://rubygems.org/gems/vagrant-aws)
-        2. `vagrant plugin install vagrant-digitalocean` [![Gem](https://img.shields.io/gem/dt/vagrant-digitalocean.svg)](https://rubygems.org/gems/vagrant-digitalocean)
-            * We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-digitalocean)
-        3. `vagrant plugin install vagrant-hostmanager` [![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager)
-            * We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-hostmanager)
-        4. `vagrant plugin install vagrant-vbguest` [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
+        1. `vagrant plugin install vagrant-aws`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-aws.svg)](https://rubygems.org/gems/vagrant-aws)
+        2. `vagrant plugin install vagrant-digitalocean`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-digitalocean.svg)](https://rubygems.org/gems/vagrant-digitalocean) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-digitalocean)
+        3. `vagrant plugin install vagrant-hostmanager`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-hostmanager)
+        4. `vagrant plugin install vagrant-vbguest`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
 3. **SSH Key Pair**
-    1. You will need to create a *passwordless* SSH key pair that will drive authentication for Catapult.
+    1. Create a *passwordless* SSH key pair - this will drive authentication for Catapult.
         1. For instructions please see https://help.github.com/articles/generating-ssh-keys/
         2. Place the newly created *passwordless* SSH key pair id_rsa and id_rsa.pub in the ~/secrets/ folder.
 4. **GPG Key**
-    1. You will need to create your team's gpg_key that will be the single key that encrypts all of your configuration and secrets for your instance.
+    1. Generate a GPG key - this will drive encryption for Catapult.
         1. NEVER SHARE THE KEY WITH ANYONE OTHER THAN YOUR TEAM.
         3. Spaces are not permitted and must be at least 20 characters.
         4. To create a strong key, please visit https://xkpasswd.net/
-        5. It is recommended to print a QR code of the key to distribute to your team, please visit http://educastellano.github.io/qr-code/demo/
-        6. Remember; security is 99% process and 1% technology.
+        5. Place your newly generated GPG key at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
+        6. It is recommended to print a QR code of the key to distribute to your team, please visit http://educastellano.github.io/qr-code/demo/
+        7. Remember! Security is 99% process and 1% technology.
 5. **GPG Edit Mode**
     1. When **GPG Edit Mode** is enabled (disabled by default) the following files are encrypted using your **GPG Key**:
         1. ~/secrets/id_rsa as ~/secrets/id_rsa.gpg
@@ -641,10 +644,29 @@ The following options are available:
 
 Performing development in a local environment is critical to reducing risk by exacting the environments that exist upstream, accomplished with Vagrant and VirtualBox.
 
+**Website Repositories**
 * Repositories for websites are cloned into the Catapult instance at ~/repositories and in the respective apache or iis folder, listed by domain name.
-* Repositories are linked between the host and guest for realtime development.
-* Leverage Catapult's workflow model (configured by `software_workflow`).
-    * To trigger a database refresh, from the develop branch, commit a deletion of today's database backup from the ~/_sql folder.
+    * Repositories are linked between the host and guest for realtime development.
+
+**Working with Databases**
+* Leverage Catapult's workflow model (configured by `software_workflow`) to trigger a database refresh. From the develop branch, commit a deletion of today's database backup from the ~/_sql folder.
+
+**Forcing www**
+* Forcing www is software specific, unlike forcing the https protocol, which is environment specific and driven by the `force_https` option. To force www, please follow the respective guides per software:
+    * `value: codeigniter2`
+        * 
+    * `value: codeigniter3`
+        * 
+    * `value: drupal6`
+        * https://github.com/drupal/drupal/blob/6.x-18-security/.htaccess#L87
+    * `value: drupal7`
+        * https://github.com/drupal/drupal/blob/7.x/.htaccess#L89
+    * `value: silverstripe`
+        * 
+    * `value: wordpress`
+        * http://codex.wordpress.org/Changing_The_Site_URL
+    * `value: xenforo`
+        * 
 
 
 
@@ -677,9 +699,20 @@ Being able to react to disasters immediately and consistently is crucial - Catap
 
 ### Website Rollbacks ###
 
-* `software_workflow: upstream` The production database is dumped and restored from the latest sql dump file in the ~/_sql folder. To rollback, reverse the offending merge commit from the master branch and run the production deployment.
-* `software_workflow: downstream` The production database is dumped once per day when the production build is run. To rollback, reverse the offending database dump auto-commit from the develop branch and manually restore the production database from the desired sql dump file in the ~/_sql folder.
+**Production Website Rollbacks:**
 
+* `software_workflow: upstream`
+    * Files
+        * Reverse the offending merge commit from the master branch and run the Production deployment.
+    * Database
+        * Reverse the offending merge commit from the master branch and run the Production deployment.
+        * Note: The Production database is overwritten and restored from the latest sql dump file from Test in the ~/_sql folder.
+* `software_workflow: downstream`
+    * Files
+        * Reverse the offending merge commit from the master branch and run the Production deployment.
+    * Database
+        * Reverse the offending database dump auto-commit from the develop branch and manually restore the Production database from the desired sql dump file in the ~/_sql folder.
+        * Note: The Production database is dumped once per day when the production build is run.
 
 
 # Troubleshooting #
