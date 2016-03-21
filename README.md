@@ -23,9 +23,10 @@
 **What makes Catapult different?**
 
 * Catapult is open sourced.
-* Catapult is a single-state architecture - you will always be driving a fully optioned Ferrari.
-* Catapult is a configuration framework that invokes platform native shell scripts rather than using traditional configuration management tools such as Chef, Puppet, Salt.
-* Catapult overlays seamlessly with Scrum working methodology.
+* Catapult is a single-state architecture - there are no optional features.
+* Catapult only orchestrates - it is not required to run your infrastructure.
+* Catapult uses platform native shell scripts rather than configuration management tools such as Chef, Puppet, Salt.
+* Catapult overlays seamlessly with Scrum methodology.
 * Catapult features Gitflow workflow and branch-based environments.
 * Catapult features a unique workflow model - upstream or downstream.
 * Catapult is extremely cost effective.
@@ -94,30 +95,33 @@ The free market and competition is great - it pushes the envelope of innovation.
 
 Platform Feature | Catapult | Pantheon | Acquia
 -----------------|----------|----------|--------
-Source                              | Open                           | Closed                        | Closed
-Feature Set                         | Bundled                        | Separated                     | Separated
-Minimum Bundled<br>Monthly Cost     | $40                            | $400                          | $134
-Methodology                         | Scrum                          | :x:                           | :x:
-Workflow                            | Git Flow                       | Git Flow                      | Git Flow
-Workflow Model                      | Upstream or Downstream         | :x:                           | :x:
-Environments                        | LocalDev, Test, QC, Production | Multidev, Dev, Test, Live     | Dev Desktop, Dev, Stage, Prod
-Exacting Configuration              | :white_check_mark:             | :x:<sup>[2](#references)</sup>| :x:<sup>[3](#references)</sup>
-Approach                            | Virtual Machine                | Container                     | Virtual Machine
-Data Center                         | DigitalOcean and AWS           | Rackspace                     | AWS
-Scaling                             | Vertical                       | Horizontal                    | Vertical
-Scaling Management                  | *Manual                        | Automatic                     | Manual
-Development Environment             | Unlimited Local                | 5 Cloud                       | Unlimited Local
-Development Environment<br>Approach | Exact                          | Exact                         | Similar
-Dashboard - Control                 | CLI                            | CLI & Web                     | CLI & Web
-Dashboard - Monitor                 | CLI & \*Web                    | CLI & Web                     | CLI & Web
-Git                                 | GitHub & Bitbucket             | Proprietary                   | Proprietary 
-Managed DNS                         | CloudFlare                     | :x:                           | :x: 
-Managed HTTPS                       | Free                           | $30/mo + $cert                | $cert
-Managed Monitoring                  | New Relic                      | Proprietary                   | Proprietary
-Supported Software                  | Numerous                       | 2                             | 1
+Source                                        | Open                           | Closed                        | Closed
+Feature Set                                   | Bundled                        | Separated                     | Separated
+Supported Software                            | Numerous                       | 2                             | 1
+Minimum Bundled<br>Monthly Cost               | $40                            | $400                          | $134
+Managed Workflow                              | Git Flow                       | :x:                           | :x:
+Managed Workflow Model                        | Upstream or Downstream         | :x:                           | :x:
+Agile Methodology Focus                       | Scrum                          | :x:                           | :x:
+Environments                                  | LocalDev, Test, QC, Production | Multidev, Dev, Test, Live     | Dev Desktop, Dev, Stage, Prod
+Exacting Configuration                        | :white_check_mark:             | :x:<sup>[2](#references)</sup>| :x:<sup>[3](#references)</sup>
+Approach                                      | Virtual Machine                | Container                     | Virtual Machine
+Data Center                                   | DigitalOcean and AWS           | Rackspace                     | AWS
+Scaling                                       | Vertical                       | Horizontal                    | Vertical
+Scaling Management                            | *Manual                        | Automatic                     | Manual
+Development Environment                       | Unlimited Local                | 5 Cloud                       | Unlimited Local
+Development Environment Approach              | Exact                          | Exact                         | Similar
+Dashboard - Control                           | CLI                            | CLI & Web                     | CLI & Web
+Dashboard - Monitor                           | Web                            | Web                           | Web
+Managed Public Git Website Repository Support | GitHub & Bitbucket             | :x:                           | :x:
+Managed DNS                                   | CloudFlare                     | :x:                           | :x:
+Managed Free HTTPS/SSL                        | CloudFlare                     | :x:                           | :x:
+Managed Error Logs                            | New Relic                      | Proprietary                   | Proprietary
+Managed Application Performance Monitoring    | New Relic                      | :x:                           | :x:
+Managed Browser Performance Monitoring        | New Relic                      | :x:                           | :x:
+Managed Synthetic Monitoring                  | New Relic                      | :x:                           | :x:
+Managed Server Monitoring                     | New Relic                      | :x:                           | Proprietary
 
-\* Catapult introduces new features on a regular basis - this feature is highlighted as a milestone for future release.
-See an error or have a suggestion? Email competition@devopsgroup.io
+See an error or have a suggestion? Email competition@devopsgroup.io - we appreciate all feedback.
 
 
 
@@ -142,10 +146,19 @@ See an error or have a suggestion? Email competition@devopsgroup.io
         - [Environments](#environments)
         - [Websites](#websites)
     - [Website Development](#website-development)
+        - [Website Repositories](#website-repositories)
+        - [Forcing www](#forcing-www)
+        - [Refreshing Databases](#refreshing-databases)
+        - [Connecting to Databases](#connecting-to-databases)
     - [Performance Testing](#performance-testing)
+        - [Website Concurrency Maxiumum](#website-concurrency-maximum)
+        - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
     - [Disaster Recovery](#disaster-recovery)
         - [Server Rebuilding](#server-rebuilding) 
-        - [Website Rollbacks](#website-rollbacks) 
+        - [Website Rollbacks](#website-rollbacks)
+- [Security and Compliance](#security-and-compliance)
+    - [Cloud Compliance](#cloud-compliance)
+    - [Self Compliance](#self-compliance)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
     - [Releases](#releases)
@@ -483,7 +496,7 @@ Environment | LocalDev | Test | QC | Production
 **Scrum Roles**                                 | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)          | Scrum Master, Development Team, Product Owner                  | Product Owner
 **Downstream Software Workflow - Database**     | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy
 **Upstream Software Workflow - Database**       | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
-**Downstream Software Workflow - File Store**   | rsync files from **Production** if git untracked            | rsync files from **Production** if untracked                      | rsync files from **Production** if git untracked               | --
+**Downstream Software Workflow - File Store**   | rsync files from **Production** if git untracked            | rsync files from **Production** if git untracked                  | rsync files from **Production** if git untracked               | --
 **Upstream Software Workflow - File Store**     | rsync files from **Test** if git untracked                  | --                                                                | rsync files from **Test** if git untracked                     | rsync files from **Test** if git untracked
 
 
@@ -491,8 +504,6 @@ Environment | LocalDev | Test | QC | Production
 ## Catapult Configuration ##
 
 All instance specific configuration is stored in ~/secrets/configuration.yml and encrypted as ~/secrets/configuration.yml.gpg. There are three main sections - [Company](#company), [Environments](#environments), and [Websites](#websites).
-
-
 
 ### Company ###
 
@@ -513,13 +524,9 @@ The exclusive Company entry contains top-level global credentials and company in
         * Your timezone in Windows Standard Format that is used to for setting within operating systems and applications
         * https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html
 
-
-
 ### Environments ###
 
 The setup- and maintenance-free Environments entries contain environment configurations such as IP addresses and system credentials - all of which are automatically set during [Setup Catapult](#setup-catapult) and [Setup Environments](#setup-environments).
-
-
 
 ### Websites ###
 
@@ -655,17 +662,11 @@ The following options are available:
 
 Performing development in a local environment is critical to reducing risk by exacting the environments that exist upstream, accomplished with Vagrant and VirtualBox.
 
-**Website Repositories**
-
+### Website Repositories ###
 * Repositories for websites are cloned into the Catapult instance at ~/repositories and in the respective apache or iis folder, listed by domain name.
     * Repositories are linked between the host and guest for realtime development.
 
-**Working with Databases**
-
-* Leverage Catapult's workflow model (configured by `software_workflow`) to trigger a database refresh. From the develop branch, commit a deletion of today's database backup from the ~/_sql folder.
-
-**Forcing www**
-
+### Forcing www ###
 * Forcing www is software specific, unlike forcing the https protocol, which is environment specific and driven by the `force_https` option. To force www ([why force www?](http://www.yes-www.org/)), please follow the respective guides per software:
     * `value: codeigniter2`
         * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
@@ -682,19 +683,88 @@ Performing development in a local environment is critical to reducing risk by ex
     * `value: xenforo`
         * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
 
+### Refreshing Databases ###
+* Databases are dumped once per day to the ~/_sql folder and restored, dependent on the environment and `software_workflow` setting per website - see [Release Management](#release-management) for details.
+* Leverage Catapult's workflow model (configured by `software_workflow`) to trigger a database refresh. From the develop branch, commit a deletion of today's database backup from the ~/_sql folder.
+
+### Connecting to Databases ###
+* Oracle SQL Developer is the recommended tool, to connect to and work with, databases. It is free, commercially supported, cross-platform, and supports multiple database types.
+* **Download and install** [Oracle SQL Developer](http://www.oracle.com/technetwork/developer-tools/sql-developer/downloads/index.html), some platforms require the [Java SE Development Kit](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
+* **Install third party JDBC drivers**: Oracle SQL Developer uses JDBC, via a .jar file, to connect to different database types. To install a new JDBC connector, download the respective .jar file then from Oracle SQL Developer > Preferences > Third Party JDBC Drivers, click Add Entry.<sup>[4](#references)</sup>
+    * **MySQL** http://dev.mysql.com/downloads/connector/j/5.0.html
+        * For convenience, you may also use `~/catapult/installers/mysql-connector-java-5.0.8-bin.jar`
+    * **MSSQL** https://sourceforge.net/projects/jtds/files/jtds/
+        * For convenience, you may also use `~/catapult/installers/jtds-1.3.1.jar`
+* **Connecting to:** LocalDev
+    * The firewall allows direct connection to the database server. 
+        * Use the mysql values in `~/secrets/configuration.yml` to connect.
+* **Connecting to:** Test, QC, Production
+    * The firewall does not allow direct connect to the database servers.
+        * Add a New SSH Host in Oracle SQL Developer with the respective environment's web server host public ip address, root username with key file at `~/secrets/id_rsa`.
+            * Create a New Local Port Forward with the respective environment's database server host private ip address and port 3306.
+        * Then add a New Connection with the respective environment's mysql user values in `~/secrets/configuration.yml`.
+            * The hostname will be localhost since we are forwarding the port through our local SSH tunnel.
+
 
 
 ## Performance Testing ##
 
 Often disregarded, performance testing is a crucial component of quality assurance. The risks of neglecting performance testing include downtime, SEO impacts, gaps in analytics, poor user experience, and unknown ability to scale.
 
-With Catapult's exactly duplicated configuration, even the Test environment can accurately represent the performance potential of the Production environment. ApacheBench is a powerful tool to test request performance and concurrency - OSX includes ApacheBench out of the box, while [this StackOverflow post](http://stackoverflow.com/a/7407602/4838803) details how to get up and running on Windows.
+With Catapult's exactly duplicated configuration, even the Test environment can accurately represent the performance potential of the Production environment. [ApacheBench](https://httpd.apache.org/docs/2.4/programs/ab.html) is a powerful tool to test request performance and concurrency - OSX includes ApacheBench out of the box, while [this StackOverflow post](http://stackoverflow.com/a/7407602/4838803) details how to get up and running on Windows.
 
-ApacheBench enables us to profile request performance (`-n` represents the number of requests to perform) and concurrency (`-c` represents the number of multiple requests to make at a time) to test for performance, including common limits such as [C10k and C10M](http://highscalability.com/blog/2013/5/13/the-secret-to-10-million-concurrent-connections-the-kernel-i.html). An example command looks like this:
+ApacheBench enables us to profile request performance (`-n` represents the number of requests to perform) and concurrency (`-c` represents the number of multiple requests to make at a time) to test for performance, including common limits such as [C10k and C10M](http://highscalability.com/blog/2013/5/13/the-secret-to-10-million-concurrent-connections-the-kernel-i.html).
+
+### Website Concurrency Maxiumum ###
+
+Using a website with historical Google Analytics data, access the Audience Overview and find the busiest Pageview day from the past 30-days and then drill into that date. Find the hour with the most Pageviews, then the accompanying Avg. Session Duration. Using the following formula, we are able to find the Concurrency Maxiumum.
+
+*(Pageviews x Avg. Session Duration - in seconds) / 3,600 seconds* = **Concurrency Maxiumum**
+
+Take a website with an average of 500 pageviews per hour, or 365,000 pageviews per month, which has a busiest hour of 1,000 pageviews.
+
+Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
+----------|-----------------------|-----------------------|---------------------
+1,000 | 60 minutes (3,600 seconds) | 3,600,000 | **1,000**
+1,000 | 10 minutes (600 seconds) | 600,000 | **166**
+1,000 | 5 minutes (300 seconds) | 300,000 | **88**
+1,000 | 1 minute (60 seconds) | 60,000 | **16**
+
+**100 concurrent requests performed 10 times**
 ````
-ab -n 1000 -c 100 http://test.devopsgroup.io/
+ab -l -r -n 1000 -c 100 -H "Accept-Encoding: gzip, deflate" http://test.devopsgroup.io/
 ````
-Notate failed requests and requests per second while incrementing `-n` and `-c` values.
+
+Take a website with an average of 20 pageviews per hour, or 14,600 pageviews per month, which has a busiest hour of 100 pageviews.
+
+Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
+----------|-----------------------|-----------------------|---------------------
+100 | 60 minutes (3,600 seconds) | 36,000 | **1,000**
+100 | 10 minutes (600 seconds) | 60,000 | **16**
+100 | 5 minutes (300 seconds) | 30,000 | **8**
+100 | 1 minute (60 seconds) | 6,000 | **1.6**
+
+**10 concurrent requests performed 10 times**
+````
+ab -l -r -n 100 -c 10 -H "Accept-Encoding: gzip, deflate" http://test.devopsgroup.io/
+````
+
+### Interpreting Apache AB Results ###
+
+Using a satisifed [Apdex](https://en.wikipedia.org/wiki/Apdex) of 7 seconds, we can see that 98% of users would be satisfied.
+
+````
+Percentage of the requests served within a certain time (ms)
+  50%     19
+  66%     21
+  75%     24
+  80%     27
+  90%     34
+  95%   3968
+  98%   6127
+  99%   7227
+ 100%   7325 (longest request)
+````
 
 
 
@@ -702,14 +772,10 @@ Notate failed requests and requests per second while incrementing `-n` and `-c` 
 
 Being able to react to disasters immediately and consistently is crucial - Catapult affords you fast rebuilding and rollbacks.
 
-
-
 ### Server Rebuilding ###
 
 * LocalDev is rebuildable by running `vagrant destroy` then `vagrant up` for the respective virtual machine.
 * Test, QC, and Production are rebuildable by running `vagrant rebuild` for the respective virtual machine - this is necessary (rather than a destroy and up) to retain the IP addresses of the machine.
-
-
 
 ### Website Rollbacks ###
 
@@ -729,6 +795,41 @@ Being able to react to disasters immediately and consistently is crucial - Catap
         * Note: The Production database is dumped once per day when the production build is run.
 
 
+
+# Security and Compliance #
+
+There are many complex compliance and audit standards that are your responsibility to understand and execute. Each Catapult instance is independant to you - including the required services that you signed up for during [Services Setup](#services-setup).
+
+## Cloud Compliance ##
+
+Security **of** the cloud. This is the responsibility of the cloud service.
+
+Service           | Catapult Context                         | SOC 1                                                              | SOC 2                                                              | SOC 3
+------------------|------------------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------
+AWS EC2 US EAST   | Temporary build servers                  | [:white_check_mark:](https://aws.amazon.com/compliance/soc-faqs/)  | [:white_check_mark:](https://aws.amazon.com/compliance/soc-faqs/)  | [:white_check_mark:](https://aws.amazon.com/compliance/soc-faqs/)
+Bamboo            | Server communication, log files, secrets | [:white_check_mark:](https://www.atlassian.com/cloud/security/)    |                                                                    |
+BitBucket         | Repository hosting                       | [:white_check_mark:](https://www.atlassian.com/cloud/security/)    |                                                                    |
+DigitalOcean NYC3 | Red Hat server hosting                   |                                                                    | [:white_check_mark:](https://www.digitalocean.com/help/policy/)    | [:white_check_mark:](https://www.digitalocean.com/help/policy/)
+GitHub            | Repository hosting                       |                                                                    |                                                                    |
+New Relic         | Server communication, log files          |                                                                    | [:white_check_mark:](http://newrelic.com/why-new-relic/security)   |
+
+## Self Compliance ##
+
+Security **in** the cloud. This is your responsibility, however, the underlying service must have a basic support the compliance.
+
+Service           | Catapult Context                         | HIPAA BAA                                                                 | PCI DSS Level 1
+------------------|------------------------------------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------
+AWS EC2           | Windows server hosting                   | [:white_check_mark:](https://aws.amazon.com/compliance/hipaa-compliance/) | [:white_check_mark:](https://aws.amazon.com/compliance/pci-dss-level-1-faqs/)
+CloudFlare        | Web application firewall                 |                                                                           | [:white_check_mark:](https://support.cloudflare.com/hc/en-us/articles/202249734-CloudFlare-and-PCI-Compliance)
+Bamboo            | Server communication, log files, secrets | [:x:](https://www.atlassian.com/security/security-faq/)                   |
+BitBucket         | Repository hosting                       | [:x:](https://www.atlassian.com/security/security-faq/)                   |
+DigitalOcean NYC3 | Red Hat server hosting                   | [:question:](https://www.digitalocean.com/help/policy/)                   | [:question:](https://www.digitalocean.com/help/policy/)
+GitHub            | Repository hosting                       | [:question:](https://help.github.com/articles/github-security/)           |
+
+See an error or have a suggestion? Email security@devopsgroup.io - we appreciate all feedback.
+
+
+
 # Troubleshooting #
 
 Below is a log of service related troubleshooting. If you're having issues related to Catapult, [submit a GitHub Issue](https://github.com/devopsgroup-io/catapult/issues/new).
@@ -739,6 +840,7 @@ Below is a log of service related troubleshooting. If you're having issues relat
     * [09-08-2015] Some database dumps exceed 100MB, so it's recommened to use Bitbucket in those instances as Catapult auto-commits database dumps to your website's repository, up to 500MB worth of database dumps or the one, newest database dump. [Bitbucket](https://help.github.com/articles/what-is-my-disk-quota/) has a 2GB hard repo push limit with no documented file limit and [GitHub](https://help.github.com/articles/what-is-my-disk-quota/) has a 1GB soft repo limit with a 100MB file size limit.
 * **Vagrant**
    * [02-04-2015] When upgrading Vagrant you may run into errors - the most common issue are mismatched plugins, running this command has a good chance of success `sudo rm -Rf ~/.vagrant.d/gems/ && sudo rm ~/.vagrant.d/plugins.json`
+
 
 
 # Contributing #
@@ -809,3 +911,4 @@ Catapult will also be seen throughout local meetups in the Philadelphia and Grea
 1. Atlassian. Comparing Workflows. https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow. Accessed February 15, 2016.
 2. Pantheon. Load and Performance Testing: Before You Begin. https://pantheon.io/docs/articles/load-and-performance-testing/. Accessed February 20, 2016.
 3. Acquia. Acquia Dev Desktop. https://www.acquia.com/products-services/dev-desktop. Accessed February 20, 2016.
+4. Oracle Technology Network. Oracle SQL Developer Migrations: Getting Started. http://www.oracle.com/technetwork/database/migration/omwb-getstarted-093461.html#conf. Accessed March 14, 2016.
