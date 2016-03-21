@@ -22,14 +22,13 @@
 
 **What makes Catapult different?**
 
-* Catapult is open sourced.
-* Catapult is a single-state architecture - there are no optional features.
-* Catapult only orchestrates - it is not required to run your infrastructure.
-* Catapult uses platform native shell scripts rather than configuration management tools such as Chef, Puppet, Salt.
-* Catapult overlays seamlessly with Scrum methodology.
-* Catapult features Gitflow workflow and branch-based environments.
-* Catapult features a unique workflow model - upstream or downstream.
-* Catapult is extremely cost effective.
+* Catapult is an open source, complete, and distributed architecture
+* Catapult only orchestrates - it is not required to run your infrastructure
+* Catapult uses platform native shell scripts rather than configuration management tools such as Chef, Puppet, Salt
+* Catapult overlays seamlessly with Scrum methodology
+* Catapult features Gitflow workflow while enforcing exactly matching, branch-driven environments
+* Catapult features a unique workflow model - upstream or downstream
+* Catapult is highly cost effective
 
 *Go ahead, give* **Catapult** *a* **shot**.
 
@@ -115,11 +114,11 @@ Dashboard - Monitor                           | Web                            |
 Managed Public Git Website Repository Support | GitHub & Bitbucket             | :x:                           | :x:
 Managed DNS                                   | CloudFlare                     | :x:                           | :x:
 Managed Free HTTPS/SSL                        | CloudFlare                     | :x:                           | :x:
-Managed Error Logs                            | New Relic                      | Proprietary                   | Proprietary
+Managed Server Monitoring                     | New Relic                      | :x:                           | Proprietary
+Managed Application Error Logs                | New Relic                      | Proprietary                   | Proprietary
 Managed Application Performance Monitoring    | New Relic                      | :x:                           | :x:
 Managed Browser Performance Monitoring        | New Relic                      | :x:                           | :x:
 Managed Synthetic Monitoring                  | New Relic                      | :x:                           | :x:
-Managed Server Monitoring                     | New Relic                      | :x:                           | Proprietary
 
 See an error or have a suggestion? Email competition@devopsgroup.io - we appreciate all feedback.
 
@@ -719,7 +718,7 @@ ApacheBench enables us to profile request performance (`-n` represents the numbe
 
 Using a website with historical Google Analytics data, access the Audience Overview and find the busiest Pageview day from the past 30-days and then drill into that date. Find the hour with the most Pageviews, then the accompanying Avg. Session Duration. Using the following formula, we are able to find the Concurrency Maxiumum.
 
-*(Pageviews x Avg. Session Duration - in seconds) / 3,600 seconds* = **Concurrency Maxiumum**
+*(Pageviews x Avg. Session Duration in seconds) / 3,600 seconds* = **Concurrency Maxiumum**
 
 Take a website with an average of 500 pageviews per hour, or 365,000 pageviews per month, which has a busiest hour of 1,000 pageviews.
 
@@ -815,7 +814,7 @@ New Relic         | Server communication, log files          |                  
 
 ## Self Compliance ##
 
-Security **in** the cloud. This is your responsibility, however, the underlying service must have a basic support the compliance.
+Security **in** the cloud. This is your responsibility, however, the underlying service must have basic support for the compliance scenario.
 
 Service           | Catapult Context                         | HIPAA BAA                                                                 | PCI DSS Level 1
 ------------------|------------------------------------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------
