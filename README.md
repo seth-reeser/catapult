@@ -178,18 +178,46 @@ Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#insta
 Catapult is controlled via Vagrant and the command line of a Developer's computer - below is a list of required software.
 
 1. **Vagrant**
-    1. Please download and install from https://www.vagrantup.com/downloads.html
-    2. Using OSX ? Please ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
+    * **Using OS X?**
+        1. Ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
+        2. Download and install the latest verson of Vagrant from https://www.vagrantup.com/downloads.html
+    * **Using Windows?**
+        1. Download and install the latest verson of Vagrant from https://www.vagrantup.com/downloads.html
+    * **Using Linux (Debian, Ubuntu)?**
+        1. Download the latest version of Vagrant respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.8.1/vagrant_1.8.1_x86_64.deb`
+        2. Install Vagrant using dpkg e.g. `sudo dpkg --install vagrant_1.8.1_x86_64.deb`
+    * **Using Linux (Fedora, Red Hat, Suse)?**
+        1. Download the latest version of Vagrant respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.8.1/vagrant_1.8.1_x86_64.rpm`
+        2. Install Vagrant using yum e.g. `sudo yum install vagrant_1.8.1_x86_64.rpm`
 2. **VirtualBox**
-    1. Please download and install from https://www.virtualbox.org/wiki/Downloads
-3. **SourceTree**
-    1. Please download and install from https://www.sourcetreeapp.com/
-4. **Sublime Text 3**
+    * **Using OS X?**
+        1. Download and install the latest version of VirtualBox from https://www.virtualbox.org/wiki/Downloads
+    * **Using Windows?**
+        1. Download and install the latest version of VirtualBox from https://www.virtualbox.org/wiki/Downloads
+    * **Using Linux (Debian, Ubuntu)?**
+        1. Download and install the latest version of VirtualBox using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
+    * **Using Linux (Fedora, Red Hat, Suse)?**
+        1. Download and install the latest version of VirtualBox using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
+3. **GPG2**
+    * **Using OS X?**
+        1. Download and install GPG Suite from https://gpgtools.org
+    * **Using Windows?**
+        1. Download and install Gpg4win from http://gpg4win.org/download.html
+    * **Using Linux?**
+        1. GPG is included in the base distribution in most cases.
+        1. If being prompted by the Passphrase GUI Agent, comment out 'use-agent' in ~/.gnupg/gpg.conf
+
+Having your team use the same tools is beneficial to streamlining your workflow - below is a list of recommended software tools.
+
+1. **Git**
+    * **Using OS X?**
+        1. Download and install SourceTree from https://www.sourcetreeapp.com/
+    * **Using Windows?**
+        1. Download and install SourceTree from https://www.sourcetreeapp.com/
+    * **Using Linux?**
+        1. Download and install SmartGit from http://www.syntevo.com/smartgit/
+2. **Sublime Text 3**
     1. Please download and install from http://www.sublimetext.com/3
-5. **GPG2**
-    1. Using OSX? Please download and install GPG Suite https://gpgtools.org
-    2. Using Linux? If being prompted by the Passphrase GUI Agent, comment out 'use-agent' in ~/.gnupg/gpg.conf
-    3. Using Windows? Please download and install Gpg4win from http://gpg4win.org/download.html
 
 
 ## Instance Setup ##
