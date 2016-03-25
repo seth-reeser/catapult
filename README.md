@@ -75,17 +75,18 @@ Catapult leverages the following technologies and technology services to impleme
 
 Catapult supports the following software:
 
-* Any PHP project compatible with PHP 5.4
-    * as limited by CentOS 7.2
-* CodeIgniter 2.x
-* CodeIgniter 3.x
-* Drupal 6.x, Drupal 7.x
-    * as required by Drush 7.0.0
-* SilverStripe 2.x
-* WordPress 3.5.2+, WordPress 4.x
-    * as required by WP-CLI
-* XenForo 1.x
+* CodeIgniter 2
+* CodeIgniter 3
+* Drupal 6
+* Drupal 7
+* SilverStripe 2
+* WordPress 3.5.2+
+* WordPress 4
+* XenForo 1
 
+Catapult additionally supports basic PHP projects that do not have a database requirement:
+
+* PHP 5.4 compatible project
 
 
 ## Competition ##
@@ -106,7 +107,7 @@ Exacting Configuration                        | :white_check_mark:             |
 Approach                                      | Virtual Machine                | Container                     | Virtual Machine
 Data Center                                   | DigitalOcean and AWS           | Rackspace                     | AWS
 Scaling                                       | Vertical                       | Horizontal                    | Vertical
-Scaling Management                            | *Manual                        | Automatic                     | Manual
+Scaling Management                            | Manual                         | Automatic                     | Manual
 Development Environment                       | Unlimited Local                | 5 Cloud                       | Unlimited Local
 Development Environment Approach              | Exact                          | Exact                         | Similar
 Dashboard - Control                           | CLI                            | CLI & Web                     | CLI & Web
@@ -155,9 +156,10 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
     - [Disaster Recovery](#disaster-recovery)
         - [Server Rebuilding](#server-rebuilding) 
         - [Website Rollbacks](#website-rollbacks)
-- [Security and Compliance](#security-and-compliance)
+- [Compliance and Security](#compliance-and-security)
     - [Cloud Compliance](#cloud-compliance)
     - [Self Compliance](#self-compliance)
+    - [HTTPS and SSL Certificates](#https-and-ssl-certificates)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
     - [Releases](#releases)
@@ -539,18 +541,18 @@ All instance specific configuration is stored in ~/secrets/configuration.yml and
 
 The exclusive Company entry contains top-level global credentials and company information - all of which will be configured during [Setup Catapult](#setup-catapult).
 
-* name:
-    * `required: true`
+* `name:`
+    * required: no
         * Your company's name or your name
-* email:
-    * `required: true`
+* `email:`
+    * required: no
         * Your company's email or your email that is used for software admin accounts and virtual host admin
-* timezone_redhat:
-    * `required: true`
+* `timezone_redhat:`
+    * required: no
         * Your timezone in tz database format that is used to for setting within operating systems and applications
         * https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html
-* timezone_windows:
-    * `required: true`
+* `timezone_windows:`
+    * required: no
         * Your timezone in Windows Standard Format that is used to for setting within operating systems and applications
         * https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html
 
@@ -560,7 +562,7 @@ The setup- and maintenance-free Environments entries contain environment configu
 
 ### Websites ###
 
-Adding websites to Catapult is driven by simple configuration. After establishing a repository at GitHub or Bitbucket, simply add entries to configuration.yml. The entries must be ordered alphabetically by domain name and all entries exist under the single `websites` key as reflected in this example:
+Adding websites to Catapult is driven by simple configuration. After establishing a repository at GitHub or Bitbucket, simply add entries to configuration.yml. The entries must be ordered alphabetically by domain name and all entries exist under the single `websites:` key as reflected in this example:
 ```
 websites:
   apache:
@@ -572,63 +574,58 @@ websites:
 
 The following options are available:
 
-* domain:
-    * `required: true`
-    * `example: example.com`
+* `domain:`
+    * required: yes
+    * example: `domain: example.com`
         * the Production canonical domain name without `www.`
             * one subdomain level is supported (subdomain.example.com)
         * this drives the domains of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
             * dev.example.com, test.example.com, qc.example.com, example.com
-* domain_tld_override:
-    * `required: false`
-    * `default: null`
-    * `example: mycompany.com`
+* `domain_tld_override:`
+    * required: no
+    * example: `domain_tld_override: mycompany.com`
         * a domain name under your [name server authority](https://en.wikipedia.org/wiki/Domain_Name_System#Authoritative_name_server) to append to the top-level-domain (e.g. `.com`)
             * useful when you cannot or do not wish to host the Test/QC website at the `domain`
         * appends the `domain_tld_override` for Environments
             * dev.example.com.mycompany.com, test.example.com.mycompany.com, qc.example.com.mycompany.com, example.com.mycompany.com
-        * PLEASE NOTE: When removing this option from a website with `software`, you need to manually replace URLs in the database respective to the `software_workflow` option.
+        * PLEASE NOTE: When removing this option from a website with `software:`, you need to manually replace URLs in the database respective to the `software_workflow:` option.
             * ie `vagrant ssh mycompany.com-test-redhat-mysql`
             * `php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/example.com/(webroot if applicable)" search-replace ":\/\/(www\.)?(dev\.|test\.)?(example\.com\.mycompany\.com)" "://example.com" --regex`
-* force_auth:
-    * `required: false`
-    * `default: null`
-    * `example: letmein`
-        * forces [http basic authentication](https://en.wikipedia.org/wiki/Basic_access_authentication) in Test, QC, and Production (see `force_auth_exclude`)
+* `force_auth:`
+    * required: no
+    * example: `force_auth: letmein`
+        * forces [HTTP basic authentication](https://en.wikipedia.org/wiki/Basic_access_authentication) in Test, QC, and Production (see `force_auth_exclude`)
         * `letmein` is both the username and password
-* force_auth_exclude:
-    * `dependency: force_auth`
-    * `required: false`
-    * `default: null`
-    * `values: ["test","qc","production"]`
-        * array of Environments to exclude from the `force_auth` option
-* force_https:
-    * `required: false`
-    * `default: false`
-    * `values: true, false`
+* `force_auth_exclude:`
+    * required: no
+    * dependency: `force_auth:`
+    * example: `force_auth_exclude: ["production"]`
+        * array of select environments ["test","qc","production"] to exclude from the `force_auth` option
+* `force_https:`
+    * required: no
+    * `force_https: true`
         * rewrites all http traffic to https
         * subdomains are not supported as limited by CloudFlare
         * causes an unsigned cert error in LocalDev
-* repo:
-    * `required: true`
-    * `example: git@github.com:devopsgroup-io/devopsgroup-io.git`
+* `repo:`
+    * required: yes
+    * example: `repo: git@github.com:devopsgroup-io/devopsgroup-io.git`
         * GitHub and Bitbucket over SSH are supported, HTTPS is not supported
-* software:
-    * `required: false`
-    * `default: null`
-    * `value: codeigniter2`
+* `software:`
+    * required: no
+    * `software: codeigniter2`
         * maintains codeigniter2 database config file ~/application/config/database.php
         * rsyncs git untracked ~/uploads
         * sets permissions for ~/uploads
         * dumps and restores database at ~/_sql
         * updates url references in database
-    * `value: codeigniter3`
+    * `software: codeigniter3`
         * maintains codeigniter3 database config file ~/application/config/database.php
         * rsyncs git untracked ~/uploads
         * sets permissions for ~/uploads
         * dumps and restores database at ~/_sql
         * updates url references in database
-    * `value: drupal6`
+    * `software: drupal6`
         * maintains drupal6 database config file ~/sites/default/settings.php
         * rsyncs git untracked ~/sites/default/files
         * sets permissions for ~/sites/default/files
@@ -636,7 +633,7 @@ The following options are available:
         * dumps and restores database at ~/_sql
         * updates url references in database
         * resets drupal6 admin password
-    * `value: drupal7`
+    * `software: drupal7`
         * maintains drupal7 database config file ~/sites/default/settings.php
         * rsyncs git untracked ~/sites/default/files
         * sets permissions for ~/sites/default/files
@@ -644,11 +641,11 @@ The following options are available:
         * dumps and restores database at ~/_sql
         * updates url references in database
         * resets drupal7 admin password
-    * `value: silverstripe`
+    * `software: silverstripe`
         * maintains silverstripe database config file ~/mysite/_config.php
         * dumps and restores database at ~/_sql
         * updates url references in database
-    * `value: wordpress`
+    * `software: wordpress`
         * maintains wordpress database config file ~/wp-config.php
         * rsyncs git untracked ~/wp-content/uploads
         * sets permissions for ~/wp-content/uploads
@@ -656,33 +653,31 @@ The following options are available:
         * dumps and restores database at ~/_sql
         * updates url references in database
         * resets wordpress admin password
-    * `value: xenforo`
+    * `software: xenforo`
         * maintains xenForo database config file ~/library/config.php
         * rsyncs git untracked ~/data and ~/internal_data
         * sets permissions for ~/data and ~/internal_data
         * dumps and restores database at ~/_sql
         * updates url references in database
-* software_dbprefix:
-    * `dependency: software`
-    * `required: false`
-    * `default: null`
-    * `example: wp_`
+* `software_dbprefix:`
+    * required: no
+    * dependency: `software:`
+    * example: `software_dbprefix: wp_`
         * the value that prefixes table names within the database
             * PLEASE NOTE: table prefixes included in software distributions, such as WordPress' `wp_`, must be specified if desired
-* software_workflow:
-    * `dependency: software`
-    * `required: true`
-    * `value: downstream`
+* `software_workflow:`
+    * required: yes
+    * dependency: `software:`
+    * `software_workflow: downstream`
         * specifies Production as the source for the database and software file store
         * this option is useful for maintaining a website
-    * `value: upstream`
+    * `software_workflow: upstream`
         * specifies Test as the source for the database and software file store
         * this option is useful for launching a new website
         * PLEASE NOTE: affects the Production website instance - see [Release Management](#release-management)
-* webroot:
-    * `required: false`
-    * `default: null`
-    * `example: www/`
+* `webroot:`
+    * required: no
+    * example: `webroot: www/`
         * if the webroot differs from the repo root, specify it here
         * must include the trailing slash
 
@@ -697,20 +692,20 @@ Performing development in a local environment is critical to reducing risk by ex
     * Repositories are linked between the host and guest for realtime development.
 
 ### Forcing www ###
-* Forcing www is software specific, unlike forcing the https protocol, which is environment specific and driven by the `force_https` option. To force www ([why force www?](http://www.yes-www.org/)), please follow the respective guides per software:
-    * `value: codeigniter2`
+* Forcing www is software specific, unlike forcing the https protocol, which is environment specific and driven by the `force_https` option. To force www ([why force www?](http://www.yes-www.org/)), please follow the respective guides per `software`:
+    * `software: codeigniter2`
         * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
-    * `value: codeigniter3`
+    * `software: codeigniter3`
         * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
-    * `value: drupal6`
+    * `software: drupal6`
         * `~/.htaccess` https://github.com/drupal/drupal/blob/6.x-18-security/.htaccess#L87
-    * `value: drupal7`
+    * `software: drupal7`
         * `~/.htaccess` https://github.com/drupal/drupal/blob/7.x/.htaccess#L89
-    * `value: silverstripe`
+    * `software: silverstripe`
         * `~/mysite/_config.php` no official documentation - http://www.ssbits.com/snippets/2010/a-config-php-cheatsheet/
-    * `value: wordpress`
+    * `software: wordpress`
         * http://codex.wordpress.org/Changing_The_Site_URL
-    * `value: xenforo`
+    * `software: xenforo`
         * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
 
 ### Refreshing Databases ###
@@ -826,7 +821,7 @@ Being able to react to disasters immediately and consistently is crucial - Catap
 
 
 
-# Security and Compliance #
+# Compliance and Security #
 
 There are many complex compliance and audit standards that are your responsibility to understand and execute. Each Catapult instance is independant to you - including the required services that you signed up for during [Services Setup](#services-setup).
 
@@ -855,6 +850,25 @@ Bamboo            | Server communication, log files, secrets | [:x:](https://www
 BitBucket         | Repository hosting                       | [:x:](https://www.atlassian.com/security/security-faq/)                   |
 DigitalOcean NYC3 | Red Hat server hosting                   | [:question:](https://www.digitalocean.com/help/policy/)                   | [:question:](https://www.digitalocean.com/help/policy/)
 GitHub            | Repository hosting                       | [:question:](https://help.github.com/articles/github-security/)           |
+
+## HTTPS and SSL Certificates ##
+
+Catapult manages free HTTPS compliments of Cloudflare, however, depending on your compliance needs you may need to purchase SSL certificates unique to your orginazation. Once you're aware of your compliance responsiblity, you can then make a decision for purchasing and implementing SSL certificates. Catapult will soon incorporate the ability to add custom SSL certificates.
+
+                                               | Domain Validation<br>(DV certificates)                                                       | Organization Validation<br>(OV certificates)                                                | Extended Validation<br>(EV certificates)
+-----------------------------------------------|----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------
+Single Domain Certificate                      | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
+Wildcard Certificate                           | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :x:
+Multiple Domain Certificate                    | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
+Cost                                           | $                                                                                            | $$                                                                                          | $$$
+Issuing Process                                | Automatic                                                                                    | Application vetted by Certificate Authority                                                 | Application vetted by Certificate Authority
+Issuing Criteria: Domain Name(s) Ownership     | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
+Issuing Criteria: Organization Existence       | :x:                                                                                          | :white_check_mark:                                                                          | :white_check_mark:
+Issuing Criteria: Organization Legal Existence | :x:                                                                                          | :x:                                                                                         | :white_check_mark:
+Industry Accepted Issuing Standard             | :x:                                                                                          | :x:                                                                                         | [CAB EV SSL Certificate Guidelines](https://cabforum.org/extended-validation/)
+Standard Browser Padlock                       | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :x:
+Greenbar Browser Padlock                       | :x:                                                                                          | :x:                                                                                         | :white_check_mark:
+Browser Compatability                          | Google Chrome 1+<br>Mozilla Firefox 1+<br>Internet Explorer 5+                               | Google Chrome 1+<br>Mozilla Firefox 1+<br>Internet Explorer 5+                              | Google Chrome 1+<br>Mozilla Firefox 3+<br>Internet Explorer 7+
 
 See an error or have a suggestion? Email security@devopsgroup.io - we appreciate all feedback.
 
