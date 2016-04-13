@@ -96,9 +96,10 @@ The free market and competition is great - it pushes the envelope of innovation.
 Platform Feature | Catapult | Pantheon | Acquia
 -----------------|----------|----------|--------
 Source                                        | Open                           | Closed                        | Closed
-Feature Set                                   | Bundled                        | Separated                     | Separated
+Subscription Feature Set                      | Bundled                        | Separated                     | Separated
 Supported Software                            | Numerous                       | 2                             | 1
 Minimum Bundled<br>Monthly Cost               | $40                            | $400                          | $134
+Websites per Instance/Subscription            | Unlimited                      | 1                             | 1
 Managed Workflow                              | Git Flow                       | :x:                           | :x:
 Managed Workflow Model                        | Upstream or Downstream         | :x:                           | :x:
 Agile Methodology Focus                       | Scrum                          | :x:                           | :x:
@@ -780,6 +781,8 @@ Using a website with historical Google Analytics data, access the Audience Overv
 
 *(Pageviews x Avg. Session Duration in seconds) / 3,600 seconds* = **Concurrency Maxiumum**
 
+**365,000 pageviews per month**
+
 Take a website with an average of 500 pageviews per hour, or 365,000 pageviews per month, which has a busiest hour of 1,000 pageviews.
 
 Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
@@ -789,10 +792,12 @@ Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
 1,000 | 5 minutes (300 seconds) | 300,000 | **88**
 1,000 | 1 minute (60 seconds) | 60,000 | **16**
 
-**100 concurrent requests performed 10 times**
+*100 concurrent requests performed 10 times*
 ````
 ab -l -r -n 1000 -c 100 -H "Accept-Encoding: gzip, deflate" http://test.drupal7.devopsgroup.io/
 ````
+
+**14,600 pageviews per month**
 
 Take a website with an average of 20 pageviews per hour, or 14,600 pageviews per month, which has a busiest hour of 100 pageviews.
 
@@ -803,7 +808,7 @@ Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
 100 | 5 minutes (300 seconds) | 30,000 | **8**
 100 | 1 minute (60 seconds) | 6,000 | **1.6**
 
-**10 concurrent requests performed 10 times**
+*10 concurrent requests performed 10 times*
 ````
 ab -l -r -n 100 -c 10 -H "Accept-Encoding: gzip, deflate" http://test.drupal7.devopsgroup.io/
 ````
