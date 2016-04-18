@@ -100,6 +100,13 @@ while IFS='' read -r -d '' key; do
         LogLevel warn
         $force_auth_value
         $force_https_value
+
+        Alias "/.well-known/acme-challenge/" "/etc/ssl/certs/${domain}/token/"
+        <Directory "/etc/ssl/certs/${domain}/token/">
+            Options -Indexes +FollowSymlinks
+            Require all granted
+        </Directory>
+
     </VirtualHost> 
 
     <IfModule mod_ssl.c>

@@ -52,6 +52,9 @@ redhat:
         software_tools:
           description: "Installs and configures software CLI tools."
           multithreading: false
+        ssl_acme_letsencrypt:
+          description: "Registers, authorizes, and creates SSL certificates via Automated Certificate Management Environment (ACME)."
+          multithreading: true
         system:
           description: "Installs and configures initial system requirements."
           multithreading: false
@@ -61,7 +64,8 @@ redhat:
     servers:
         redhat:
           apache:
-            modules: ["system","iptables","time","newrelic_sysmon","software_tools","git_clean","git","rsync","software_config","apache","apache_vhosts_clean","apache_vhosts","php","newrelic_apm_php","cloudflare_zones","cloudflare_dns","cloudflare_cache","newrelic_synthetics"]
+            modules: ["apache_vhosts","ssl_acme_letsencrypt"]
+            #modules: ["system","iptables","time","newrelic_sysmon","software_tools","git_clean","git","rsync","software_config","apache","apache_vhosts_clean","apache_vhosts","php","newrelic_apm_php","cloudflare_zones","cloudflare_dns","cloudflare_cache","ssl_acme_letsencrypt","newrelic_synthetics"]
           mysql:
             modules: ["system","iptables","time","newrelic_sysmon","software_tools","git_clean","git","software_config","mysql"]
 windows:
