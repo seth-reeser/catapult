@@ -96,9 +96,10 @@ The free market and competition is great - it pushes the envelope of innovation.
 Platform Feature | Catapult | Pantheon | Acquia
 -----------------|----------|----------|--------
 Source                                        | Open                           | Closed                        | Closed
-Feature Set                                   | Bundled                        | Separated                     | Separated
+Subscription Feature Set                      | Bundled                        | Separated                     | Separated
 Supported Software                            | Numerous                       | 2                             | 1
 Minimum Bundled<br>Monthly Cost               | $40                            | $400                          | $134
+Websites per Instance/Subscription            | Unlimited                      | 1                             | 1
 Managed Workflow                              | Git Flow                       | :x:                           | :x:
 Managed Workflow Model                        | Upstream or Downstream         | :x:                           | :x:
 Agile Methodology Focus                       | Scrum                          | :x:                           | :x:
@@ -149,6 +150,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
     - [Website Development](#website-development)
         - [Website Repositories](#website-repositories)
         - [Forcing www](#forcing-www)
+        - [Database Migrations](#database-migrations)
         - [Refreshing Databases](#refreshing-databases)
         - [Connecting to Databases](#connecting-to-databases)
         - [Hotfixes](#hotfixes)
@@ -524,15 +526,15 @@ Catapult follows Gitflow for its configuration and development model - each envi
 
 Environment | LocalDev | Test | QC | Production
 ------------|----------|------|----|-----------
-**Running Branch**                              | *develop*                                                   | *develop*                                                         | *release*                                                      | *master*
-**Deployments**                                 | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)             | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
-**Testing Activities**                          | Component Test                                              | Integration Test, System Test                                     | Acceptance Test, Release Test                                  | Operational Qualification
-**Scrum Activity**                              | Sprint Start: Development of User Stories                   | Daily Scrum                                                       | Sprint Review                                                  | Sprint End: Accepted Product Release
-**Scrum Roles**                                 | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)          | Scrum Master, Development Team, Product Owner                  | Product Owner
-**Downstream Software Workflow - Database**     | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo            | Restore from **release** ~/_sql folder of website repo         | Backup to **develop** ~/_sql folder of website repo during deploy
-**Upstream Software Workflow - Database**       | Restore from **develop** ~/_sql folder of website repo      | Backup to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
-**Downstream Software Workflow - File Store**   | rsync files from **Production** if git untracked            | rsync files from **Production** if git untracked                  | rsync files from **Production** if git untracked               | --
-**Upstream Software Workflow - File Store**     | rsync files from **Test** if git untracked                  | --                                                                | rsync files from **Test** if git untracked                     | rsync files from **Test** if git untracked
+**Running Branch**                              | *develop*                                                   | *develop*                                                                                | *release*                                                      | *master*
+**Deployments**                                 | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)                                    | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+**Testing Activities**                          | Component Test                                              | Integration Test, System Test                                                            | Acceptance Test, Release Test                                  | Operational Qualification
+**Scrum Activity**                              | Sprint Start: Development of User Stories                   | Daily Scrum                                                                              | Sprint Review                                                  | Sprint End: Accepted Product Release
+**Scrum Roles**                                 | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)                                 | Scrum Master, Development Team, Product Owner                  | Product Owner
+**Downstream Software Workflow - Database**     | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo                                   | Restore from **release** ~/_sql folder of website repo         | Commit one backup per day to **master** ~/_sql folder of website repo during deploy
+**Downstream Software Workflow - File Stores**  | rsync git untracked file stores from **Production**         | rsync git untracked file stores from **Production**                                      | rsync git untracked file stores from **Production**            | Commit git tracked file stores to **master** of website repo during deploy
+**Upstream Software Workflow - Database**       | Restore from **develop** ~/_sql folder of website repo      | Commit one backup per day to **develop** ~/_sql folder of website repo during deploy     | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
+**Upstream Software Workflow - File Stores**    | rsync git untracked file stores from **Test**               | Commit git tracked file stores to **develop** of website repo during deploy              | rsync git untracked file stores from **Test**                  | rsync git untracked file stores from **Test**
 
 
 
@@ -631,7 +633,7 @@ The following options are available:
     * `software: drupal6`
         * maintains drupal6 database config file ~/sites/default/settings.php
         * rsyncs git untracked ~/sites/default/files
-        * sets permissions for ~/sites/default/files
+        * sets permissions for ~/sites/default
         * invokes `drush updatedb`
         * dumps and restores database at ~/_sql
         * updates url references in database
@@ -639,7 +641,7 @@ The following options are available:
     * `software: drupal7`
         * maintains drupal7 database config file ~/sites/default/settings.php
         * rsyncs git untracked ~/sites/default/files
-        * sets permissions for ~/sites/default/files
+        * sets permissions for ~/sites/default
         * invokes `drush updatedb`
         * dumps and restores database at ~/_sql
         * updates url references in database
@@ -651,7 +653,7 @@ The following options are available:
     * `software: wordpress`
         * maintains wordpress database config file ~/wp-config.php
         * rsyncs git untracked ~/wp-content/uploads
-        * sets permissions for ~/wp-content/uploads
+        * sets permissions for ~/wp-content
         * invokes `wp-cli core update-db`
         * dumps and restores database at ~/_sql
         * updates url references in database
@@ -672,10 +674,10 @@ The following options are available:
     * required: yes
     * dependency: `software:`
     * `software_workflow: downstream`
-        * specifies Production as the source for the database and software file store
+        * specifies Production as the source for the database and software file stores
         * this option is useful for maintaining a website
     * `software_workflow: upstream`
-        * specifies Test as the source for the database and software file store
+        * specifies Test as the source for the database and software file stores
         * this option is useful for launching a new website
         * PLEASE NOTE: affects the Production website instance - see [Release Management](#release-management)
 * `webroot:`
@@ -691,32 +693,54 @@ The following options are available:
 Performing development in a local environment is critical to reducing risk by exacting the environments that exist upstream, accomplished with Vagrant and VirtualBox.
 
 ### Website Repositories ###
-* Repositories for websites are cloned into the Catapult instance at ~/repositories and in the respective apache or iis folder, listed by domain name.
-    * Repositories are linked between the host and guest for realtime development.
+
+Repositories for websites are cloned into the Catapult instance at ~/repositories and in the respective apache or iis folder, listed by domain name.
+
+* Repositories are linked between the host and guest for realtime development.
 
 ### Forcing www ###
-* Forcing www is software specific, unlike forcing the https protocol, which is environment specific and driven by the `force_https` option. To force www ([why force www?](http://www.yes-www.org/)), please follow the respective guides per `software`:
-    * `software: codeigniter2`
-        * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
-    * `software: codeigniter3`
-        * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
-    * `software: drupal6`
-        * `~/.htaccess` https://github.com/drupal/drupal/blob/6.x-18-security/.htaccess#L87
-    * `software: drupal7`
-        * `~/.htaccess` https://github.com/drupal/drupal/blob/7.x/.htaccess#L89
-    * `software: silverstripe`
-        * `~/mysite/_config.php` no official documentation - http://www.ssbits.com/snippets/2010/a-config-php-cheatsheet/
-    * `software: wordpress`
-        * http://codex.wordpress.org/Changing_The_Site_URL
-    * `software: xenforo`
-        * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
+
+Forcing www is software specific, unlike forcing the https protocol, which is environment specific and driven by the `force_https` option. To force www ([why force www?](http://www.yes-www.org/)), please follow the respective guides per `software`:
+
+* `software: codeigniter2`
+    * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
+* `software: codeigniter3`
+    * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
+* `software: drupal6`
+    * `~/.htaccess` https://github.com/drupal/drupal/blob/6.x-18-security/.htaccess#L87
+* `software: drupal7`
+    * `~/.htaccess` https://github.com/drupal/drupal/blob/7.x/.htaccess#L89
+* `software: silverstripe`
+    * `~/mysite/_config.php` no official documentation - http://www.ssbits.com/snippets/2010/a-config-php-cheatsheet/
+* `software: wordpress`
+    * http://codex.wordpress.org/Changing_The_Site_URL
+* `software: xenforo`
+    * `~/.htaccess` no official documentation - http://stackoverflow.com/a/4958847/4838803
+
+### Database Migrations ###
+
+The best way to handle changes to the software's database schema is through a migrations system. Database migrations are software specific and are invoked via Catapult for you, here we outline the specifics:
+
+Software | Tool | Command | Documentation
+---------|------|---------|--------------
+codeigniter2   | Migrations | `php index.php migrate` | https://ellislab.com/codeigniter/user-guide/libraries/migration.html
+codeigniter3   | Migrations | `php index.php migrate` | https://www.codeigniter.com/user_guide/libraries/migration.html
+drupal6        | Drush      | `drush updatedb -y`     | https://www.drupal.org/node/150215
+drupal7        | Drush      | `drush updatedb -y`     | https://www.drupal.org/node/150215
+silverstripe   |            |                         |
+wordpress      | WP-CLI     | `wp-cli core update-db` | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
+xenforo        |            |                         |
+
 
 ### Refreshing Databases ###
+
 * Databases are dumped once per day to the ~/_sql folder and restored, dependent on the environment and `software_workflow` setting per website - see [Release Management](#release-management) for details.
 * Leverage Catapult's workflow model (configured by `software_workflow`) to trigger a database refresh. From the develop branch, commit a deletion of today's database backup from the ~/_sql folder.
 
 ### Connecting to Databases ###
-* Oracle SQL Developer is the recommended tool, to connect to and work with, databases. It is free, commercially supported, cross-platform, and supports multiple database types.
+
+Oracle SQL Developer is the recommended tool, to connect to and work with, databases. It is free, commercially supported, cross-platform, and supports multiple database types.
+
 * **Download and install** [Oracle SQL Developer](http://www.oracle.com/technetwork/developer-tools/sql-developer/downloads/index.html), some platforms require the [Java SE Development Kit](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
 * **Install third party JDBC drivers**: Oracle SQL Developer uses JDBC, via a .jar file, to connect to different database types. To install a new JDBC connector, download the respective .jar file then from Oracle SQL Developer > Preferences > Third Party JDBC Drivers, click Add Entry.<sup>[4](#references)</sup>
     * **MySQL** http://dev.mysql.com/downloads/connector/j/5.0.html
@@ -734,7 +758,9 @@ Performing development in a local environment is critical to reducing risk by ex
             * The hostname will be localhost since we are forwarding the port through our local SSH tunnel.
 
 ### Hotfixes ###
+
 Always weigh the risk of *not performing* a hotfix versus *performing* it, as hotfixes require going outside of the normal development and testing workflow. Performing a hotfix varies depending on the website's `software` type, `software_workflow` direction, and type of change (code or database).
+
 * `software_workflow: downstream`
     * **Code**
         1. In `~/configuration.yml`, temporarily set the environments -> dev -> branch key to `branch: master`, and do not commit the change
@@ -780,6 +806,8 @@ Using a website with historical Google Analytics data, access the Audience Overv
 
 *(Pageviews x Avg. Session Duration in seconds) / 3,600 seconds* = **Concurrency Maxiumum**
 
+**365,000 pageviews per month**
+
 Take a website with an average of 500 pageviews per hour, or 365,000 pageviews per month, which has a busiest hour of 1,000 pageviews.
 
 Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
@@ -789,10 +817,12 @@ Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
 1,000 | 5 minutes (300 seconds) | 300,000 | **88**
 1,000 | 1 minute (60 seconds) | 60,000 | **16**
 
-**100 concurrent requests performed 10 times**
+*100 concurrent requests performed 10 times*
 ````
 ab -l -r -n 1000 -c 100 -H "Accept-Encoding: gzip, deflate" http://test.drupal7.devopsgroup.io/
 ````
+
+**14,600 pageviews per month**
 
 Take a website with an average of 20 pageviews per hour, or 14,600 pageviews per month, which has a busiest hour of 100 pageviews.
 
@@ -803,7 +833,7 @@ Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
 100 | 5 minutes (300 seconds) | 30,000 | **8**
 100 | 1 minute (60 seconds) | 6,000 | **1.6**
 
-**10 concurrent requests performed 10 times**
+*10 concurrent requests performed 10 times*
 ````
 ab -l -r -n 100 -c 10 -H "Accept-Encoding: gzip, deflate" http://test.drupal7.devopsgroup.io/
 ````
@@ -889,7 +919,7 @@ GitHub            | Repository hosting                       | [:question:](http
 
 Catapult manages free HTTPS compliments of Cloudflare, however, depending on your compliance needs you may need to purchase SSL certificates unique to your orginazation. Once you're aware of your compliance responsiblity, you can then make a decision for purchasing and implementing SSL certificates. Catapult will soon incorporate the ability to add custom SSL certificates.
 
-                                               | Domain Validation<br>(DV certificates)                                                       | Organization Validation<br>(OV certificates)                                                | Extended Validation<br>(EV certificates)
+Feature                                        | Domain Validation (DV certificates)                                                          | Organization Validation (OV certificates)                                                   | Extended Validation (EV certificates)
 -----------------------------------------------|----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------
 Single Domain Certificate                      | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :white_check_mark:
 Wildcard Certificate                           | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :x:
@@ -902,7 +932,7 @@ Issuing Criteria: Organization Legal Existence | :x:                            
 Industry Accepted Issuing Standard             | :x:                                                                                          | :x:                                                                                         | [CAB EV SSL Certificate Guidelines](https://cabforum.org/extended-validation/)
 Standard Browser Padlock                       | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :x:
 Greenbar Browser Padlock                       | :x:                                                                                          | :x:                                                                                         | :white_check_mark:
-Browser Compatibility                          | Google Chrome 1+<br>Mozilla Firefox 1+<br>Internet Explorer 5+                               | Google Chrome 1+<br>Mozilla Firefox 1+<br>Internet Explorer 5+                              | Google Chrome 1+<br>Mozilla Firefox 3+<br>Internet Explorer 7+
+Browser Compatibility                          | Google Chrome 1+, Mozilla Firefox 1+, Internet Explorer 5+                                   | Google Chrome 1+, Mozilla Firefox 1+, Internet Explorer 5+                                  | Google Chrome 1+, Mozilla Firefox 3+, Internet Explorer 7+
 
 ## Security Breach Notification Laws ##
 
@@ -970,7 +1000,7 @@ The Catapult team values partnerships and continuous improvement.
 
 Catapult is making the conference tour! We plan to attend the following conferences, with more to come. Get a chance to see Catapult in action, presented by it's core developers.
 
-* Spring 2016 [04-08-2016] [Drupaldelphia](http://drupaldelphia.com/)
+* Spring 2016 [04-08-2016] [Drupaldelphia](http://drupaldelphia.com/): DevOps Discipline: Detailed and Complete
 * Summer 2016 [Wharton Web Conference](http://www.sas.upenn.edu/wwc/)
 * Winter 2016 [WordCamp US](http://us.wordcamp.org/)
 
