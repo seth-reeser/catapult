@@ -526,17 +526,19 @@ Catapult follows Gitflow for its configuration and development model - each envi
 
 Environment | LocalDev | Test | QC | Production
 ------------|----------|------|----|-----------
-**Running Branch**                              | *develop*                                                   | *develop*                                                                                | *release*                                                      | *master*
-**Deployments**                                 | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)                                    | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
-**Testing Activities**                          | Component Test                                              | Integration Test, System Test                                                            | Acceptance Test, Release Test                                  | Operational Qualification
-**Scrum Activity**                              | Sprint Start: Development of User Stories                   | Daily Scrum                                                                              | Sprint Review                                                  | Sprint End: Accepted Product Release
-**Scrum Roles**                                 | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)                                 | Scrum Master, Development Team, Product Owner                  | Product Owner
-**Downstream Software Workflow - Database**     | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo                                   | Restore from **release** ~/_sql folder of website repo         | Commit one backup per day to **master** ~/_sql folder of website repo during deploy
-**Downstream Software Workflow - File Stores**  | rsync git untracked file stores from **Production**         | rsync git untracked file stores from **Production**                                      | rsync git untracked file stores from **Production**            | Commit git tracked file stores to **master** of website repo during deploy
-**Upstream Software Workflow - Database**       | Restore from **develop** ~/_sql folder of website repo      | Commit one backup per day to **develop** ~/_sql folder of website repo during deploy     | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
-**Upstream Software Workflow - File Stores**    | rsync git untracked file stores from **Test**               | Commit git tracked file stores to **develop** of website repo during deploy              | rsync git untracked file stores from **Test**                  | rsync git untracked file stores from **Test**
+**Running Branch**                                       | *develop*                                                   | *develop*                                                                                                    | *release*                                                      | *master*
+**Deployments**                                          | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)                                                        | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+**Testing Activities**                                   | Component Test                                              | Integration Test, System Test                                                                                | Acceptance Test, Release Test                                  | Operational Qualification
+**Scrum Activity**                                       | Sprint Start: Development of User Stories                   | Daily Scrum                                                                                                  | Sprint Review                                                  | Sprint End: Accepted Product Release
+**Scrum Roles**                                          | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)                                                     | Scrum Master, Development Team, Product Owner                  | Product Owner
+**Downstream Software Workflow - Database**              | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo                                                       | Restore from **release** ~/_sql folder of website repo         | Auto-commit one backup per day (up to 500MB or 1) to **master** ~/_sql folder of website repo during deploy
+**Downstream Software Workflow - Untracked File Stores** | rsync file stores from **Production**                       | rsync file stores from **Production**                                                                        | rsync file stores from **Production**                          | Pull file stores from **master**
+**Downstream Software Workflow - Tracked File Stores**   | Pull file stores from **develop**                           | Pull file stores from **develop**                                                                            | Pull file stores from **release**                              | Auto-commit file stores (up to 750MB each) to **master** of website repo during deploy
+**Upstream Software Workflow - Database**                | Restore from **develop** ~/_sql folder of website repo      | Auto-commit one backup per day (up to 500MB or 1) to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
+**Upstream Software Workflow - Untracked File Stores**   | rsync file stores from **Test**                             | Pull file stores from **develop**                                                                            | rsync file stores from **Test**                                | rsync file stores from **Test**
+**Upstream Software Workflow - Tracked File Stores**     | Pull file stores from **develop**                           | Auto-commit file stores (up to 750MB each) to **develop** of website repo during deploy                      | Pull file stores from **release**                              | Pull file stores from **master**
 
-
+**NOTE:** Catapult will automatically pull **master** into **develop** when in the **Downstream Software Workflow** direction.
 
 ## Catapult Configuration ##
 
@@ -620,18 +622,23 @@ The following options are available:
     * required: no
     * `software: codeigniter2`
         * maintains codeigniter2 database config file ~/application/config/database.php
+        * commits git tracked ~/uploads
         * rsyncs git untracked ~/uploads
         * sets permissions for ~/uploads
+        * invokes `php index.php migrate`
         * dumps and restores database at ~/_sql
         * updates url references in database
     * `software: codeigniter3`
         * maintains codeigniter3 database config file ~/application/config/database.php
+        * commits git tracked ~/uploads
         * rsyncs git untracked ~/uploads
         * sets permissions for ~/uploads
+        * invokes `php index.php migrate`
         * dumps and restores database at ~/_sql
         * updates url references in database
     * `software: drupal6`
         * maintains drupal6 database config file ~/sites/default/settings.php
+        * commits git tracked ~/sites/default/files
         * rsyncs git untracked ~/sites/default/files
         * sets permissions for ~/sites/default
         * invokes `drush updatedb`
@@ -640,6 +647,7 @@ The following options are available:
         * resets drupal6 admin password
     * `software: drupal7`
         * maintains drupal7 database config file ~/sites/default/settings.php
+        * commits git tracked ~/sites/default/files
         * rsyncs git untracked ~/sites/default/files
         * sets permissions for ~/sites/default
         * invokes `drush updatedb`
@@ -652,6 +660,7 @@ The following options are available:
         * updates url references in database
     * `software: wordpress`
         * maintains wordpress database config file ~/wp-config.php
+        * commits git tracked ~/wp-content/uploads
         * rsyncs git untracked ~/wp-content/uploads
         * sets permissions for ~/wp-content
         * invokes `wp-cli core update-db`
@@ -660,6 +669,7 @@ The following options are available:
         * resets wordpress admin password
     * `software: xenforo`
         * maintains xenForo database config file ~/library/config.php
+        * commits git tracked ~/data and ~/internal_data
         * rsyncs git untracked ~/data and ~/internal_data
         * sets permissions for ~/data and ~/internal_data
         * dumps and restores database at ~/_sql
