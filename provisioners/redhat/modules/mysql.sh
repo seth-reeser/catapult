@@ -10,13 +10,13 @@ sudo cat > "/catapult/provisioners/redhat/installers/${1}.cnf" << EOF
 [client]
 host = "localhost"
 user = "root"
-password = "$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.root_password)"
+password = "$(catapult environments.${1}.servers.redhat_mysql.mysql.root_password)"
 EOF
 dbconf="/catapult/provisioners/redhat/installers/${1}.cnf"
 
 # only set root password on fresh install of mysql
 if mysqladmin --defaults-extra-file=$dbconf ping 2>&1 | grep -q "failed"; then
-    sudo mysqladmin -u root password "$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.root_password)"
+    sudo mysqladmin -u root password "$(catapult environments.${1}.servers.redhat_mysql.mysql.root_password)"
 fi
 
 # disable remote root login
@@ -45,9 +45,9 @@ done
 
 # clear and create mysql user
 # @todo user per db? 16 char limit
-mysql --defaults-extra-file=$dbconf -e "GRANT USAGE ON *.* TO '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%'"
-mysql --defaults-extra-file=$dbconf -e "DROP USER '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%'"
-mysql --defaults-extra-file=$dbconf -e "CREATE USER '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%' IDENTIFIED BY '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user_password)'"
+mysql --defaults-extra-file=$dbconf -e "GRANT USAGE ON *.* TO '$(catapult environments.${1}.servers.redhat_mysql.mysql.user)'@'%'"
+mysql --defaults-extra-file=$dbconf -e "DROP USER '$(catapult environments.${1}.servers.redhat_mysql.mysql.user)'@'%'"
+mysql --defaults-extra-file=$dbconf -e "CREATE USER '$(catapult environments.${1}.servers.redhat_mysql.mysql.user)'@'%' IDENTIFIED BY '$(catapult environments.${1}.servers.redhat_mysql.mysql.user_password)'"
 
 # clear and create maintenance user
 mysql --defaults-extra-file=$dbconf -e "GRANT USAGE ON *.* TO 'maintenance'@'%'"
@@ -63,7 +63,7 @@ while IFS='' read -r -d '' key; do
 
     if test -n "${software}"; then
         # grant mysql user to database
-        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO '$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat_mysql.mysql.user)'@'%'";
+        mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO '$(catapult environments.${1}.servers.redhat_mysql.mysql.user)'@'%'";
         # grant maintenance user to database
         mysql --defaults-extra-file=$dbconf -e "GRANT ALL ON ${1}_${domainvaliddbname}.* TO 'maintenance'@'%'";
     fi
@@ -105,16 +105,6 @@ while IFS='' read -r -d '' key; do
             # dump the database as long as it hasn't been dumped for the day already
             # @todo this is intended so that a developer can commit a dump from active work in localdev then the process detect this and kick off the restore rather than dump workflow
             if ! [ -f /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql ]; then
-                # flush meta tables before mysqldump to cut size, prevent potential issues restoring, and good house cleaning
-                if [ "${software}" = "drupal6" ]; then
-                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush watchdog-delete all -y
-                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush cache-clear all -y
-                elif [ "${software}" = "drupal7" ]; then
-                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush watchdog-delete all -y
-                    cd "/var/www/repositories/apache/${domain}/${webroot}" && drush cache-clear all -y
-                elif [ "${software}" = "wordpress" ]; then
-                    php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root cache flush
-                fi
                 # create the _sql directory if it does not exist
                 mkdir -p "/var/www/repositories/apache/${domain}/_sql"
                 # dump the database
@@ -135,7 +125,7 @@ while IFS='' read -r -d '' key; do
                             # keep at least the newest file, in case the database dump is greater than the maximum _sql directory size
                             if [[ "$(basename "$file")" != "${file_newest}" ]]; then
                                 echo -e "\t\t removing /var/www/repositories/apache/${domain}/_sql/${file}..."
-                                sudo rm -f "/var/www/repositories/apache/${domain}/_sql/${file}"
+                                sudo rm --force "/var/www/repositories/apache/${domain}/_sql/${file}"
                             fi
                         fi
                     done
@@ -166,7 +156,7 @@ while IFS='' read -r -d '' key; do
             mysql --defaults-extra-file=$dbconf -e "CREATE DATABASE ${1}_${domainvaliddbname}"
             # confirm we have a usable database backup
             if ! [ -d "/var/www/repositories/apache/${domain}/_sql" ]; then
-                echo -e "\t* ~/_sql directory does not exist, ${software} will not function"
+                echo -e "\t* ~/_sql directory does not exist, ${software} may not function properly"
             else
                 echo -e "\t* ~/_sql directory exists, looking for a valid database dump to restore from"
                 filenewest=$(ls "/var/www/repositories/apache/${domain}/_sql" | grep -E ^[0-9]{8}\.sql$ | sort --numeric-sort | tail -1)
@@ -216,21 +206,28 @@ while IFS='' read -r -d '' key; do
                         # ://www.test.devopsgroup.io.example.com
                         # ://devopsgroup.io.example.com
                         # ://www.devopsgroup.io.example.com
-                        # for software without a cli tool, use sed via the sql file to replace urls
-                        if ([ "${software}" = "codeigniter2" ] || [ "${software}" = "codeigniter3" ] || [ "${software}" = "drupal6" ] || [ "${software}" = "drupal7" ] || [ "${software}" = "silverstripe" ] || [ "${software}" = "xenforo" ]); then
+
+                        # pre-process database sql file
+                        # for software without a cli tool for database url reference replacements, use sed to pre-process sql file and replace url references
+                        if ([ "${software}" = "codeigniter2" ] || [ "${software}" = "codeigniter3" ] || [ "${software}" = "drupal6" ] || [ "${software}" = "drupal7" ] || [ "${software}" = "joomla3" ] || [ "${software}" = "silverstripe" ] || [ "${software}" = "suitecrm7" ] || [ "${software}" = "xenforo" ]); then
                             echo -e "\t* replacing URLs in the database to align with the enivronment..."
-                            sed -r --expression="s/:\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
+                            replacements=$(grep --extended-regexp --only-matching --regexp=":\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" | wc --lines)
+                            sed --regexp-extended --expression="s/:\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})/:\/\/\1${domain_url}/g" "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" > "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
+                            echo -e "\t* found and replaced ${replacements} occurrences"
                         else
                             cp "/var/www/repositories/apache/${domain}/_sql/$(basename "$file")" "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
                         fi
-                        # restore the database
+
+                        # restore the database sql file
                         mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} < "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
-                        rm -f "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
-                        # for software with a cli tool, use cli tool to replace urls
+                        rm --force "/var/www/repositories/apache/${domain}/_sql/${1}.$(basename "$file")"
+
+                        # post-process database
+                        # for software with a cli tool for database url reference replacements, use cli tool to post-process database and replace url references
                         if [[ "${software}" = "wordpress" ]]; then
                             echo -e "\t* replacing URLs in the database to align with the enivronment..."
                             php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" search-replace ":\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})" "://\$1${domain_url}" --regex | sed "s/^/\t\t/"
-                            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='$(echo "${configuration}" | shyaml get-value company.email)' WHERE option_name = 'admin_email';"
+                            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='$(catapult company.email)' WHERE option_name = 'admin_email';"
                         fi
                     fi
                 done
@@ -239,17 +236,51 @@ while IFS='' read -r -d '' key; do
         # reset admin credentials every provision
         if [[ "${software}" = "drupal6" ]]; then
             echo -e "\t* resetting ${software} admin password..."
-            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "INSERT INTO ${software_dbprefix}users (uid, pass, mail, status) VALUES ('1',MD5('$(echo "${configuration}" | shyaml get-value environments.${1}.software.drupal.admin_password)'),'$(echo "${configuration}" | shyaml get-value company.email)','1') ON DUPLICATE KEY UPDATE name='admin', mail='$(echo "${configuration}" | shyaml get-value company.email)', pass=MD5('$(echo "${configuration}" | shyaml get-value environments.${1}.software.drupal.admin_password)'), status='1';"
-            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "INSERT INTO ${software_dbprefix}users_roles (uid, rid) VALUES ('1','3') ON DUPLICATE KEY UPDATE rid='3';"
+            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+                INSERT INTO ${software_dbprefix}users (uid, pass, mail, status)
+                VALUES ('1', MD5('$(catapult environments.${1}.software.drupal.admin_password)'), '$(catapult company.email)', '1')
+                ON DUPLICATE KEY UPDATE name='admin', mail='$(catapult company.email)', pass=MD5('$(catapult environments.${1}.software.drupal.admin_password)'), status='1';
+            "
+            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+                INSERT INTO ${software_dbprefix}users_roles (uid, rid)
+                VALUES ('1', '3')
+                ON DUPLICATE KEY UPDATE rid='3';
+            "
         elif [[ "${software}" = "drupal7" ]]; then
             echo -e "\t* resetting ${software} admin password..."
-            password_hash=$(cd "/var/www/repositories/apache/${domain}/${webroot}" && php ./scripts/password-hash.sh $(echo "${configuration}" | shyaml get-value environments.${1}.software.drupal.admin_password))
+            password_hash=$(cd "/var/www/repositories/apache/${domain}/${webroot}" && php ./scripts/password-hash.sh $(catapult environments.${1}.software.drupal.admin_password))
             password_hash=$(echo "${password_hash}" | awk '{ print $4 }' | tr -d " " | tr -d "\n")
-            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "INSERT INTO ${software_dbprefix}users (uid, pass, mail, status) VALUES ('1','${password_hash}','$(echo "${configuration}" | shyaml get-value company.email)','1') ON DUPLICATE KEY UPDATE name='admin', mail='$(echo "${configuration}" | shyaml get-value company.email)', pass='${password_hash}', status='1';"
-            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "INSERT INTO ${software_dbprefix}users_roles (uid, rid) VALUES ('1','3') ON DUPLICATE KEY UPDATE rid='3';"
+            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+                INSERT INTO ${software_dbprefix}users (uid, pass, mail, status)
+                VALUES ('1', '${password_hash}', '$(catapult company.email)', '1')
+                ON DUPLICATE KEY UPDATE name='admin', mail='$(catapult company.email)', pass='${password_hash}', status='1';
+            "
+            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+                INSERT INTO ${software_dbprefix}users_roles (uid, rid)
+                VALUES ('1', '3')
+                ON DUPLICATE KEY UPDATE rid='3';
+            "
+        elif [[ "${software}" = "joomla3" ]]; then
+            echo -e "\t* resetting ${software} admin password..."
+            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+                UPDATE ${software_dbprefix}users
+                SET username='admin', email='$(catapult company.email)', password=MD5('$(catapult environments.${1}.software.admin_password)'), block='0'
+                WHERE name='Super User';
+            "
+        elif [[ "${software}" = "suitecrm7" ]]; then
+            echo -e "\t* resetting ${software} admin password..."
+            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+                INSERT INTO users (id, user_name, user_hash, is_admin)
+                VALUES ('1', 'admin', MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), '1')
+                ON DUPLICATE KEY UPDATE user_name='admin', user_hash=MD5('$(catapult environments.${1}.software.admin_password)'), is_admin='1';
+            "
         elif [[ "${software}" = "wordpress" ]]; then
             echo -e "\t* resetting ${software} admin password..."
-            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "INSERT INTO ${software_dbprefix}users (id, user_login, user_pass, user_nicename, user_email, user_status, display_name) VALUES ('1', 'admin', MD5('$(echo "${configuration}" | shyaml get-value environments.${1}.software.wordpress.admin_password)'), 'admin', '$(echo "${configuration}" | shyaml get-value company.email)', '0', 'admin') ON DUPLICATE KEY UPDATE user_login='admin', user_pass=MD5('$(echo "${configuration}" | shyaml get-value environments.${1}.software.wordpress.admin_password)'), user_nicename='admin', user_email='$(echo "${configuration}" | shyaml get-value company.email)', user_status='0', display_name='admin';"
+            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+                INSERT INTO ${software_dbprefix}users (id, user_login, user_pass, user_nicename, user_email, user_status, display_name)
+                VALUES ('1', 'admin', MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), 'admin', '$(catapult company.email)', '0', 'admin')
+                ON DUPLICATE KEY UPDATE user_login='admin', user_pass=MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), user_nicename='admin', user_email='$(catapult company.email)', user_status='0', display_name='admin';
+            "
             php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" user add-role 1 administrator
         fi  
     fi
@@ -257,4 +288,4 @@ while IFS='' read -r -d '' key; do
 done
 
 # remove .cnf file after usage
-rm -f /catapult/provisioners/redhat/installers/${1}.cnf
+rm --force /catapult/provisioners/redhat/installers/${1}.cnf
