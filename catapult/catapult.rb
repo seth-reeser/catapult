@@ -224,11 +224,11 @@ module Catapult
           puts "The upgrade path warning from MAJOR version #{@version_this["version"].to_i} to #{@version_upstream["version"].to_i} is:"
           puts " * #{@version_upstream["major"][@version_upstream_integer][@version_this_integer]}"
           puts "Given that you are prepared for the above, please follow these instructions to upgrade manually from within the root of Catapult:"
-          puts " * `git pull upstream master`"
+          puts " * `git pull --no-edit --strategy-option=theirs upstream master`"
           puts " * `git push origin develop`"
           puts "\n"
         else
-          `#{@git} pull upstream master`
+          `#{@git} pull --no-edit --strategy-option=theirs upstream master`
           `#{@git} push origin develop`
         end
       end
@@ -1362,7 +1362,7 @@ module Catapult
       puts " * http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html"
       puts " * Keep in mind these response codes and nslookups are from within your network - they may differ externally if you're running your own DNS server internally."
       puts "\nAvailable websites:".color(Colors::WHITE)
-      puts "".ljust(46) + "[software]".ljust(14) + "[workflow]".ljust(14) + "[80:dev.]".ljust(22) + "[80:test.]".ljust(22) + "[80:qc.]".ljust(22) + "[80:production]"
+      puts "".ljust(46) + "[software]".ljust(21) + "[workflow]".ljust(14) + "[80:dev.]".ljust(22) + "[80:test.]".ljust(22) + "[80:qc.]".ljust(22) + "[80:production]"
 
       @configuration["websites"].each do |service,data|
         if @configuration["websites"]["#{service}"] == nil
@@ -1382,7 +1382,7 @@ module Catapult
               row.push(" * #{instance["domain"]}.#{instance["domain_tld_override"]}".slice!(0, 45).ljust(45))
             end
             # get software
-            row.push((instance["software"] || "").ljust(13))
+            row.push((instance["software"] || "").ljust(20))
             # get software workflow
             row.push((instance["software_workflow"] || "").ljust(13))
             # get http response code per environment
