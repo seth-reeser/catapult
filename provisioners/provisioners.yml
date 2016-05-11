@@ -64,9 +64,9 @@ redhat:
     servers:
         redhat:
           apache:
-            modules: ["system","iptables","time","newrelic_sysmon","software_tools","git_clean","git","rsync","software_config","apache","apache_vhosts_clean","apache_vhosts","php","newrelic_apm_php","cloudflare_zones","cloudflare_dns","cloudflare_cache","newrelic_synthetics"]
+            modules: ["system","iptables","time","newrelic_sysmon","git_clean","git","rsync","software_config","php","software_tools","apache","apache_vhosts_clean","apache_vhosts","newrelic_apm_php","cloudflare_zones","cloudflare_dns","cloudflare_cache","newrelic_synthetics"]
           mysql:
-            modules: ["system","iptables","time","newrelic_sysmon","software_tools","git_clean","git","software_config","mysql","software_database_operations"]
+            modules: ["system","iptables","time","newrelic_sysmon","git_clean","git","software_config","php","software_tools","mysql","software_database_operations"]
 windows:
 
 software:
@@ -104,6 +104,19 @@ software:
         branch: "3.6.x"
         database_config_file: "configuration.php"
         file_store_containers: ["administrator/cache","cache","logs","tmp"]
+      laravel5:
+        repo: "https://github.com/laravel/laravel.git"
+        tag: "v5.0.22"
+        database_config_file: "config/database.php"
+        file_store_containers: ["bootstrap/cache","resources","storage"]
+        file_stores: ["resources","storage"]
+        softwareroot: "../"
+      mediawiki1:
+        repo: "https://github.com/wikimedia/mediawiki.git"
+        branch: "REL1_25"
+        database_config_file: "LocalSettings.php"
+        file_store_containers: ["images"]
+        file_stores: ["images"]
       moodle3:
         repo: "https://github.com/moodle/moodle.git"
         branch: "MOODLE_30_STABLE"
@@ -118,13 +131,13 @@ software:
         file_stores: ["assets/Uploads"]
       suitecrm7:
         repo: "https://github.com/salesagility/SuiteCRM.git"
-        branch: "master"
+        branch: "7.5.x"
         database_config_file: "config_override.php"
         file_store_containers: ["cache","custom","data","modules","upload","themes","tmp"]
         file_stores: ["uploads"]
       wordpress:
         repo: "https://github.com/WordPress/WordPress.git"
-        branch: "master"
+        branch: "4.5-branch"
         database_config_file: "wp-config.php"
         file_store_containers: ["wp-content"]
         file_stores: ["wp-content/uploads"]
@@ -133,5 +146,10 @@ software:
         database_config_file: "sites/default/settings.php"
         file_store_containers: ["data","internal_data"]
         file_stores: ["data","internal_data"]
+      zendframework2:
+        repo: "https://github.com/zendframework/zendframework.git"
+        tag: "release-2.4.10"
+        database_config_file: "config/autoload/global.php"
+        softwareroot: "../"
     iis:
       
