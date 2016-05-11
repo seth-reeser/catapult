@@ -75,21 +75,23 @@ Catapult leverages the following technologies and technology services to impleme
 
 Catapult supports and intelligently manages the following software chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and align with the [CentOS 7 trunk](http://mirror.centos.org/centos/7/os/x86_64/Packages/):
 
-* CodeIgniter 2
-* CodeIgniter 3
-* Drupal 6
-* Drupal 7
-* ExpressionEngine 3
-* Joomla 3
-* Laravel 5.0.*
-* MediaWiki 1
-* Moodle 3
-* SilverStripe 3
-* SuiteCRM 7
-* WordPress >=3.5.2
-* WordPress 4
-* XenForo 1
-* Zend Framework 2.0.* <=2.4.*
+Software | Catapult Key | Released | End-of-Life
+---------|--------------|----------|------------
+CodeIgniter 2                     | `codeigniter2`         | January 28, 2011   | [October 31, 2015](http://forum.codeigniter.com/thread-61357.html)
+CodeIgniter 3                     | `codeigniter3`         | March 30, 2015     | 
+Drupal 6                          | `drupal6`              | February 13, 2008  | [February 24, 2016](https://www.drupal.org/drupal-6-eol)
+Drupal 7                          | `drupal7`              | January 5, 2011    |
+ExpressionEngine 3                | `expressionengine3`    | October 13, 2015   |
+Joomla 3                          | `joomla3`              | September 27, 2012 |
+Laravel 5.0.*                     | `laravel5`             | February 4, 2015   |
+MediaWiki 1                       | `mediawiki1`           | December 8, 2003   |
+Moodle 3                          | `moodle3`              | November 16, 2015  |
+SilverStripe 3                    | `silverstripe3`        | June 29, 2012      |
+SuiteCRM 7                        | `suitecrm7`            | October 21, 2013   |
+WordPress >=3.5.2                 | `wordpress`            | June 17, 2010      |
+WordPress 4                       | `wordpress`            | September 4, 2014  |
+XenForo 1                         | `xenforo`              | March 8, 2011      |
+Zend Framework 2.0.* <=2.4.*      | `zendframework2`       | September 5, 2012  |
 
 Catapult additionally supports basic PHP projects that do not have a database requirement:
 
