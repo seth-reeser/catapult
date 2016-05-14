@@ -1,7 +1,7 @@
 source "/catapult/provisioners/redhat/modules/catapult.sh"
 
 # only allow authentication via ssh key pair
-# suppress this - There were 34877 failed login attempts since the last successful login.
+# assist this number - There were 34877 failed login attempts since the last successful login.
 echo -e "$(lastb | head -n -2 | wc -l) failed login attempts"
 echo -e "$(last | head -n -2 | wc -l) successful login attempts"
 sudo last
@@ -15,21 +15,26 @@ if ! grep -q "PubkeyAuthentication yes" "/etc/ssh/sshd_config"; then
 fi
 sudo systemctl reload sshd.service
 
+
+
 # send root's mail as company email
 sudo cat > "/root/.forward" << EOF
 "$(echo "${configuration}" | shyaml get-value company.email)"
 EOF
 
+
+
 # remove pretty hostname
 hostnamectl set-hostname "" --pretty
 
-# set dev hostnames
-# @todo set hostnames in upstream servers, will need to align vagrant names, etc
+# configure the hostname
 if ([ "${4}" = "apache" ]); then
     hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat"
 elif ([ "${4}" = "mysql" ]); then
     hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat-${4}"
 fi
+
+
 
 # get current swaps
 swaps=$(swapon --noheadings --show=NAME)
@@ -70,3 +75,46 @@ fi
 
 # output the resulting swap
 swapon --summary
+
+# tune the swap temporarily for runtime
+# https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Performance_Tuning_Guide/s-memory-tunables.html
+sudo sysctl vm.swappiness=10
+sudo sysctl vm.vfs_cache_pressure=50
+
+# tune the swap permanently for boot
+sudo cat > "/etc/sysctl.d/catapult.conf" << EOF
+vm.swappiness=10
+vm.vfs_cache_pressure=50
+EOF
+
+
+
+# initialize known_hosts
+sudo mkdir -p ~/.ssh
+sudo touch ~/.ssh/known_hosts
+
+# ssh-keyscan bitbucket.org for a maximum of 10 tries
+i=0
+until [ $i -ge 10 ]; do
+    sudo ssh-keyscan bitbucket.org > ~/.ssh/known_hosts
+    if grep -q "bitbucket\.org" ~/.ssh/known_hosts; then
+        echo "ssh-keyscan for bitbucket.org successful"
+        break
+    else
+        echo "ssh-keyscan for bitbucket.org failed, retrying!"
+    fi
+    i=$[$i+1]
+done
+
+# ssh-keyscan github.com for a maximum of 10 tries
+i=0
+until [ $i -ge 10 ]; do
+    sudo ssh-keyscan github.com >> ~/.ssh/known_hosts
+    if grep -q "github\.com" ~/.ssh/known_hosts; then
+        echo "ssh-keyscan for github.com successful"
+        break
+    else
+        echo "ssh-keyscan for github.com failed, retrying!"
+    fi
+    i=$[$i+1]
+done
