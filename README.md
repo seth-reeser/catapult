@@ -1,11 +1,16 @@
 # Catapult #
 <img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/repositories/apache/_default_/svg/catapult.svg" alt="Catapult" width="200">
 
+Catapult defines a best-practice infrastructure so you don't have to - it also aligns with Agile methodologies, like Scrum, to afford you everything you need to develop and deploy a website with ease.
+
+<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/catapult/installers/images/catapult_infrastructure.png" alt="Catapult Infrastructure">
+
 :boom: **Catapult** is a complete website and workflow management platform built from leading and affordable technologies.
 
 :earth_americas: **Our mission** is to create a lean platform which orchestrates DevOps for website lifecycles with familiar technologies.
 
 :rocket: **Our vision** is to afford organizations reduced risk and improved performance while lowering barriers to entry.
+
 
 <br>
 
@@ -165,7 +170,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
         - [Connecting to Databases](#connecting-to-databases)
         - [Hotfixes](#hotfixes)
     - [Performance Testing](#performance-testing)
-        - [Website Concurrency Maxiumum](#website-concurrency-maximum)
+        - [Website Concurrency Maximum](#website-concurrency-maximum)
         - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
     - [Disaster Recovery](#disaster-recovery)
         - [Server Rebuilding](#server-rebuilding) 
@@ -834,11 +839,13 @@ With Catapult's exactly duplicated configuration, even the Test environment can 
 
 ApacheBench enables us to profile request performance (`-n` represents the number of requests to perform) and concurrency (`-c` represents the number of multiple requests to make at a time) to test for performance, including common limits such as [C10k and C10M](http://highscalability.com/blog/2013/5/13/the-secret-to-10-million-concurrent-connections-the-kernel-i.html).
 
-### Website Concurrency Maxiumum ###
+### Website Concurrency Maximum ###
 
 Using a website with historical Google Analytics data, access the Audience Overview and find the busiest Pageview day from the past 30-days and then drill into that date. Find the hour with the most Pageviews, then the accompanying Avg. Session Duration. Using the following formula, we are able to find the Concurrency Maxiumum.
 
 *(Pageviews x Avg. Session Duration in seconds) / 3,600 seconds* = **Concurrency Maxiumum**
+
+<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/catapult/installers/images/catapult_website_concurrency_maximum.png" alt="Catapult Website Concurrency Maximum">
 
 **365,000 pageviews per month**
 
