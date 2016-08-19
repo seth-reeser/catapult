@@ -43,24 +43,12 @@ http {
     include /etc/nginx/sites-enabled/*.conf;
 
     server {
-        listen       80 default_server;
-        listen       [::]:80 default_server;
-        server_name  _;
-        root         /usr/share/nginx/html;
 
-        # Load configuration files for the default server block.
-        include /etc/nginx/default.d/*.conf;
+        listen 127.0.0.1;
+        server_name localhost;
 
-        location / {
-        }
+        root /usr/share/nginx/html;
 
-        error_page 404 /404.html;
-            location = /40x.html {
-        }
-
-        error_page 500 502 503 504 /50x.html;
-            location = /50x.html {
-        }
     }
 }
 

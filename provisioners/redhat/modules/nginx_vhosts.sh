@@ -90,26 +90,19 @@ while IFS='' read -r -d '' key; do
     sudo cat > /etc/nginx/sites-enabled/${domain_environment}.conf << EOF
 
     server {
-            server_name ${domain_environment};
 
-            root DocumentRoot /var/www/repositories/apache/${domain}/${webroot};
-            index index.html index.php;
+        listen  80;
+        server_name ${domain_environment};
 
-            # set expiration of assets to MAX for caching
-            location ~* \.(ico|css|js|gif|jpe?g|png)(\?[0-9]+)?$ {
-                    expires max;
-                    log_not_found off;
-            }
+        root /var/www/repositories/apache/${domain}/${webroot};
 
-            location / {
-                    # Check if a file or directory index file exists, else route it to index.php.
-                    try_files $uri $uri/ /index.php;
-            }
+        index index.html index.php;
 
-            location ~* \.php$ {
-                    fastcgi_pass 127.0.0.1:9000;
-                    include fastcgi.conf;
-            }
+        location ~ \.php$ {
+            fastcgi_pass 127.0.0.1:9056;
+            include /etc/nginx/fastcgi.conf;
+        }
+
     }
 
 EOF

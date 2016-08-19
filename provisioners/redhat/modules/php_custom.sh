@@ -124,7 +124,7 @@ for php_version in "${php_versions[@]}"; do
 [www]
 user = nginx
 group = nginx
-listen = 127.0.0.1:9000
+listen = 127.0.0.1:90${php_version//.}
 pm = dynamic
 pm.max_children = 5
 pm.start_servers = 2
