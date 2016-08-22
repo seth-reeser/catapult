@@ -39,8 +39,8 @@ while IFS='' read -r -d '' key; do
         echo -e "\t * configuring vhost for ${1}.${domain_root}"
     fi
     sudo mkdir --parents /var/log/httpd/${domain_environment}
-    sudo touch /var/log/httpd/${domain_environment}/access.log
-    sudo touch /var/log/httpd/${domain_environment}/error.log
+    sudo touch /var/log/httpd/${domain_environment}/access_log
+    sudo touch /var/log/httpd/${domain_environment}/error_log
     # set domain_tld_override_alias_additions for vhost
     if [ -z "${domain_tld_override}" ]; then
         domain_tld_override_alias_additions=""
@@ -56,23 +56,27 @@ while IFS='' read -r -d '' key; do
                 force_auth_value=""
             else
                 sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t/"
-                force_auth_value="<Location />
+                force_auth_value="
+                    <Location />
+                        # Force HTTP authentication
+                        AuthType Basic
+                        AuthName \"Authentication Required\"
+                        AuthUserFile \"/etc/httpd/sites-enabled/${domain_environment}.htpasswd\"
+                        Require valid-user
+                    </Location>
+                "
+            fi
+        else
+            sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t/"
+            force_auth_value="
+                <Location />
                     # Force HTTP authentication
                     AuthType Basic
                     AuthName \"Authentication Required\"
                     AuthUserFile \"/etc/httpd/sites-enabled/${domain_environment}.htpasswd\"
                     Require valid-user
-                </Location>"
-            fi
-        else
-            sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t/"
-            force_auth_value="<Location />
-                # Force HTTP authentication
-                AuthType Basic
-                AuthName \"Authentication Required\"
-                AuthUserFile \"/etc/httpd/sites-enabled/${domain_environment}.htpasswd\"
-                Require valid-user
-            </Location>"
+                </Location>
+            "
         fi
     else
         # never force_auth in dev
@@ -80,10 +84,16 @@ while IFS='' read -r -d '' key; do
     fi
     # handle the force_https option
     if [ "${force_https}" = true ]; then
-        force_https_value="Redirect Permanent / https://${domain_environment}"
+        force_https_value="
+        # use X-Forwarded-Proto to accomodate load balancers, proxies, etc
+        # !https rather than =http to match when X-Forwarded-Proto is not set
+        RewriteEngine On
+        RewriteCond %{HTTP:X-Forwarded-Proto} !https
+        RewriteRule ^(.*)$ https://${domain_environment}\$1  [R=301,L]
+        "
         force_https_hsts="Header always set Strict-Transport-Security \"max-age=15768000\""
     else
-        force_https_value=""
+        force_https_value="# HTTPS is only forced when force_https=true"
         force_https_hsts="# HSTS is only enabled when force_https=true"
     fi
     # write vhost apache conf file
@@ -97,8 +107,8 @@ while IFS='' read -r -d '' key; do
         ServerAlias www.${domain_environment}
         $domain_tld_override_alias_additions
         DocumentRoot /var/www/repositories/apache/${domain}/${webroot}
-        ErrorLog /var/log/httpd/${domain_environment}/error.log
-        CustomLog /var/log/httpd/${domain_environment}/access.log combined
+        ErrorLog /var/log/httpd/${domain_environment}/error_log
+        CustomLog /var/log/httpd/${domain_environment}/access_log combined
         LogLevel warn
         $force_auth_value
         $force_https_value
@@ -110,8 +120,8 @@ while IFS='' read -r -d '' key; do
             ServerName ${domain_environment}
             ServerAlias www.${domain_environment}
             DocumentRoot /var/www/repositories/apache/${domain}/${webroot}
-            ErrorLog /var/log/httpd/${domain_environment}/error.log
-            CustomLog /var/log/httpd/${domain_environment}/access.log combined
+            ErrorLog /var/log/httpd/${domain_environment}/error_log
+            CustomLog /var/log/httpd/${domain_environment}/access_log combined
             LogLevel warn
             SSLEngine on
 

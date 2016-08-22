@@ -1,13 +1,5 @@
 source "/catapult/provisioners/redhat/modules/catapult.sh"
 
-# reset httpd log files
-if [ -e /var/log/httpd/access_log ]; then
-  sudo cat /dev/null > /var/log/httpd/access_log
-fi
-if [ -e /var/log/httpd/error_log ]; then
-  sudo cat /dev/null > /var/log/httpd/error_log
-fi
-
 # install apache
 sudo yum install -y httpd
 sudo systemctl enable httpd.service
@@ -20,6 +12,12 @@ sudo yum install -y mod_security
 # install mod_ssl and create self-signed cert
 sudo yum install -y mod_ssl
 sudo bash /etc/ssl/certs/make-dummy-cert "/etc/ssl/certs/httpd-dummy-cert.key.cert"
+
+# prevent the httpoxy vulnerability
+# https://www.apache.org/security/asf-httpoxy-response.txt
+if ! grep -q "RequestHeader unset Proxy early" "/etc/httpd/conf/httpd.conf"; then
+   sudo bash -c 'echo "RequestHeader unset Proxy early" >> /etc/httpd/conf/httpd.conf'
+fi
 
 # do not expose server information
 # https://httpd.apache.org/docs/2.4/mod/core.html#servertokens
@@ -69,6 +67,36 @@ sudo cat > /etc/httpd/sites-enabled/_default_.conf << EOF
         SSLCertificateKeyFile /etc/ssl/certs/httpd-dummy-cert.key.cert
     </VirtualHost>
 </IfModule>
+EOF
+
+# configure log rotation for apache
+sudo cat > /etc/logrotate.d/httpd << EOF
+/var/log/httpd/*log {
+    daily
+    delaycompress
+    notifempty
+    maxage 7
+    missingok
+    sharedscripts
+    postrotate
+        /bin/systemctl reload httpd.service > /dev/null 2>/dev/null || true
+    endscript
+}
+EOF
+
+# configure log rotation for apache vhosts
+sudo cat > /etc/logrotate.d/httpd_vhosts << EOF
+/var/log/httpd/*/*log {
+    daily
+    delaycompress
+    notifempty
+    maxage 7
+    missingok
+    sharedscripts
+    postrotate
+        /bin/systemctl reload httpd.service > /dev/null 2>/dev/null || true
+    endscript
+}
 EOF
 
 # reload apache
