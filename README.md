@@ -193,11 +193,11 @@ Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#insta
 
 **Please Note:**
 * It is advised to turn off any antivirus software that you may have installed during setup and usage of Catapult - tasks such as forwarding ports and writing hosts files may be blocked.
-* Virtualizaion must be enabled in the BIOS of the Developer's computer - follow [this how-to](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Virtualization/sect-Virtualization-Troubleshooting-Enabling_Intel_VT_and_AMD_V_virtualization_hardware_extensions_in_BIOS.html) to get started.
+* Virtualizaion must be enabled in the BIOS of the developer's workstation - follow [this how-to](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Virtualization/sect-Virtualization-Troubleshooting-Enabling_Intel_VT_and_AMD_V_virtualization_hardware_extensions_in_BIOS.html) to get started.
 
 ## Developer Setup ##
 
-Catapult is controlled via Vagrant and the command line of a Developer's workstation - below is a list of required software that will need to be installed.
+Catapult is controlled via Vagrant and the command line of a developer's workstation - below is a list of required software that will need to be installed.
 
 * OS X workstations: 100% compatabile and tested
 * Linux workstations: 100% compatabile and tested
@@ -216,7 +216,17 @@ Catapult is controlled via Vagrant and the command line of a Developer's worksta
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download the latest version of Vagrant respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.8.1/vagrant_1.8.1_x86_64.rpm`
         2. Install Vagrant using yum e.g. `sudo yum install vagrant_1.8.1_x86_64.rpm`
-2. **VirtualBox**
+2. **Vagrant Plugins**
+    1. Open your command line and install the following Vagrant plugins:
+        1. `vagrant plugin install vagrant-aws`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-aws.svg)](https://rubygems.org/gems/vagrant-aws)
+        2. `vagrant plugin install vagrant-digitalocean`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-digitalocean.svg)](https://rubygems.org/gems/vagrant-digitalocean) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-digitalocean)
+        3. `vagrant plugin install vagrant-hostmanager`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-hostmanager)
+        4. `vagrant plugin install vagrant-vbguest`
+            * [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
+3. **VirtualBox**
     * **Using OS X?**
         1. Download and install the latest version of VirtualBox from https://www.virtualbox.org/wiki/Downloads
     * **Using Windows?**
@@ -225,15 +235,15 @@ Catapult is controlled via Vagrant and the command line of a Developer's worksta
         1. Download and install the latest version of VirtualBox using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download and install the latest version of VirtualBox using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
-3. **GPG2**
+4. **GPG2**
     * **Using OS X?**
         1. Download and install GPG Suite from https://gpgtools.org
     * **Using Windows?**
         1. Download and install Gpg4win from http://gpg4win.org/download.html
     * **Using Linux?**
         1. GPG is included in the base distribution in most cases.
-        1. If being prompted by the Passphrase GUI Agent, comment out 'use-agent' in ~/.gnupg/gpg.conf
-4. **Git**
+        1. If being prompted by the Passphrase GUI Agent, comment out 'use-agent' in `~/.gnupg/gpg.conf`
+5. **Git**
     * **Using OS X?**
         1. Git commandline is included in the base distribution in most cases.
         1. For a streamlined Git GUI, download and install SourceTree from https://www.sourcetreeapp.com/
@@ -242,7 +252,7 @@ Catapult is controlled via Vagrant and the command line of a Developer's worksta
     * **Using Linux?**
         1. Git commandline is included in the base distribution in most cases.
         1. For a streamlined Git GUI, download and install SmartGit from http://www.syntevo.com/smartgit/
-5. **Terminal**
+6. **Terminal**
     * **Using OS X?**
         1. The terminal in the base distrubitions are 100% compatible.
     * **Using Windows?**
@@ -266,21 +276,11 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
 
 1. **Fork Catapult**
     1. Fork https://github.com/devopsgroup-io/catapult and clone via SourceTree or the git utility of your choice.
-2. **Vagrant Plugins**
-    1. Open your command line and cd into the newly cloned repository and install the following Vagrant plugins.
-        1. `vagrant plugin install vagrant-aws`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-aws.svg)](https://rubygems.org/gems/vagrant-aws)
-        2. `vagrant plugin install vagrant-digitalocean`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-digitalocean.svg)](https://rubygems.org/gems/vagrant-digitalocean) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-digitalocean)
-        3. `vagrant plugin install vagrant-hostmanager`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager) We maintain this project! [GitHub](https://github.com/smdahlen/vagrant-hostmanager)
-        4. `vagrant plugin install vagrant-vbguest`
-            * [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
-3. **SSH Key Pair**
+2. **SSH Key Pair**
     1. Create a *passwordless* SSH key pair - this will drive authentication for Catapult.
         1. For instructions please see https://help.github.com/articles/generating-ssh-keys/
-        2. Place the newly created *passwordless* SSH key pair id_rsa and id_rsa.pub in the ~/secrets/ folder.
-4. **GPG Key**
+        2. Place the newly created *passwordless* SSH key pair `id_rsa` and `id_rsa.pub` in the `~/secrets/` folder.
+3. **GPG Key**
     1. Generate a GPG key - this will drive encryption for Catapult.
         1. NEVER SHARE THE KEY WITH ANYONE OTHER THAN YOUR TEAM.
         3. Spaces are not permitted and must be at least 20 characters.
@@ -288,41 +288,36 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
         5. Place your newly generated GPG key at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
         6. It is recommended to print a QR code of the key to distribute to your team, please visit http://educastellano.github.io/qr-code/demo/
         7. Remember! Security is 99% process and 1% technology.
-5. **GPG Edit Mode**
-    1. When **GPG Edit Mode** is enabled (disabled by default) the following files are encrypted using your **GPG Key**:
-        1. ~/secrets/id_rsa as ~/secrets/id_rsa.gpg
-        2. ~/secrets/id_rsa.pub as ~/secrets/id_rsa.pub.gpg
-        3. ~/secrets/configuration.yml as ~/secrets/configuration.yml.gpg
-    2. To enable **GPG Edit Mode**, set `~/secrets/configuration-user.yml["settings"]["gpg_edit"]` to true.
-    3. Once gpg_edit is set to true and while on your fork's develop branch, run `vagrant status`, this will encrypt your configuration that you will then be able to commit and push safely to your public Catapult fork.
+4. **GPG Edit Mode**
+    1. **GPG Edit Mode** is set at `~/secrets/configuration-user.yml["settings"]["gpg_edit"]` (`false` by default) and is used to encrypt your Catapult configuration secrets using your **GPG Key**:
+        1. `~/secrets/id_rsa` as `~/secrets/id_rsa.gpg`
+        2. `~/secrets/id_rsa.pub` as `~/secrets/id_rsa.pub.gpg`
+        3. `~/secrets/configuration.yml` as `~/secrets/configuration.yml.gpg`
+    1. **GPG Edit Mode** requires that you are on your Catapult fork's `develop` branch.
+    3. Running any Vagrant command (e.g. `vagrant status`) will encrypt your configuration, of which, will allow you to commit and push safely to your public Catapult fork.
 
 
 
 ## Services Setup ##
 
-Catapult uses several third-party services to pull everything off - below is a list of the required services and sign-up and configuration steps.
+Catapult is designed with a distributed services model, below are the required third-party services and their sign-up and configuration steps.
 
-Service | Description | Monthly Cost
---------|-------------|-------------
-**Cloud Hosting:** | |
-DigitalOcean | Test Web Server | \*$5+
-DigitalOcean | Test Database Server | \*$5+
-DigitalOcean | QC Web Server | \*$5+
-DigitalOcean | QC Database Server | \*$5+
-DigitalOcean | Production Web Server | \*$5+
-DigitalOcean | Production Database Server | \*$5+
-**Repositories:** | |
-Bitbucket | Private Repositories | Free
-GitHub | Public Repositories | Free
-**Continuous Integration:** | |
-Amazon Web Services | Build Server | \*$0+
-Bamboo | Continuous Integration | $10
-**DNS:** | |
-CloudFlare | Cloud DNS | Free
-**Monitoring:** | |
-New Relic | Application, Browser, Server, and *Synthetics Monitoring | Free [*No free tier beyond trial](#partnerships)
-**Total** | | $40+
-\* Depending on load, resources may need to be increased. However, a few websites with builds running irregularly will not incur over a couple dollars more per month.
+Service | Product | Use Case | Monthly Cost
+--------|---------|----------|-------------
+Cloud Hosting | DigitalOcean | Web and Database Servers | \*$30+
+Source Code Repositories | Atlassian Bitbucket | Private Repositories | Free
+Source Code Repositories | GitHub | Public Repositories | Free
+Continuous Integration | Amazon Web Services (AWS) | Build Server | \**$0+
+Continuous Integration | Atlassian Bamboo | Deployment Management | $10
+DNS | CloudFlare | Cloud DNS | Free
+Monitoring | New Relic Application (APM), Browser, Server, and \***Synthetics | Performance and Infrastructure Monitoring | Free
+**Total** | | | $40+
+
+\* Depending on load, resources may need to be increased.
+
+\** New AWS customers receive 1-year free of micro services. Beyond this period, a few websites with builds running irregularly will gennerally incur over a couple dollars more per month.
+
+\*** New Relic [No free tier beyond trial](#partnerships)
 
 1. **Cloud Hosting:**    
     1. **DigitalOcean** sign-up and configuration
@@ -331,7 +326,7 @@ New Relic | Application, Browser, Server, and *Synthetics Monitoring | Free [*No
         2. Go to your DigitalOcean Applications & API Dashboard https://cloud.digitalocean.com/settings/api
             1. Create a Personal Access Token named "Vagrant" and place the token value at `~/secrets/configuration.yml["company"]["digitalocean_personal_access_token"]`
         3. Go to your DigitalOcean Security Dashboard https://cloud.digitalocean.com/settings/security
-            1. Add a new SSH Key named "Vagrant" with your newly created id_rsa.pub from ~/secrets/id_rsa.pub key 
+            1. Add a new SSH Key named "Vagrant" with your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key 
     2. **Amazon Web Services** (AWS) sign-up and configuration
         1. Create an account https://portal.aws.amazon.com/gp/aws/developer/registration
             * [Free Stuff] Receive Free Tier benefits for the first 12 months after signing up https://aws.amazon.com/ec2/pricing/
@@ -348,7 +343,7 @@ New Relic | Application, Browser, Server, and *Synthetics Monitoring | Free [*No
             2. Select Add Users to Group and add your newly created "Catapult" user.
         6. Go to your AWS EC2 Key Pairs Dashboard https://console.aws.amazon.com/ec2/home#KeyPairs
             1. Click Import Key Pair
-            2. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key
+            2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key
             3. Set the Key pair name to "Catapult"
         7. Go to your AWS EC2 Security Groups Dashboard https://console.aws.amazon.com/ec2/home#SecurityGroups
             1. Select the "default" Group Name
@@ -361,12 +356,12 @@ New Relic | Application, Browser, Server, and *Synthetics Monitoring | Free [*No
         1. Create an account at https://bitbucket.org
             1. Place the username (not the email address) that you used to sign up for Bitbucket at `~/secrets/configuration.yml["company"]["bitbucket_username"]`
             2. Place the password of the account for Bitbucket at `~/secrets/configuration.yml["company"]["bitbucket_password"]`
-        2. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key in https://bitbucket.org/account/user/`your-user-here`/ssh-keys/ named "Catapult"
+        2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key in https://bitbucket.org/account/user/`your-user-here`/ssh-keys/ named "Catapult"
     2. **GitHub** sign-up and configuration
         1. Create an account at https://github.com
             1. Place the username (not the email address) that you used to sign up for GitHub at `~/secrets/configuration.yml["company"]["github_username"]`
             2. Place the password of the account for GitHub at `~/secrets/configuration.yml["company"]["github_password"]`
-        2. Add your newly created id_rsa.pub from ~/secrets/id_rsa.pub key in https://github.com/settings/ssh named "Catapult"
+        2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key in https://github.com/settings/ssh named "Catapult"
 3. **Automated Deployments:**
     2. **Bamboo** sign-up and configuration
         1. Create a Bamboo Cloud account at https://www.atlassian.com/software/bamboo
@@ -444,7 +439,7 @@ New Relic | Application, Browser, Server, and *Synthetics Monitoring | Free [*No
         3. Go to your Account Settings > Account > Summary.
         5. Place your License key at `~/secrets/configuration.yml["company"]["newrelic_license_key"]`
 6. **Verify Configuration:**    
-    1. To verify all of the configuration that you just set, open your command line and cd into your fork of Catapult, then run `vagrant status`. Catapult will confirm connection to all of the Services and inform you of any problems.
+    1. To verify all of the configuration that you just set, open your command line and change directory into your fork of Catapult, then run `vagrant status`. Catapult will confirm connection to all of the Services and inform you of any problems.
 
 
 
@@ -548,7 +543,7 @@ Once the Web and Database Servers are up and running, it's then time to configur
 
 # Release Management #
 
-Catapult follows Gitflow for its configuration and development model - each environment runs a specific branch and changesets are introduced into each environment by pull requests from one branch to the next.
+Catapult follows Gitflow for its **infrastructure configuration** *and* **website development** model - each environment runs a specific branch and changesets are introduced into each environment by pull requests from one branch to the next.
 
 <img src="https://www.atlassian.com/git/images/tutorials/collaborating/comparing-workflows/gitflow-workflow/05.svg" alt="Gitflow" width="600">
 <sup>[1](#references)</sup>
@@ -556,27 +551,27 @@ Catapult follows Gitflow for its configuration and development model - each envi
 
 Environment | LocalDev | Test | QC | Production
 ------------|----------|------|----|-----------
-**Running Branch**                                       | *develop*                                                   | *develop*                                                                                                    | *release*                                                      | *master*
-**Deployments**                                          | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)                                                        | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
-**Testing Activities**                                   | Component Test                                              | Integration Test, System Test                                                                                | Acceptance Test, Release Test                                  | Operational Qualification
-**Scrum Activity**                                       | Sprint Start: Development of User Stories                   | Daily Scrum                                                                                                  | Sprint Review                                                  | Sprint End: Accepted Product Release
-**Scrum Roles**                                          | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)                                                     | Scrum Master, Development Team, Product Owner                  | Product Owner
-**Downstream Software Workflow - Database**              | Restore from **develop** ~/_sql folder of website repo      | Restore from **develop** ~/_sql folder of website repo                                                       | Restore from **release** ~/_sql folder of website repo         | Auto-commit one backup per day (up to 500MB or 1) to **master** ~/_sql folder of website repo during deploy
-**Downstream Software Workflow - Untracked File Stores** | rsync file stores from **Production**                       | rsync file stores from **Production**                                                                        | rsync file stores from **Production**                          | Pull file stores from **master**
-**Downstream Software Workflow - Tracked File Stores**   | Pull file stores from **develop**                           | Pull file stores from **develop**                                                                            | Pull file stores from **release**                              | Auto-commit file stores (up to 750MB each) to **master** of website repo during deploy
-**Upstream Software Workflow - Database**                | Restore from **develop** ~/_sql folder of website repo      | Auto-commit one backup per day (up to 500MB or 1) to **develop** ~/_sql folder of website repo during deploy | Restore from **release** ~/_sql folder of website repo         | Restore from **master** ~/_sql folder of website repo
-**Upstream Software Workflow - Untracked File Stores**   | rsync file stores from **Test**                             | Pull file stores from **develop**                                                                            | rsync file stores from **Test**                                | rsync file stores from **Test**
-**Upstream Software Workflow - Tracked File Stores**     | Pull file stores from **develop**                           | Auto-commit file stores (up to 750MB each) to **develop** of website repo during deploy                      | Pull file stores from **release**                              | Pull file stores from **master**
+**Running Branch**                                       | *develop*                                                   | *develop*                                                                                                      | *release*                                                      | *master*
+**Deployments**                                          | Manually via `vagrant provision`                            | Automatically via Bamboo (new commits to **develop**)                                                          | Automatically via Bamboo (new commits to **release**)          | Manually via Bamboo
+**Testing Activities**                                   | Component Test                                              | Integration Test, System Test                                                                                  | Acceptance Test, Release Test                                  | Operational Qualification
+**Scrum Activity**                                       | Sprint Start: Development of User Stories                   | Daily Scrum                                                                                                    | Sprint Review                                                  | Sprint End: Accepted Product Release
+**Scrum Roles**                                          | Development Team                                            | Scrum Master, Development Team, Product Owner (optional)                                                       | Scrum Master, Development Team, Product Owner                  | Product Owner
+**Downstream Software Workflow - Database**              | Restore from **develop** `~/_sql` folder of website repo    | Restore from **develop** `~/_sql` folder of website repo                                                       | Restore from **release** `~/_sql` folder of website repo       | Auto-commit one backup per day (up to 500MB or 1) to **master** `~/_sql` folder of website repo during deploy
+**Downstream Software Workflow - Untracked File Stores** | rsync file stores from **Production**                       | rsync file stores from **Production**                                                                          | rsync file stores from **Production**                          | Pull file stores from **master**
+**Downstream Software Workflow - Tracked File Stores**   | Pull file stores from **develop**                           | Pull file stores from **develop**                                                                              | Pull file stores from **release**                              | Auto-commit file stores (up to 750MB each) to **master** of website repo during deploy
+**Upstream Software Workflow - Database**                | Restore from **develop** `~/_sql` folder of website repo    | Auto-commit one backup per day (up to 500MB or 1) to **develop** `~/_sql` folder of website repo during deploy | Restore from **release** `~/_sql` folder of website repo       | Restore from **master** `~/_sql` folder of website repo
+**Upstream Software Workflow - Untracked File Stores**   | rsync file stores from **Test**                             | Pull file stores from **develop**                                                                              | rsync file stores from **Test**                                | rsync file stores from **Test**
+**Upstream Software Workflow - Tracked File Stores**     | Pull file stores from **develop**                           | Auto-commit file stores (up to 750MB each) to **develop** of website repo during deploy                        | Pull file stores from **release**                              | Pull file stores from **master**
 
 **NOTE:** Catapult will automatically pull **master** into **develop** when in the **Downstream Software Workflow** direction.
 
 ## Catapult Configuration ##
 
-All instance specific configuration is stored in ~/secrets/configuration.yml and encrypted as ~/secrets/configuration.yml.gpg. There are three main sections - [Company](#company), [Environments](#environments), and [Websites](#websites).
+All Catapult configuration is stored in `~/secrets/configuration.yml` and encrypted as `~/secrets/configuration.yml.gpg`. There are three main sections - [Company](#company), [Environments](#environments), and [Websites](#websites).
 
 ### Company ###
 
-The exclusive Company entry contains top-level global credentials and company information - all of which will be configured during [Setup Catapult](#setup-catapult).
+The exclusive Company entry contains top-level company information and service credentials, configured during [Setup Catapult](#setup-catapult).
 
 * `name:`
     * required: yes
@@ -587,11 +582,30 @@ The exclusive Company entry contains top-level global credentials and company in
 * `timezone_redhat:`
     * required: yes
         * Your company's timezone in tz database format
-        * See [this list](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html) for a list of valid timezones
+        * See [this list](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html) for a list of valid tz database format timezones
 * `timezone_windows:`
     * required: yes
         * Your company's timezone in Windows Standard Format
-        * See [this list](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html) for a list of valid timezones
+        * See [this list](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html) for a list of valid Windows Standard Format timezones
+
+The remaining keys include credentials to services, ideally rotated on a bi-annual basis. When rotated, all Bamboo builds need to be disabled and then the configuration changes merged into all branches of your Catapult's fork (`develop` > `release` > `master`), then builds enabled.
+
+* `digitalocean_personal_access_token`
+* `bitbucket_username`
+* `bitbucket_password`
+* `github_username`
+* `github_password`
+* `bamboo_base_url`
+* `bamboo_username`
+* `aws_access_key`
+* `aws_secret_key`
+* `bamboo_password`
+* `cloudflare_api_key`
+* `cloudflare_email`
+* `newrelic_admin_api_key`
+* `newrelic_api_key`
+* `newrelic_license_key`
+
 
 ### Environments ###
 
@@ -599,7 +613,7 @@ The setup- and maintenance-free Environments entries contain environment configu
 
 ### Websites ###
 
-Adding websites to Catapult is driven by simple configuration. After establishing a repository at GitHub or Bitbucket, simply add entries to configuration.yml. The entries must be ordered alphabetically by domain name and all entries exist under the single `websites:` key as reflected in this example:
+Adding websites to Catapult is driven by simple configuration. After establishing a repository at GitHub or Bitbucket, simply add entries to `~/secrets/configuration.yml`. The entries must be ordered alphabetically by domain name and all entries exist under the single `websites:` key as reflected in this example:
 ```
 websites:
   apache:
@@ -702,7 +716,7 @@ Performing development in a local environment is critical to reducing risk by ex
 
 ### Website Repositories ###
 
-Repositories for websites are cloned into the Catapult instance at ~/repositories and in the respective apache or iis folder, listed by domain name.
+Repositories for websites are cloned into the Catapult instance at `~/repositories` and in the respective apache or iis folder, listed by domain name.
 
 * Repositories are linked between the host and guest for realtime development.
 
@@ -773,8 +787,8 @@ Software | Tool | Command | Documentation
 
 ### Refreshing Databases ###
 
-* Databases are dumped once per day to the ~/_sql folder and restored, dependent on the environment and `software_workflow` setting per website - see [Release Management](#release-management) for details.
-* Leverage Catapult's workflow model (configured by `software_workflow`) to trigger a database refresh. From the develop branch, commit a deletion of today's database backup from the ~/_sql folder.
+* Databases are dumped once per day to the `~/_sql` folder and restored, dependent on the environment and `software_workflow` setting per website - see [Release Management](#release-management) for details.
+* Leverage Catapult's workflow model (configured by `software_workflow`) to trigger a database refresh. From the develop branch, commit a deletion of today's database backup from the `~/_sql` folder.
 
 ### Connecting to Databases ###
 
@@ -916,12 +930,12 @@ Being able to react to disasters immediately and consistently is crucial - Catap
         * Reverse the offending merge commit from the master branch and run the Production deployment.
     * Database
         * Reverse the offending merge commit from the master branch and run the Production deployment.
-        * Note: The Production database is overwritten and restored from the latest sql dump file from Test in the ~/_sql folder.
+        * Note: The Production database is overwritten and restored from the latest sql dump file from Test in the `~/_sql` folder.
 * `software_workflow: downstream`
     * Files
         * Reverse the offending merge commit from the master branch and run the Production deployment.
     * Database
-        * Reverse the offending database dump auto-commit from the develop branch and manually restore the Production database from the desired sql dump file in the ~/_sql folder.
+        * Reverse the offending database dump auto-commit from the develop branch and manually restore the Production database from the desired sql dump file in the `~/_sql` folder.
         * Note: The Production database is dumped once per day when the production build is run.
 
 
@@ -1020,7 +1034,7 @@ Releases are driven by the devopsgroup.io team and occur when accepting new pull
 
 In addition, the release version number will be prefaced with a `v` (v1.0.0) to conform to standard practice.
 
-As part of a new release, the version number in VERSION.yml will be incremented and git tagged with the same version number along with a [GitHub Release](https://help.github.com/articles/about-releases/).
+As part of a new release, the version number in `~/VERSION.yml` will be incremented and git tagged with the same version number along with a [GitHub Release](https://help.github.com/articles/about-releases/).
 
 
 
