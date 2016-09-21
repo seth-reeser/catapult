@@ -69,10 +69,10 @@ Catapult leverages the following technologies and technology services to impleme
     * Automated Deployments - Bamboo
     * Build Server - Amazon Web Services (AWS)
 * **Monitoring**
-    * Server Resources and Uptime - New Relic Servers
-    * Application - New Relic APM
-    * Browser - New Relic Browsers
-    * Website Uptime - New Relic Synthetics
+    * Server Resources - New Relic Servers
+    * Application Performance - New Relic APM
+    * Browser Performance - New Relic Browsers
+    * Website Availability - New Relic Synthetics
 
 
 
@@ -547,7 +547,7 @@ Once the Web and Database Servers are up and running, it's then time to configur
 
 Catapult follows Gitflow for its **infrastructure configuration** *and* **website development** model - each environment runs a specific branch and changesets are introduced into each environment by pull requests from one branch to the next.
 
-<img src="https://www.atlassian.com/git/images/tutorials/collaborating/comparing-workflows/gitflow-workflow/05.svg" alt="Gitflow" width="600">
+<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/catapult/installers/images/catapult_release_management.png" alt="Catapult Release Management">
 <sup>[1](#references)</sup>
 
 
@@ -674,7 +674,7 @@ The following options are available:
         * manages software database migrations
         * manages software database backups and restores intelligently via git
         * manages software url references in database
-        * manages software admin account integrity
+        * manages software admininistrator account integrity
     * option: `software: codeigniter2`
     * option: `software: codeigniter3`
     * option: `software: drupal6`
@@ -1081,7 +1081,6 @@ Catapult is making the conference tour! We plan to attend the following conferen
 Catapult will also be seen throughout local meetups in the Philadelphia and Greater Philadelphia area! Get a chance to meet the team and engage at a personal level.
 
 * [Technical.ly Philly](http://www.meetup.com/Technically-Philly/) 6k+ technologists
-* [Princeton Tech](http://www.meetup.com/Princeton-Tech/) 4.5k+ technologists
 * [Tech in Motion Philly](http://www.meetup.com/TechinMotionPhilly/) 4k+ technologists
 * [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 1.5k+ technologists
 * [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 1k+ technologists

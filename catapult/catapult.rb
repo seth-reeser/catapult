@@ -92,7 +92,7 @@ module Catapult
 
 
     # ensure the user is in the correct directory when running vagrant commands to prevent git from pulling in catapult upstream master into repositories
-    unless File.exist?('LICENSE.txt') && File.exist?('README.md') && File.exist?('VERSION.yml')
+    unless File.exist?('LICENSE') && File.exist?('README.md') && File.exist?('VERSION.yml')
       catapult_exception("You are outside of the Catapult root, please change to the Catapult root directory.")
     end
 
@@ -449,6 +449,10 @@ module Catapult
     # validate @configuration["company"]
     if @configuration["company"]["name"] == nil
       catapult_exception("Please set [\"company\"][\"name\"] in secrets/configuration.yml")
+    end
+    if @configuration["company"]["name"].length > 39
+      # this is determined by the 63 dot notation limit for linux hostnames (substracting -production-redhat-mysql)
+      catapult_exception("The maximum amount of characters is 39 for [\"company\"][\"name\"] in secrets/configuration.yml")
     end
     if @configuration["company"]["email"] == nil
       catapult_exception("Please set [\"company\"][\"email\"] in secrets/configuration.yml")
