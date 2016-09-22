@@ -1,5 +1,12 @@
 source "/catapult/provisioners/redhat/modules/catapult.sh"
 
+
+
+echo -e "\n> system authentication configuration"
+# install sshd
+sudo yum install -y sshd
+sudo systemctl enable sshd.service
+sudo systemctl start sshd.service
 # only allow authentication via ssh key pair
 # assist this number - There were 34877 failed login attempts since the last successful login.
 echo -e "$(lastb | head -n -2 | wc -l) failed login attempts"
@@ -7,23 +14,30 @@ echo -e "$(last | head -n -2 | wc -l) successful login attempts"
 sudo last
 sed -i -e "/PasswordAuthentication/d" /etc/ssh/sshd_config
 if ! grep -q "PasswordAuthentication no" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo "PasswordAuthentication no" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "\nPasswordAuthentication no" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/PubkeyAuthentication/d" /etc/ssh/sshd_config
 if ! grep -q "PubkeyAuthentication yes" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "\nPubkeyAuthentication yes" >> /etc/ssh/sshd_config'
 fi
 sudo systemctl reload sshd.service
 
 
 
-# send root's mail as company email
-sudo cat > "/root/.forward" << EOF
-"$(echo "${configuration}" | shyaml get-value company.email)"
+echo -e "\n> system email configuration"
+# prevent a billion emails from localdev
+if ([ "${1}" = "dev" ]); then
+    sudo cat "/dev/null" > "/root/.forward"
+# send root's mail as company email from upstream servers
+else
+    sudo cat > "/root/.forward" << EOF
+    "$(echo "${configuration}" | shyaml get-value company.email)"
 EOF
+fi
 
 
 
+echo -e "\n> system hostname configuration"
 # remove pretty hostname
 hostnamectl set-hostname "" --pretty
 
@@ -31,11 +45,30 @@ hostnamectl set-hostname "" --pretty
 if ([ "${4}" = "apache" ]); then
     hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat"
 elif ([ "${4}" = "mysql" ]); then
-    hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat-${4}"
+    hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat-mysql"
 fi
 
 
 
+echo -e "\n> system SELinux configuration"
+sudo cat > /etc/sysconfig/selinux << EOF
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+#     enforcing - SELinux security policy is enforced.
+#     permissive - SELinux prints warnings instead of enforcing.
+#     disabled - No SELinux policy is loaded.
+SELINUX=disabled
+# SELINUXTYPE= can take one of these two values:
+#     targeted - Targeted processes are protected,
+#     minimum - Modification of targeted policy. Only selected processes are protected. 
+#     mls - Multi Level Security protection.
+SELINUXTYPE=targeted
+EOF
+sestatus -v
+
+
+
+echo -e "\n> system swap configuration"
 # get current swaps
 swaps=$(swapon --noheadings --show=NAME)
 swap_volumes=$(cat /etc/fstab | grep "swap" | awk '{print $1}')
@@ -70,7 +103,7 @@ fi
 
 # add the swap /swapfile to startup
 if [[ ! ${swap_volumes[*]} =~ "/swapfile" ]]; then
-    sudo bash -c 'echo "/swapfile swap    swap    defaults    0   0" >> /etc/fstab'
+    sudo bash -c 'echo -e "\n/swapfile swap    swap    defaults    0   0" >> /etc/fstab'
 fi
 
 # output the resulting swap
@@ -89,6 +122,7 @@ EOF
 
 
 
+echo -e "\n> system known hosts configuration"
 # initialize known_hosts
 sudo mkdir -p ~/.ssh
 sudo touch ~/.ssh/known_hosts
@@ -96,7 +130,7 @@ sudo touch ~/.ssh/known_hosts
 # ssh-keyscan bitbucket.org for a maximum of 10 tries
 i=0
 until [ $i -ge 10 ]; do
-    sudo ssh-keyscan bitbucket.org > ~/.ssh/known_hosts
+    sudo ssh-keyscan -4 -T 10 bitbucket.org > ~/.ssh/known_hosts
     if grep -q "bitbucket\.org" ~/.ssh/known_hosts; then
         echo "ssh-keyscan for bitbucket.org successful"
         break
@@ -109,7 +143,7 @@ done
 # ssh-keyscan github.com for a maximum of 10 tries
 i=0
 until [ $i -ge 10 ]; do
-    sudo ssh-keyscan github.com >> ~/.ssh/known_hosts
+    sudo ssh-keyscan -4 -T 10 github.com >> ~/.ssh/known_hosts
     if grep -q "github\.com" ~/.ssh/known_hosts; then
         echo "ssh-keyscan for github.com successful"
         break
@@ -121,6 +155,7 @@ done
 
 
 
+echo -e "\n> system yum-cron configuration"
 # install yum-cron to apply updates nightly
 sudo yum install -y yum-cron
 sudo systemctl enable yum-cron.service
@@ -133,3 +168,17 @@ sudo sed --in-place --expression='/^apply_updates\s=/s|.*|apply_updates = yes|' 
 sudo sed --in-place --expression='/^emit_via\s=/s|.*|emit_via = None|' /etc/yum/yum-cron.conf
 # restart the service to re-read any new configuration
 sudo systemctl restart yum-cron.service
+
+
+
+echo -e "\n> system kernel configuration"
+kernel_running=$(uname --release)
+kernel_running="kernel-${kernel_running}"
+kernel_staged=$(rpm --last --query kernel | head --lines 1 | awk '{print $1}')
+echo -e "kernel running : ${kernel_running}"
+echo -e "kernel staged  : ${kernel_staged}"
+
+if [ "${kernel_running}" != "${kernel_staged}" ]; then
+    echo -e "REBOOT REQUIRED FOR KERNEL UPDATE"
+    echo -e "* please update to the DigitalOcean GrubLoader for upstream servers https://www.digitalocean.com/community/tutorials/how-to-update-a-digitalocean-server-s-kernel"
+fi

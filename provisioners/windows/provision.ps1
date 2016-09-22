@@ -62,6 +62,35 @@ get-date
 $([System.TimeZone]::CurrentTimeZone.StandardName)
 
 
+echo "`n`n==> Configuring hostname"
+# set the base hostname limited by the 15 character limit (UGH)
+if ($($args[0].Text.Length) -gt 4) {
+    $hostname = "$($args[0].Substring(0,4))-win"
+} else {
+    $hostname = "$($args[0])-win"
+}
+# set hostname, 
+if ($($args[3]) -eq "iis") {
+    if ($env:computername.ToLower() -ne "$($hostname)") {
+        Rename-Computer -Force -NewName "$($hostname)"
+    }
+} elseif (($args[3]) -eq "mssql") {
+    if ($env:computername.ToLower() -ne "$($hostname)-mssql") {
+        Rename-Computer -Force -NewName "$($hostname)-mssql"
+    }
+}
+# echo datetimezone
+echo $env:computername
+
+
+echo "`n`n==> Configuring system page file"
+# let windows manage our page file for us for now
+wmic computersystem set AutomaticManagedPageFile=TRUE
+echo "Allocated: $(get-wmiobject win32_pagefileusage | % {$_.allocatedbasesize})MB"
+echo "Current: $(get-wmiobject win32_pagefileusage | % {$_.currentusage})MB"
+echo "Peak: $(get-wmiobject win32_pagefileusage | % {$_.peakusage})MB"
+
+
 echo "`n`n==> Importing PSWindowsUpdate"
 Remove-Item "C:\Windows\System32\WindowsPowerShell\v1.0\Modules\PSWindowsUpdate" -Force -Recurse
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -85,7 +114,7 @@ echo "A reboot (LocalDev: vagrant reload) may be required after windows updates"
 
 echo "`n`n==> Installing .NET 4.0 (This may take a while...)"
 if (-not(test-path -path "c:\windows\Microsoft.NET\Framework64\v4.0.30319\")) {
-    # ((new-object net.webclient).DownloadFile("http://download.microsoft.com/download/9/5/A/95A9616B-7A37-4AF6-BC36-D6EA96C8DAAE/dotNetFx40_Full_x86_x64.exe","c:\tmp\dotNetFx40_Full_x86_x64.exe")) 
+    # ((new-object net.webclient).DownloadFile("http://download.microsoft.com/download/9/5/A/95A9616B-7A37-4AF6-BC36-D6EA96C8DAAE/dotNetFx40_Full_x86_x64.exe","c:\tmp\dotNetFx40_Full_x86_x64.exe"))
     start-process -filepath "c:\catapult\provisioners\windows\installers\dotNetFx40_Full_x86_x64.exe" -argumentlist "/q /norestart /log c:\catapult\provisioners\windows\logs\dotNetFx40_Full_x86_x64.exe.log" -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
     echo "Restarting Windows..."
     echo "Please invoke 'vagrant provision' when it's back up"
@@ -167,7 +196,7 @@ if (-not($config.websites.iis)) {
     new-item "c:\Program Files (x86)\Git\.ssh\known_hosts" -type file -force
     # ssh-keyscan bitbucket.org for a maximum of 10 tries
     for ($i=0; $i -le 10; $i++) {
-        start-process -filepath "c:\Program Files (x86)\Git\bin\ssh-keyscan.exe" -argumentlist ("bitbucket.org") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
+        start-process -filepath "c:\Program Files (x86)\Git\bin\ssh-keyscan.exe" -argumentlist ("-4 -T 10 bitbucket.org") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
         if ((get-content $provision) -match "bitbucket\.org") {
             echo "ssh-keyscan for bitbucket.org successful"
             get-content $provision | add-content "c:\Program Files (x86)\Git\.ssh\known_hosts"
@@ -178,7 +207,7 @@ if (-not($config.websites.iis)) {
     }
     # ssh-keyscan github.com for a maximum of 10 tries
     for ($i=0; $i -le 10; $i++) {
-        start-process -filepath "c:\Program Files (x86)\Git\bin\ssh-keyscan.exe" -argumentlist ("github.com") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
+        start-process -filepath "c:\Program Files (x86)\Git\bin\ssh-keyscan.exe" -argumentlist ("-4 -T 10 github.com") -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
         if ((get-content $provision) -match "github\.com") {
             echo "ssh-keyscan for github.com successful"
             get-content $provision | add-content "c:\Program Files (x86)\Git\.ssh\known_hosts"
@@ -251,7 +280,7 @@ if (-not($config.websites.iis)) {
         $domains += $instance.domain
     }
     # cleanup directories from domains array
-    get-childitem "c:\catapult\repositories\iis\*" | ?{ $_.PSIsContainer } | foreach-object {
+    get-childitem "c:\inetpub\repositories\iis\*" | ?{ $_.PSIsContainer } | foreach-object {
         $domain = split-path $_.FullName -leaf
         if (-not($domains -contains $domain)) {
             echo "`n`nWebsite does not exist in secrets/configuration.yml, removing $domain ..."
@@ -306,8 +335,19 @@ if (-not($config.websites.iis)) {
         }
         # 80
         new-website -name ("$($args[0]).{0}" -f $instance.domain) -hostheader ("$($args[0]).{0}" -f $instance.domain) -port 80 -physicalpath ("c:\inetpub\repositories\iis\{0}\{1}" -f $instance.domain,$instance.webroot) -applicationpool ("$($args[0]).{0}" -f $instance.domain) -force
+
+        # 80:www
+        new-webbinding -name ("$($args[0]).{0}" -f $instance.domain) -hostheader ("www.$($args[0]).{0}" -f $instance.domain) -port 80
+
         # 443
         new-webbinding -name ("$($args[0]).{0}" -f $instance.domain) -hostheader ("$($args[0]).{0}" -f $instance.domain) -port 443 -protocol https -sslflags 1
+
+        # 443:www
+        new-webbinding -name ("$($args[0]).{0}" -f $instance.domain) -hostheader ("www.$($args[0]).{0}" -f $instance.domain) -port 443 -protocol https -sslflags 1
+
+        # set website user account
+        set-itemproperty ("$($args[0]).{0}" -f $instance.domain) -name username -value "$env:username"
+        set-itemproperty ("$($args[0]).{0}" -f $instance.domain) -name password -value "$env:username"
     }
 
     echo "`n`n==> Creating SSL Bindings"
