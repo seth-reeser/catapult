@@ -12,6 +12,7 @@ host = "localhost"
 user = "root"
 password = "$(catapult environments.${1}.servers.redhat_mysql.mysql.root_password)"
 EOF
+# set a variable to the .cnf
 dbconf="/catapult/provisioners/redhat/installers/${1}.cnf"
 
 # only set root password on fresh install of mysql
@@ -73,10 +74,12 @@ done
 # flush privileges
 mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
 
-# this overwrite all items in cron, we write stdout to > /dev/null so that we only get emailed stderr
-cat <(echo "0 3 * * * mysqlcheck -u maintenance --all-databases --auto-repair --optimize > /dev/null") | crontab -
-# adding more cron tasks would look like this
-# cat <(crontab -l) <(echo "0 4 * * * mysqldump...") | crontab -
+# configure a cron task for database maintenance
+touch /etc/cron.daily/catapult-mysql.cron
+cat > "/etc/cron.daily/catapult-mysql.cron" << EOF
+#!/bin/bash
+mysqlcheck -u maintenance --all-databases --auto-repair --optimize
+EOF
 
 echo "${configuration}" | shyaml get-values-0 websites.apache |
 while IFS='' read -r -d '' key; do
@@ -214,6 +217,7 @@ while IFS='' read -r -d '' key; do
                          || [ "${software}" = "codeigniter3" ] \
                          || [ "${software}" = "drupal6" ] \
                          || [ "${software}" = "drupal7" ] \
+                         || [ "${software}" = "elgg1" ] \
                          || [ "${software}" = "expressionengine3" ] \
                          || [ "${software}" = "joomla3" ] \
                          || [ "${software}" = "laravel5" ] \
@@ -277,6 +281,15 @@ while IFS='' read -r -d '' key; do
                 ON DUPLICATE KEY UPDATE rid='3';
             "
 
+        elif [[ "${software}" = "elgg1" ]]; then
+
+            echo -e "\t* resetting ${software} admin password..."
+            mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+                INSERT INTO ${software_dbprefix}users_entity (username, password_hash, email, banned, admin)
+                VALUES ('admin', MD5('$(catapult environments.${1}.software.admin_password)'), '$(catapult company.email)', 'no', 'yes')
+                ON DUPLICATE KEY UPDATE username='admin', password_hash=MD5('$(catapult environments.${1}.software.admin_password)'), email='$(catapult company.email)', banned='no', admin='yes';
+            "
+
         elif [[ "${software}" = "joomla3" ]]; then
 
             echo -e "\t* resetting ${software} admin password..."
@@ -325,8 +338,8 @@ while IFS='' read -r -d '' key; do
 
             echo -e "\t* resetting ${software} admin password..."
             mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
-                INSERT INTO users (id, user_name, user_hash, is_admin)
-                VALUES ('1', 'admin', MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), '1')
+                INSERT INTO ${software_dbprefix}users (id, user_name, user_hash, is_admin)
+                VALUES ('1', 'admin', MD5('$(catapult environments.${1}.software.admin_password)'), '1')
                 ON DUPLICATE KEY UPDATE user_name='admin', user_hash=MD5('$(catapult environments.${1}.software.admin_password)'), is_admin='1';
             "
 
