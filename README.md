@@ -629,17 +629,20 @@ The following options are available:
 * `domain:`
     * required: yes
     * example: `domain: example.com`
-        * the Production canonical domain name without `www.`
-            * one subdomain level is supported (subdomain.example.com)
-        * this drives the domains of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
-            * dev.example.com, test.example.com, qc.example.com, example.com
+    * example: `domain: subdomain.example.com`
+        * one subdomain level is supported for this root domain entry (`subdomain.example.com`)
+        * this root domain entry is the Production canonical domain name without `www.`
+            * a `www.` subdomain is created for you
+            * the key for all management orchestration of this website
+        * manages DNS of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
+            * `dev.example.com`, `test.example.com`, `qc.example.com`, `example.com`
 * `domain_tld_override:`
     * required: no
     * example: `domain_tld_override: mycompany.com`
         * a domain name under your [name server authority](https://en.wikipedia.org/wiki/Domain_Name_System#Authoritative_name_server) to append to the top-level-domain (e.g. `.com`)
             * useful when you cannot or do not wish to host the Test/QC website at the `domain`
         * appends the `domain_tld_override` for Environments
-            * dev.example.com.mycompany.com, test.example.com.mycompany.com, qc.example.com.mycompany.com, example.com.mycompany.com
+            * `dev.example.com.mycompany.com`, `test.example.com.mycompany.com`, `qc.example.com.mycompany.com`, `example.com.mycompany.com`
         * PLEASE NOTE: When removing this option from a website with `software:`, you need to manually replace URLs in the database respective to the `software_workflow:` option.
             * ie `vagrant ssh mycompany.com-test-redhat-mysql`
             * `php /catapult/provisioners/redhat/installers/wp-cli.phar --allow-root --path="/var/www/repositories/apache/example.com/(webroot if applicable)" search-replace ":\/\/(www\.)?(dev\.|test\.)?(example\.com\.mycompany\.com)" "://example.com" --regex`
@@ -657,11 +660,12 @@ The following options are available:
     * required: no
     * option: `force_https: true`
         * rewrites all http traffic to https
-        * subdomains are not supported as limited by CloudFlare
-        * causes an unsigned cert error in LocalDev
+        * all `dev.` domains in LocalDev will have an unsigned certificate warning
+        * free SSL certificates are created and managed for you compliments of CloudFlare (single-subdomain) and Let's Encrypt (multi-subdomain)
 * `repo:`
     * required: yes
     * example: `repo: git@github.com:devopsgroup-io/devopsgroup-io.git`
+        * the existing source code repository of your website (please create one if none exists)
         * GitHub and Bitbucket over SSH are supported, HTTPS is not supported
 * `software:`
     * required: no
