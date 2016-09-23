@@ -1079,7 +1079,7 @@ Catapult is making the conference tour! We plan to attend the following conferen
 
 
 
-## Local Events ##
+## Meetups ##
 
 Catapult will also be seen throughout local meetups in the Philadelphia and Greater Philadelphia area! Get a chance to meet the team and engage at a personal level.
 
@@ -1087,6 +1087,7 @@ Catapult will also be seen throughout local meetups in the Philadelphia and Grea
 * [Tech in Motion Philly](http://www.meetup.com/TechinMotionPhilly/) 4k+ technologists
 * [Philadelphia WordPress Meetup Group](http://www.meetup.com/philadelphia-wordpress-meetup-group/) 1.5k+ technologists
 * [Philly DevOps](http://www.meetup.com/PhillyDevOps/) 1k+ technologists
+    * [09/20/2016  From Pets to Serverless: Deployment Panel](https://www.meetup.com/PhillyDevOps/events/232930398/)
 * [Greater Philadelphia Drupal Meetup Group](http://www.meetup.com/drupaldelphia/) .5k+ technologists
 
 
