@@ -135,7 +135,7 @@ module Catapult
         end
       end
     rescue Timeout::Error
-      catapult_exception("Wating took longer than expected. The .lock file is present in this directory. This indicates that another Catapult process may have hung or ended unexpectedly. Once verifying that no conflict exists, remove the .lock file and try again.")
+      catapult_exception("Wating took longer than expected. The .lock file is present in this directory, indicating that another Catapult process may have hung or ended unexpectedly. Once verifying that no conflict exists, remove the .lock file and try again.")
     end
     FileUtils.touch('.lock')
 
@@ -1310,7 +1310,7 @@ module Catapult
           @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"].merge ({"sa_password" => ""})
         end
         if "#{environment}" == "dev"
-          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["sa_password"] = "password"
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["sa_password"] = "drowssap"
         else
           @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["sa_password"] = SecureRandom.urlsafe_base64(16)
         end
