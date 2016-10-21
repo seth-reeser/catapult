@@ -1,6 +1,33 @@
 . "c:\catapult\provisioners\windows\modules\catapult.ps1"
 
 
+echo "`n=> Getting Windows license status"
+Get-CimInstance -ClassName SoftwareLicensingProduct | where PartialProductKey | select `
+    Name,
+    Description,
+    @{Name='GenuineStatus';Exp={
+        switch ($_.GenuineStatus)
+        {
+            0 {'Non-Genuine'}
+            1 {'Genuine'}
+            Default {'Undetected'}
+        }
+    }},
+    @{Name='LicenseStatus';Exp={
+        # https://msdn.microsoft.com/en-us/library/cc534596%28v=vs.85%29.aspx
+        switch ($_.LicenseStatus) {
+            0 {'Unlicensed'}
+            1 {'licensed'}
+            2 {'OOBGrace'}
+            3 {'OOTGrace'}
+            4 {'NonGenuineGrace'}
+            5 {'Notification'}
+            6 {'ExtendedGrace'}
+            Default {'Undetected'}
+        }
+    }} | Format-List
+
+
 echo "`n=> Configuring security policy"
 # remove the PasswordComplexity settting to allow for user accounts to be created for iis and the force_auth option
 # we'll require our own, 10 character, 20 maximum password
@@ -68,7 +95,7 @@ if (-not(test-path -path "c:\catapult\provisioners\windows\installers\temp\dotne
 }
 
 
-echo "`n=> Installing .NET 3.5 (This may take a while...)"
+echo "`n=> Installing .NET 3.5..."
 if (-not(test-path -path "c:\windows\Microsoft.NET\Framework64\v3.5\")) {
     Install-WindowsFeature Net-Framework-Core -source "c:\catapult\provisioners\windows\installers\temp\dotnetfx35.exe"
 } else {
@@ -88,7 +115,7 @@ if (-not(test-path -path "c:\catapult\provisioners\windows\installers\temp\dotNe
 }
 
 
-echo "`n=> Installing .NET 4.0 (This may take a while...)"
+echo "`n=> Installing .NET 4.0..."
 if (-not(test-path -path "c:\windows\Microsoft.NET\Framework64\v4.0.30319\")) {
     start-process -filepath "c:\catapult\provisioners\windows\installers\temp\dotNetFx40_Full_x86_x64.exe" -argumentlist "/q /norestart /log c:\catapult\provisioners\windows\logs\dotNetFx40_Full_x86_x64.exe.log" -Wait -RedirectStandardOutput $provision -RedirectStandardError $provisionError
     echo "Restarting Windows..."
@@ -107,7 +134,7 @@ Where { $_.PSChildName -match '^(?!S)\p{L}'} |
 Select PSChildName, Version, Release
 
 
-echo "`n=> Installing Web Platform Installer (This may take a while...)"
+echo "`n=> Installing Web Platform Installer..."
 # http://www.iis.net/learn/install/web-platform-installer/web-platform-installer-v4-command-line-webpicmdexe-rtw-release
 if (-not(test-path -path "c:\Program Files\Microsoft\Web Platform Installer\WebpiCmd-x64.exe")) {
     # https://github.com/fdcastel/psunattended/blob/master/PSUnattended.ps1
@@ -149,7 +176,7 @@ for ($i=0; $i -le 10; $i++) {
 }
 
 
-echo "`n=> Checking for Windows Updates (This may take a while...)"
+echo "`n=> Checking for Windows Updates (This may take a while)..."
 # configure windows update settings
 $windows_update_settings = (new-object -com "Microsoft.Update.AutoUpdate").Settings
 # 1 - Never check for updates
@@ -164,5 +191,19 @@ $windows_update_settings.NonAdministratorsElevated=$true
 $windows_update_settings.FeaturedUpdatesEnabled=$true
 $windows_update_settings.save()
 $windows_update_settings
+# ensure we're set to the Microsoft Update Service
+echo "Configuring the Microsoft Update Service..."
+# Examples Of ServiceID:
+# Windows Update                  9482f4b4-e343-43b6-b170-9a65bc822c77 
+# Microsoft Update                7971f918-a847-4430-9279-4a52d1efe18d 
+# Windows Store                   117cab2d-82b1-4b5a-a08c-4d62dbee7782 
+# Windows Server Update Service   3da21691-e39d-4da6-8a4b-b43877bcb1b7 
+# Performing the operation "Register Windows Update Service Manager: 7971f918-a847-4430-9279-4a52d1efe18d" on target "DEV-WIN".
+# [Y] Yes  [A] Yes to All  [N] No  [L] No to All  [S] Suspend  [?] Help (default is "Y"): Y
+Add-WUServiceManager -ServiceID "7971f918-a847-4430-9279-4a52d1efe18d" -confirm:$false
+# get registered update service
+echo "Getting the Microsoft Update Service..."
+Get-WUServiceManager
 # install latest updates
-Get-WUInstall -WindowsUpdate -AcceptAll -IgnoreReboot
+echo "Checking for Microsoft Updates..."
+Get-WUInstall -MicrosoftUpdate -AcceptAll -IgnoreReboot
