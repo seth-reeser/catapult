@@ -76,11 +76,12 @@ done
 mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
 
 # configure a cron task for database maintenance
-touch /etc/cron.daily/catapult-mysql.cron
+touch /etc/cron.daily/catapult-mysql
 cat > "/etc/cron.daily/catapult-mysql.cron" << EOF
 #!/bin/bash
 mysqlcheck -u maintenance --all-databases --auto-repair --optimize
 EOF
+chmod 755 /etc/cron.daily/catapult-mysql.cron
 
 echo "${configuration}" | shyaml get-values-0 websites.apache |
 while IFS='' read -r -d '' key; do

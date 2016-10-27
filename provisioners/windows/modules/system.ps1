@@ -210,7 +210,7 @@ $windows_update_settings = (new-object -com "Microsoft.Update.AutoUpdate").Setti
 # 2 - Check for updates but let me choose whether to download and install them
 # 3 - Download updates but let me choose whether to install them
 # 4 - Install updates automatically
-$windows_update_settings.NotificationLevel=3
+$windows_update_settings.NotificationLevel=4
 $windows_update_settings.ScheduledInstallationDay=0
 $windows_update_settings.ScheduledInstallationTime=3
 $windows_update_settings.IncludeRecommendedUpdates=$true
@@ -234,3 +234,13 @@ Get-WUServiceManager
 # install latest updates
 echo "Checking for Microsoft Updates..."
 Get-WUInstall -MicrosoftUpdate -AcceptAll -IgnoreReboot
+
+
+echo "`n=> Configuring Task Scheduler..."
+# configure a weekly task to reboot the system if necessary
+$taskname = "REQUIRED REBOOT STATUS"
+if (-not(Get-ScheduledTask -TaskName $taskname -ErrorAction SilentlyContinue)) {
+    $action = New-ScheduledTaskAction -Execute "c:\catapult\provisioners\windows\modules\system_reboot.ps1"
+    $trigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Sunday -At 3am
+    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $taskname -User "System"
+}
