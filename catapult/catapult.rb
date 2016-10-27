@@ -35,6 +35,7 @@ module Catapult
     require "json"
     require "net/ssh"
     require "net/http"
+    require "nokogiri"
     require "open-uri"
     require "openssl"
     require "resolv"
@@ -59,9 +60,6 @@ module Catapult
         puts "\n"
         puts "Please correct the error then re-run your vagrant command."
         puts "See https://github.com/devopsgroup-io/catapult for more information."
-        if File.exist?('.lock')
-          File.delete('.lock')
-        end
         exit 1
       end
     end
@@ -129,8 +127,15 @@ module Catapult
 
 
     # locking in order to prevent multiple executions occurring at once (e.g. competing command line and Bamboo executions)
-    if File.exist?('.lock')
-      catapult_exception("The .lock file is present in this directory. This indicates that another process, such as provisioning, may be under way in another session or that a process ended unexpectedly. Once verifying that no conflict exists, remove the .lock file and try again.")
+    begin
+      Timeout::timeout(60) do
+        while File.exist?('.lock')
+           puts "Waiting for another Catapult process to finish so that we can safely continue...".color(Colors::YELLOW)
+           sleep 5
+        end
+      end
+    rescue Timeout::Error
+      catapult_exception("Wating took longer than expected. The .lock file is present in this directory, indicating that another Catapult process may have hung or ended unexpectedly. Once verifying that no conflict exists, remove the .lock file and try again.")
     end
     FileUtils.touch('.lock')
 
@@ -467,7 +472,7 @@ module Catapult
     if @configuration["company"]["digitalocean_personal_access_token"] == nil
       catapult_exception("Please set [\"company\"][\"digitalocean_personal_access_token\"] in secrets/configuration.yml")
     else
-      uri = URI("https://api.digitalocean.com/v2/droplets")
+      uri = URI("https://api.digitalocean.com/v2/account/keys")
       Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
         request = Net::HTTP::Get.new uri.request_uri
         request.add_field "Authorization", "Bearer #{@configuration["company"]["digitalocean_personal_access_token"]}"
@@ -478,199 +483,26 @@ module Catapult
           puts "   - The DigitalOcean API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
         else
           puts " * DigitalOcean API authenticated successfully."
-          @api_digitalocean = JSON.parse(response.body)
-          uri = URI("https://api.digitalocean.com/v2/account/keys")
-          Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-            request = Net::HTTP::Get.new uri.request_uri
-            request.add_field "Authorization", "Bearer #{@configuration["company"]["digitalocean_personal_access_token"]}"
-            response = http.request request
-            api_digitalocean_account_keys = JSON.parse(response.body)
-            @api_digitalocean_account_key_name = false
-            @api_digitalocean_account_key_public_key = false
-            api_digitalocean_account_keys["ssh_keys"].each do |key|
-              if key["name"] == "Vagrant"
-                @api_digitalocean_account_key_name = true
-                if "#{key["public_key"].match(/(\w*-\w*\s\S*)/)}" == "#{File.read("secrets/id_rsa.pub").match(/(\w*-\w*\s\S*)/)}"
-                  @api_digitalocean_account_key_public_key = true
-                end
+          api_digitalocean_account_keys = JSON.parse(response.body)
+          @api_digitalocean_account_key_name = false
+          @api_digitalocean_account_key_public_key = false
+          api_digitalocean_account_keys["ssh_keys"].each do |key|
+            if key["name"] == "Vagrant"
+              @api_digitalocean_account_key_name = true
+              if "#{key["public_key"].match(/(\w*-\w*\s\S*)/)}" == "#{File.read("secrets/id_rsa.pub").match(/(\w*-\w*\s\S*)/)}"
+                @api_digitalocean_account_key_public_key = true
               end
             end
-            unless @api_digitalocean_account_key_name
-              catapult_exception("Could not find the SSH Key named \"Vagrant\" in DigitalOcean, please follow the Services Setup for DigitalOcean at https://github.com/devopsgroup-io/catapult#services-setup")
-            else
-              puts "   - Found the ssh public key \"Vagrant\""
-            end
-            unless @api_digitalocean_account_key_public_key
-              catapult_exception("The SSH Key named \"Vagrant\" in DigitalOcean does not match your Catapult instance's SSH Key at \"secrets/id_rsa.pub\", please follow the Services Setup for DigitalOcean at https://github.com/devopsgroup-io/catapult#services-setup")
-            else
-              puts "   - The ssh public key \"Vagrant\" matches your secrets/id_rsa.pub ssh public key"
-            end
           end
-        end
-      end
-    end
-    # https://confluence.atlassian.com/display/BITBUCKET/Version+1
-    if @configuration["company"]["bitbucket_username"] == nil || @configuration["company"]["bitbucket_password"] == nil
-      catapult_exception("Please set [\"company\"][\"bitbucket_username\"] and [\"company\"][\"bitbucket_password\"] in secrets/configuration.yml")
-    else
-      uri = URI("https://api.bitbucket.org/1.0/user")
-      Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-        request = Net::HTTP::Get.new uri.request_uri
-        request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-        response = http.request request
-        if response.code.to_f.between?(399,499)
-          catapult_exception("#{response.code} The Bitbucket API could not authenticate, please verify [\"company\"][\"bitbucket_username\"] and [\"company\"][\"bitbucket_password\"].")
-        elsif response.code.to_f.between?(500,600)
-          puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
-        else
-          puts " * Bitbucket API authenticated successfully."
-          @api_bitbucket = JSON.parse(response.body)
-          # verify bitbucket user's catapult ssh key
-          uri = URI("https://api.bitbucket.org/1.0/users/#{@configuration["company"]["bitbucket_username"]}/ssh-keys")
-          Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-            request = Net::HTTP::Get.new uri.request_uri
-            request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-            response = http.request request # Net::HTTPResponse object
-            @api_bitbucket_ssh_keys = JSON.parse(response.body)
-            @api_bitbucket_ssh_keys_title = false
-            @api_bitbucket_ssh_keys_key = false
-            unless response.code.to_f.between?(399,600)
-              @api_bitbucket_ssh_keys.each do |key|
-                if key["label"] == "Catapult"
-                  @api_bitbucket_ssh_keys_title = true
-                  if "#{key["key"].match(/(\w*-\w*\s\S*)/)}" == "#{File.read("secrets/id_rsa.pub").match(/(\w*-\w*\s\S*)/)}"
-                    @api_bitbucket_ssh_keys_key = true
-                  end
-                end
-              end
-            end
-            unless @api_bitbucket_ssh_keys_title
-              catapult_exception("Could not find the SSH Key named \"Catapult\" for your Bitbucket user #{@configuration["company"]["bitbucket_username"]}, please follow Provision Websites at https://github.com/devopsgroup-io/catapult#provision-websites")
-            else
-              puts "   - Found the ssh public key \"Catapult\" for your Bitbucket user #{@configuration["company"]["bitbucket_username"]}"
-            end
-            unless @api_bitbucket_ssh_keys_key
-              catapult_exception("The SSH Key named \"Catapult\" in Bitbucket does not match your Catapult instance's SSH Key at \"secrets/id_rsa.pub\", please follow Provision Websites at https://github.com/devopsgroup-io/catapult#provision-websites")
-            else
-              puts "   - The ssh public key \"Catapult\" matches your secrets/id_rsa.pub ssh public key"
-            end
-          end
-        end
-      end
-    end
-    # https://developer.github.com/v3/
-    if @configuration["company"]["github_username"] == nil || @configuration["company"]["github_password"] == nil
-      catapult_exception("Please set [\"company\"][\"github_username\"] and [\"company\"][\"github_password\"] in secrets/configuration.yml")
-    else
-      uri = URI("https://api.github.com/user")
-      Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-        request = Net::HTTP::Get.new uri.request_uri
-        request.basic_auth "#{@configuration["company"]["github_username"]}", "#{@configuration["company"]["github_password"]}"
-        response = http.request request
-        if response.code.to_f.between?(399,499)
-          catapult_exception("#{response.code} The GitHub API could not authenticate, please verify [\"company\"][\"github_username\"] and [\"company\"][\"github_password\"].")
-        elsif response.code.to_f.between?(500,600)
-          puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
-        else
-          puts " * GitHub API authenticated successfully."
-          @api_github = JSON.parse(response.body)
-          # verify github user's catapult ssh key
-          uri = URI("https://api.github.com/user/keys")
-          Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-            request = Net::HTTP::Get.new uri.request_uri
-            request.basic_auth "#{@configuration["company"]["github_username"]}", "#{@configuration["company"]["github_password"]}"
-            response = http.request request # Net::HTTPResponse object
-            @api_github_ssh_keys = JSON.parse(response.body)
-            @api_github_ssh_keys_title = false
-            @api_github_ssh_keys_key = false
-            unless response.code.to_f.between?(399,600)
-              @api_github_ssh_keys.each do |key|
-                if key["title"] == "Catapult"
-                  @api_github_ssh_keys_title = true
-                  if "#{key["key"].match(/(\w*-\w*\s\S*)/)}" == "#{File.read("secrets/id_rsa.pub").match(/(\w*-\w*\s\S*)/)}"
-                    @api_github_ssh_keys_key = true
-                  end
-                end
-              end
-            end
-            unless @api_github_ssh_keys_title
-              catapult_exception("Could not find the SSH Key named \"Catapult\" for your GitHub user #{@configuration["company"]["github_username"]}, please follow Provision Websites at https://github.com/devopsgroup-io/catapult#provision-websites")
-            else
-              puts "   - Found the ssh public key \"Catapult\" for your GitHub user #{@configuration["company"]["github_username"]}"
-            end
-            unless @api_github_ssh_keys_key
-              catapult_exception("The SSH Key named \"Catapult\" in GitHub does not match your Catapult instance's SSH Key at \"secrets/id_rsa.pub\", please follow Provision Websites at https://github.com/devopsgroup-io/catapult#provision-websites")
-            else
-              puts "   - The ssh public key \"Catapult\" matches your secrets/id_rsa.pub ssh public key"
-            end
-          end
-        end
-      end
-    end
-    # https://docs.atlassian.com/bamboo/REST/
-    if @configuration["company"]["bamboo_base_url"] == nil || @configuration["company"]["bamboo_username"] == nil || @configuration["company"]["bamboo_password"] == nil
-      catapult_exception("Please set [\"company\"][\"bamboo_base_url\"] and [\"company\"][\"bamboo_username\"] and [\"company\"][\"bamboo_password\"] in secrets/configuration.yml")
-    else
-      uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/api/latest/project.json?os_authType=basic")
-      Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-        request = Net::HTTP::Get.new uri.request_uri
-        request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
-        response = http.request request
-        if response.code.to_f.between?(399,499)
-          catapult_exception("#{response.code} The Bamboo API could not authenticate, please verify [\"company\"][\"bamboo_base_url\"] and [\"company\"][\"bamboo_username\"] and [\"company\"][\"bamboo_password\"].")
-        elsif response.code.to_f.between?(500,600)
-          puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
-        else
-          puts " * Bamboo API authenticated successfully."
-          @api_bamboo = JSON.parse(response.body)
-          api_bamboo_project_key = @api_bamboo["projects"]["project"].find { |element| element["key"] == "CAT" }
-          unless api_bamboo_project_key
-            catapult_exception("Could not find the project key \"CAT\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
-          end
-          api_bamboo_project_name = @api_bamboo["projects"]["project"].find { |element| element["name"] == "Catapult" }
-          unless api_bamboo_project_name
-            catapult_exception("Could not find the project name \"Catapult\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
+          unless @api_digitalocean_account_key_name
+            catapult_exception("Could not find the SSH Key named \"Vagrant\" in DigitalOcean, please follow the Services Setup for DigitalOcean at https://github.com/devopsgroup-io/catapult#services-setup")
           else
-            puts "   - Found the project key \"CAT\""
+            puts "   - Found the DigitalOcean SSH Key \"Vagrant\""
           end
-        end
-        uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/api/latest/result/CAT-TEST.json?os_authType=basic")
-        Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-          request = Net::HTTP::Get.new uri.request_uri
-          request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
-          response = http.request request
-          if response.code.to_f.between?(399,499)
-            catapult_exception("Could not find the plan key \"TEST\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
-          elsif response.code.to_f.between?(500,600)
-            puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          unless @api_digitalocean_account_key_public_key
+            catapult_exception("The DigitalOcean SSH Key \"Vagrant\" does not match your secrets/id_rsa.pub ssh public key, please follow the Services Setup for DigitalOcean at https://github.com/devopsgroup-io/catapult#services-setup")
           else
-            puts "   - Found the plan key \"TEST\""
-          end
-        end
-        uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/api/latest/result/CAT-QC.json?os_authType=basic")
-        Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-          request = Net::HTTP::Get.new uri.request_uri
-          request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
-          response = http.request request
-          if response.code.to_f.between?(399,499)
-            catapult_exception("Could not find the plan key \"QC\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
-          elsif response.code.to_f.between?(500,600)
-            puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
-          else
-            puts "   - Found the plan key \"QC\""
-          end
-        end
-        uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/api/latest/result/CAT-PROD.json?os_authType=basic")
-        Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-          request = Net::HTTP::Get.new uri.request_uri
-          request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
-          response = http.request request
-          if response.code.to_f.between?(399,499)
-            catapult_exception("Could not find the plan key \"PROD\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
-          elsif response.code.to_f.between?(500,600)
-            puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
-          else
-            puts "   - Found the plan key \"PROD\""
+            puts "   - The DigitalOcean SSH Key \"Vagrant\" matches your secrets/id_rsa.pub ssh public key"
           end
         end
       end
@@ -686,7 +518,7 @@ module Catapult
       host = 'ec2.amazonaws.com'
       region = 'us-east-1'
       endpoint = 'https://ec2.amazonaws.com'
-      request_parameters = 'Action=DescribeRegions&Version=2013-10-15'
+      request_parameters = 'Action=DescribeKeyPairs&Version=2013-10-15'
       # Key derivation functions. See:
       # http://docs.aws.amazon.com/general/latest/gr/signature-v4-examples.html#signature-v4-examples-python
       def Command::getSignatureKey(key, dateStamp, regionName, serviceName)
@@ -748,17 +580,206 @@ module Catapult
         request = Net::HTTP::Get.new uri.request_uri
         request.add_field "Authorization", "#{authorization_header}"
         request.add_field "x-amz-date", "#{amzdate}"
-        request.add_field "content-type", "application/json" #@todo this doesn't seem to work
+        request.add_field "content-type", "application/json"
         response = http.request request
         if response.code.to_f.between?(399,499)
           catapult_exception("#{response.code} The AWS API could not authenticate, please verify [\"company\"][\"aws_access_key\"] and [\"company\"][\"aws_secret_key\"].")
         elsif response.code.to_f.between?(500,600)
-          puts "   - The AWS API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          puts " * AWS API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
         else
           puts " * AWS API authenticated successfully."
+          api_aws_account_keys = Nokogiri::XML.parse(response.body)
+          @api_aws_account_key_name = false
+          @api_aws_account_key_public_key = false
+          api_aws_account_keys.xpath("//xmlns:item").each do |key|
+            if key.css('keyName').text == "Catapult"
+              @api_aws_account_key_name = true
+              # calculate the MD5 fingerprint from the binary (der) of the computed public key
+              key_private = OpenSSL::PKey::RSA.new(File.read("secrets/id_rsa"))
+              key_fingerprint = OpenSSL::Digest::MD5.hexdigest(key_private.public_key.to_der).scan(/../).join(':')
+              if "#{key.css('keyFingerprint').text}" == "#{key_fingerprint}"
+                @api_aws_account_key_public_key = true
+              end
+            end
+          end
+          unless @api_aws_account_key_name
+            catapult_exception("Could not find the EC2 Key Pair named \"Catapult\" in AWS, please follow the Services Setup for AWS at https://github.com/devopsgroup-io/catapult#services-setup")
+          else
+            puts "   - Found the AWS EC2 Key Pair \"Catapult\""
+          end
+          unless @api_aws_account_key_public_key
+            catapult_exception("The AWS EC2 Key Pair \"Catapult\" MD5 fingerprint does not match your secrets/id_rsa.pub ssh public key MD5 fingerprint, please follow the Services Setup for AWS at https://github.com/devopsgroup-io/catapult#services-setup")
+          else
+            puts "   - The AWS EC2 Key Pair \"Catapult\" MD5 fingerprint matches your secrets/id_rsa.pub ssh public key MD5 fingerprint"
+          end
         end
       end
-
+    end
+    # https://confluence.atlassian.com/display/BITBUCKET/Version+1
+    if @configuration["company"]["bitbucket_username"] == nil || @configuration["company"]["bitbucket_password"] == nil
+      catapult_exception("Please set [\"company\"][\"bitbucket_username\"] and [\"company\"][\"bitbucket_password\"] in secrets/configuration.yml")
+    else
+      uri = URI("https://api.bitbucket.org/1.0/user")
+      Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+        request = Net::HTTP::Get.new uri.request_uri
+        request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
+        response = http.request request
+        if response.code.to_f.between?(399,499)
+          catapult_exception("#{response.code} The Bitbucket API could not authenticate, please verify [\"company\"][\"bitbucket_username\"] and [\"company\"][\"bitbucket_password\"].")
+        elsif response.code.to_f.between?(500,600)
+          puts " * Bitbucket API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+        else
+          puts " * Bitbucket API authenticated successfully."
+          @api_bitbucket = JSON.parse(response.body)
+          # verify bitbucket user's catapult ssh key
+          uri = URI("https://api.bitbucket.org/1.0/users/#{@configuration["company"]["bitbucket_username"]}/ssh-keys")
+          Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+            request = Net::HTTP::Get.new uri.request_uri
+            request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
+            response = http.request request # Net::HTTPResponse object
+            @api_bitbucket_ssh_keys = JSON.parse(response.body)
+            @api_bitbucket_ssh_keys_title = false
+            @api_bitbucket_ssh_keys_key = false
+            unless response.code.to_f.between?(399,600)
+              @api_bitbucket_ssh_keys.each do |key|
+                if key["label"] == "Catapult"
+                  @api_bitbucket_ssh_keys_title = true
+                  if "#{key["key"].match(/(\w*-\w*\s\S*)/)}" == "#{File.read("secrets/id_rsa.pub").match(/(\w*-\w*\s\S*)/)}"
+                    @api_bitbucket_ssh_keys_key = true
+                  end
+                end
+              end
+            end
+            unless @api_bitbucket_ssh_keys_title
+              catapult_exception("Could not find the SSH Key named \"Catapult\" for your Bitbucket user #{@configuration["company"]["bitbucket_username"]}, please follow Provision Websites at https://github.com/devopsgroup-io/catapult#provision-websites")
+            else
+              puts "   - Found the ssh public key \"Catapult\" for your Bitbucket user #{@configuration["company"]["bitbucket_username"]}"
+            end
+            unless @api_bitbucket_ssh_keys_key
+              catapult_exception("The SSH Key named \"Catapult\" in Bitbucket does not match your Catapult instance's SSH Key at \"secrets/id_rsa.pub\", please follow Provision Websites at https://github.com/devopsgroup-io/catapult#provision-websites")
+            else
+              puts "   - The ssh public key \"Catapult\" matches your secrets/id_rsa.pub ssh public key"
+            end
+          end
+        end
+      end
+    end
+    # https://developer.github.com/v3/
+    if @configuration["company"]["github_username"] == nil || @configuration["company"]["github_password"] == nil
+      catapult_exception("Please set [\"company\"][\"github_username\"] and [\"company\"][\"github_password\"] in secrets/configuration.yml")
+    else
+      uri = URI("https://api.github.com/user")
+      Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+        request = Net::HTTP::Get.new uri.request_uri
+        request.basic_auth "#{@configuration["company"]["github_username"]}", "#{@configuration["company"]["github_password"]}"
+        response = http.request request
+        if response.code.to_f.between?(399,499)
+          catapult_exception("#{response.code} The GitHub API could not authenticate, please verify [\"company\"][\"github_username\"] and [\"company\"][\"github_password\"].")
+        elsif response.code.to_f.between?(500,600)
+          puts " * GitHub API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+        else
+          puts " * GitHub API authenticated successfully."
+          @api_github = JSON.parse(response.body)
+          # verify github user's catapult ssh key
+          uri = URI("https://api.github.com/user/keys")
+          Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+            request = Net::HTTP::Get.new uri.request_uri
+            request.basic_auth "#{@configuration["company"]["github_username"]}", "#{@configuration["company"]["github_password"]}"
+            response = http.request request # Net::HTTPResponse object
+            @api_github_ssh_keys = JSON.parse(response.body)
+            @api_github_ssh_keys_title = false
+            @api_github_ssh_keys_key = false
+            unless response.code.to_f.between?(399,600)
+              @api_github_ssh_keys.each do |key|
+                if key["title"] == "Catapult"
+                  @api_github_ssh_keys_title = true
+                  if "#{key["key"].match(/(\w*-\w*\s\S*)/)}" == "#{File.read("secrets/id_rsa.pub").match(/(\w*-\w*\s\S*)/)}"
+                    @api_github_ssh_keys_key = true
+                  end
+                end
+              end
+            end
+            unless @api_github_ssh_keys_title
+              catapult_exception("Could not find the SSH Key named \"Catapult\" for your GitHub user #{@configuration["company"]["github_username"]}, please follow Provision Websites at https://github.com/devopsgroup-io/catapult#provision-websites")
+            else
+              puts "   - Found the ssh public key \"Catapult\" for your GitHub user #{@configuration["company"]["github_username"]}"
+            end
+            unless @api_github_ssh_keys_key
+              catapult_exception("The SSH Key named \"Catapult\" in GitHub does not match your Catapult instance's SSH Key at \"secrets/id_rsa.pub\", please follow Provision Websites at https://github.com/devopsgroup-io/catapult#provision-websites")
+            else
+              puts "   - The ssh public key \"Catapult\" matches your secrets/id_rsa.pub ssh public key"
+            end
+          end
+        end
+      end
+    end
+    # https://docs.atlassian.com/bamboo/REST/
+    if @configuration["company"]["bamboo_base_url"] == nil || @configuration["company"]["bamboo_username"] == nil || @configuration["company"]["bamboo_password"] == nil
+      catapult_exception("Please set [\"company\"][\"bamboo_base_url\"] and [\"company\"][\"bamboo_username\"] and [\"company\"][\"bamboo_password\"] in secrets/configuration.yml")
+    else
+      uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/api/latest/project.json?os_authType=basic")
+      Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+        request = Net::HTTP::Get.new uri.request_uri
+        request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
+        response = http.request request
+        if response.code.to_f.between?(399,499)
+          catapult_exception("#{response.code} The Bamboo API could not authenticate, please verify [\"company\"][\"bamboo_base_url\"] and [\"company\"][\"bamboo_username\"] and [\"company\"][\"bamboo_password\"].")
+        elsif response.code.to_f.between?(500,600)
+          puts " * Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+        else
+          puts " * Bamboo API authenticated successfully."
+          @api_bamboo = JSON.parse(response.body)
+          api_bamboo_project_key = @api_bamboo["projects"]["project"].find { |element| element["key"] == "CAT" }
+          unless api_bamboo_project_key
+            catapult_exception("Could not find the project key \"CAT\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
+          end
+          api_bamboo_project_name = @api_bamboo["projects"]["project"].find { |element| element["name"] == "Catapult" }
+          unless api_bamboo_project_name
+            catapult_exception("Could not find the project name \"Catapult\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
+          else
+            puts "   - Found the project key \"CAT\""
+          end
+        end
+        uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/api/latest/result/CAT-TEST.json?os_authType=basic")
+        Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+          request = Net::HTTP::Get.new uri.request_uri
+          request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
+          response = http.request request
+          if response.code.to_f.between?(399,499)
+            catapult_exception("Could not find the plan key \"TEST\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
+          elsif response.code.to_f.between?(500,600)
+            puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          else
+            puts "   - Found the plan key \"TEST\""
+          end
+        end
+        uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/api/latest/result/CAT-QC.json?os_authType=basic")
+        Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+          request = Net::HTTP::Get.new uri.request_uri
+          request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
+          response = http.request request
+          if response.code.to_f.between?(399,499)
+            catapult_exception("Could not find the plan key \"QC\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
+          elsif response.code.to_f.between?(500,600)
+            puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          else
+            puts "   - Found the plan key \"QC\""
+          end
+        end
+        uri = URI("#{@configuration["company"]["bamboo_base_url"]}rest/api/latest/result/CAT-PROD.json?os_authType=basic")
+        Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+          request = Net::HTTP::Get.new uri.request_uri
+          request.basic_auth "#{@configuration["company"]["bamboo_username"]}", "#{@configuration["company"]["bamboo_password"]}"
+          response = http.request request
+          if response.code.to_f.between?(399,499)
+            catapult_exception("Could not find the plan key \"PROD\" in Bamboo, please follow the Services Setup for Bamboo at https://github.com/devopsgroup-io/catapult#services-setup")
+          elsif response.code.to_f.between?(500,600)
+            puts "   - The Bamboo API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          else
+            puts "   - Found the plan key \"PROD\""
+          end
+        end
+      end
     end
     # https://api.cloudflare.com/
     if @configuration["company"]["cloudflare_api_key"] == nil || @configuration["company"]["cloudflare_email"] == nil
@@ -773,7 +794,7 @@ module Catapult
         if response.code.to_f.between?(399,499)
           catapult_exception("#{response.code} The CloudFlare API could not authenticate, please verify [\"company\"][\"cloudflare_api_key\"] and [\"company\"][\"cloudflare_email\"].")
         elsif response.code.to_f.between?(500,600)
-          puts "   - The CloudFlare API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          puts " * CloudFlare API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
         else
           puts " * CloudFlare API authenticated successfully."
           @api_cloudflare = JSON.parse(response.body)
@@ -792,7 +813,7 @@ module Catapult
         if response.code.to_f.between?(399,499)
           catapult_exception("#{response.code} The New Relic API could not authenticate, please verify [\"company\"][\"newrelic_api_key\"] and [\"company\"][\"newrelic_license_key\"].")
         elsif response.code.to_f.between?(500,600)
-          puts "   - The New Relic API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          puts " * New Relic API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
         else
           puts " * New Relic API authenticated successfully."
           @api_cloudflare = JSON.parse(response.body)
@@ -812,7 +833,7 @@ module Catapult
           puts " * New Relic Admin API could not authenticate (Synthetics tests will not be created).".color(Colors::YELLOW)
           #catapult_exception("#{response.code} The New Relic Admin API could not authenticate, please verify [\"company\"][\"newrelic_admin_api_key\"].")
         elsif response.code.to_f.between?(500,600)
-          puts "   - The New Relic Admin API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+          puts " * New Relic Admin API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
         else
           puts " * New Relic Admin API authenticated successfully."
           @api_cloudflare = JSON.parse(response.body)
@@ -823,8 +844,29 @@ module Catapult
 
 
     # validate @configuration["environments"]
-    puts "\nVerification of configuration[\"environments\"]:\n".color(Colors::WHITE)
-    # get full list of available digitalocean slugs to validate against
+    puts "\nVerification of configuration[\"environments\"]:".color(Colors::WHITE)
+    # get virualbox machines
+    if File.exist?(File.expand_path("~/.vagrant.d/data/machine-index/index"))
+      @api_virtualbox = JSON.parse(File.read(File.expand_path("~/.vagrant.d/data/machine-index/index")))
+    else
+      @api_virtualbox = nil
+    end
+    # get digitalocean droplets
+    uri = URI("https://api.digitalocean.com/v2/droplets")
+    Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+      request = Net::HTTP::Get.new uri.request_uri
+      request.add_field "Authorization", "Bearer #{@configuration["company"]["digitalocean_personal_access_token"]}"
+      response = http.request request
+      if response.code.to_f.between?(399,499)
+        catapult_exception("#{response.code} The DigitalOcean API could not authenticate, please verify [\"company\"][\"digitalocean_personal_access_token\"].")
+      elsif response.code.to_f.between?(500,600)
+        @api_digitalocean = nil
+        puts " * The DigitalOcean API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+      else
+        @api_digitalocean = JSON.parse(response.body)
+      end
+    end
+    # get digitalocean available slugs
     uri = URI("https://api.digitalocean.com/v2/sizes")
     Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
       request = Net::HTTP::Get.new uri.request_uri
@@ -833,7 +875,7 @@ module Catapult
       if response.code.to_f.between?(399,499)
         catapult_exception("#{response.code} The DigitalOcean API could not authenticate, please verify [\"company\"][\"digitalocean_personal_access_token\"].")
       elsif response.code.to_f.between?(500,600)
-        puts "   - The DigitalOcean API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+        puts " * The DigitalOcean API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
       else
         api_digitalocean_sizes = JSON.parse(response.body)
         @api_digitalocean_slugs = Array.new
@@ -842,118 +884,529 @@ module Catapult
         end
       end
     end
-    # loop through each environment
+    # get aws instances
+    # ************* REQUEST VALUES *************
+    method = 'GET'
+    service = 'ec2'
+    host = 'ec2.amazonaws.com'
+    region = 'us-east-1'
+    endpoint = 'https://ec2.amazonaws.com'
+    request_parameters = 'Action=DescribeInstances&Version=2013-10-15'
+    # Key derivation functions. See:
+    # http://docs.aws.amazon.com/general/latest/gr/signature-v4-examples.html#signature-v4-examples-python
+    def Command::getSignatureKey(key, dateStamp, regionName, serviceName)
+        kDate    = OpenSSL::HMAC.digest('sha256', "AWS4" + key, dateStamp)
+        kRegion  = OpenSSL::HMAC.digest('sha256', kDate, regionName)
+        kService = OpenSSL::HMAC.digest('sha256', kRegion, serviceName)
+        kSigning = OpenSSL::HMAC.digest('sha256', kService, "aws4_request")
+        return kSigning
+    end
+    # Create a date for headers and the credential string
+    t = Time.now.utc
+    amzdate = t.strftime('%Y%m%dT%H%M%SZ')
+    datestamp = t.strftime('%Y%m%d') # Date w/o time, used in credential scope
+    # ************* TASK 1: CREATE A CANONICAL REQUEST *************
+    # http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
+    # Step 1 is to define the verb (GET, POST, etc.)--already done.
+    # Step 2: Create canonical URI--the part of the URI from domain to query 
+    # string (use '/' if no path)
+    canonical_uri = '/' 
+    # Step 3: Create the canonical query string. In this example (a GET request),
+    # request parameters are in the query string. Query string values must
+    # be URL-encoded (space=%20). The parameters must be sorted by name.
+    # For this example, the query string is pre-formatted in the request_parameters variable.
+    canonical_querystring = request_parameters
+    # Step 4: Create the canonical headers and signed headers. Header names
+    # and value must be trimmed and lowercase, and sorted in ASCII order.
+    # Note that there is a trailing \n.
+    canonical_headers = 'host:' + host + "\n" + 'x-amz-date:' + amzdate + "\n"
+    # Step 5: Create the list of signed headers. This lists the headers
+    # in the canonical_headers list, delimited with ";" and in alpha order.
+    # Note: The request can include any headers; canonical_headers and
+    # signed_headers lists those that you want to be included in the 
+    # hash of the request. "Host" and "x-amz-date" are always required.
+    signed_headers = 'host;x-amz-date'
+    # Step 6: Create payload hash (hash of the request body content). For GET
+    # requests, the payload is an empty string ("").
+    payload_hash = Digest::SHA256.hexdigest('')
+    # Step 7: Combine elements to create create canonical request
+    canonical_request = method + "\n" + canonical_uri + "\n" + canonical_querystring + "\n" + canonical_headers + "\n" + signed_headers + "\n" + payload_hash
+    # ************* TASK 2: CREATE THE STRING TO SIGN*************
+    # Match the algorithm to the hashing algorithm you use, either SHA-1 or
+    # SHA-256 (recommended)
+    algorithm = 'AWS4-HMAC-SHA256'
+    credential_scope = datestamp + '/' + region + '/' + service + '/' + 'aws4_request'
+    string_to_sign = algorithm + "\n" +  amzdate + "\n" +  credential_scope + "\n" + Digest::SHA256.hexdigest(canonical_request)
+    # ************* TASK 3: CALCULATE THE SIGNATURE *************
+    # Create the signing key using the function defined above.
+    signing_key = getSignatureKey(@configuration["company"]["aws_secret_key"], datestamp, region, service)
+    # Sign the string_to_sign using the signing_key
+    signature = OpenSSL::HMAC.hexdigest('sha256', signing_key, string_to_sign)
+    # ************* TASK 4: ADD SIGNING INFORMATION TO THE REQUEST *************
+    # The signing information can be either in a query string value or in 
+    # a header named Authorization. This code shows how to use a header.
+    # Create authorization header and add to request headers
+    authorization_header = algorithm + ' ' + 'Credential=' + @configuration["company"]["aws_access_key"] + '/' + credential_scope + ', ' +  'SignedHeaders=' + signed_headers + ', ' + 'Signature=' + signature
+    # ************* SEND THE REQUEST *************
+    uri = URI(endpoint + '?' + canonical_querystring)
+    Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+      request = Net::HTTP::Get.new uri.request_uri
+      request.add_field "Authorization", "#{authorization_header}"
+      request.add_field "x-amz-date", "#{amzdate}"
+      request.add_field "content-type", "application/json"
+      response = http.request request
+      if response.code.to_f.between?(399,499)
+        catapult_exception("#{response.code} The AWS API could not authenticate, please verify [\"company\"][\"aws_access_key\"] and [\"company\"][\"aws_secret_key\"].")
+      elsif response.code.to_f.between?(500,600)
+        @api_aws = nil
+        puts " * AWS API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+      else
+        @api_aws = Nokogiri::XML.parse(response.body)
+      end
+    end
+    # loop through each environment and provider
+    ######################################################################
+    # BE VERY CAREFUL WITH THE MERGE OPERATIONS                          #
+    # @todo step through hierarchy and create null values if not defined #
+    ######################################################################
     @configuration["environments"].each do |environment,data|
 
-      # validate servers
-      unless "#{environment}" == "dev" || @api_digitalocean == nil
+      puts "\n[#{environment}]"
+      puts "[machine]".ljust(45) + "[provider]".ljust(14) + "[state]".ljust(13) + "[id]".ljust(12) + "[type]".ljust(13) + "[ipv4_public]".ljust(17) + "[ipv4_private]".ljust(17)
+      puts "\n"
+      
+      @configuration["environments"]["#{environment}"]["servers"].each do |server,data|
+        
+        # start new row
+        row = Array.new
+        # machine
+        row.push(" * #{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}".slice!(0, 44).ljust(44))
 
-        @configuration["environments"]["#{environment}"]["servers"].each do |server,data|
-
-          # validate redhat digitalocean droplets
-          if "#{server}".start_with?("redhat")
-
-            droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}" }
-
-            # if digitalocean droplet has been created
-            if droplet != nil
-              droplet_ip = droplet["networks"]["v4"].find { |element| element["type"] == "public" }
-              droplet_ip_private = droplet["networks"]["v4"].find { |element| element["type"] == "private" }
-              puts " * DigitalOcean droplet #{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")} has been found."
-              puts "   - [status] #{droplet["status"]} [memory] #{droplet["size"]["memory"]} [vcpus] #{droplet["size"]["vcpus"]} [disk] #{droplet["size"]["disk"]} [$/month] $#{droplet["size"]["price_monthly"]}"
-              puts "   - [created] #{droplet["created_at"]} [slug] #{droplet["size"]["slug"]} [region] #{droplet["region"]["name"]}"
-              puts "   - [ipv4_public] #{droplet_ip["ip_address"]} [ipv4_private] #{droplet_ip_private["ip_address"]}"
-              # make sure the droplet has the correct kernel, if not, update it
-              if defined?(droplet["kernel"]["id"]).! || (defined?(droplet["kernel"]["id"]) && "#{droplet["kernel"]["id"]}" != "7516")
-                puts "   - The Kernel version must be updated to DigitalOcean GrubLoader v0.2, performing now...".color(Colors::YELLOW)
-                uri = URI("https://api.digitalocean.com/v2/droplets/#{droplet["id"]}/actions")
-                Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                  request = Net::HTTP::Post.new uri.request_uri
-                  request.add_field "Authorization", "Bearer #{@configuration["company"]["digitalocean_personal_access_token"]}"
-                  request.add_field "Content-Type", "application/json"
-                  request.body = ""\
-                    "{"\
-                      "\"type\":\"change_kernel\","\
-                      "\"kernel\":7516"\
-                    "}"
-                  response = http.request request
-                  if response.code.to_f.between?(399,499)
-                    catapult_exception("#{response.code} The DigitalOcean API could not authenticate, please verify [\"company\"][\"digitalocean_personal_access_token\"].")
-                  elsif response.code.to_f.between?(500,600)
-                    puts "   - The DigitalOcean API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
-                  else
-                    puts "   - Successfully updated the kernel, moving on..."
-                  end
+        # virtualbox
+        if "#{environment}" == "dev"
+          # provider
+          row.push("virtualbox".ljust(13))
+          # find the machine (@todo this is using Vagrant's global-status cache file and is not reliable)
+          if @api_virtualbox == nil
+            # this means there are no machines
+            machine = nil
+          else
+            machine = nil
+            @api_virtualbox["machines"].each do |key|
+              if "#{key[1]["name"]}" == "#{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}"
+                if "#{key[1]["state"]}" == "running"
+                  machine = key
+                else
+                  machine = nil
                 end
-              else
-                puts "   - [kernel] #{droplet["kernel"]["name"]}"
               end
-              # get public ip address and write to secrets/configuration.yml
-              unless @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"] == droplet_ip["ip_address"]
-                @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"] = "#{droplet_ip["ip_address"]}"
-                `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-                File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
-                `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
-              end
-              # get private ip address and write to secrets/configuration.yml
-              unless @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"] == droplet_ip_private["ip_address"]
-                @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"] = "#{droplet_ip_private["ip_address"]}"
-                `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-                File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
-                `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
-              end
-              # get slug and write to secrets/configuration.yml
-              unless @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"] == droplet["size"]["slug"]
-                @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"] = droplet["size"]["slug"]
-                `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
-                File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
-                `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
-              end
-            # if digitalocean droplet has NOT been created
-            elsif @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"] == nil
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat is empty and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
-            elsif not @api_digitalocean_slugs.include?("#{@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"]}")
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat is invalid and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
-            else
-              puts " * DigitalOcean droplet #{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")} has not been created, please vagrant up #{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}"
             end
-
+          end
+          # state
+          if machine != nil
+            row.push("#{machine[1]["state"]}".ljust(12))
+          else
+            row.push("not running".ljust(12))
+          end
+          # id
+          if machine != nil
+            # vagrant ids are fairly long, so these will be trimmed, but @todo useful?
+            row.push("#{machine[0]}".slice!(0, 11).ljust(11))
+          else
+            row.push("".ljust(11))
+          end
+          #type
+          row.push("1core/512mb".ljust(12))
+          # ipv4_public
+          row.push("".ljust(16))
+          # ipv4_private
+          if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"]) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"].nil?)
+            catapult_exception("Please set [\"environments\"][\"#{environment}\"][\"servers\"][\"#{server}\"][\"ip\"] in secrets/configuration.yml")
+          else
+            row.push(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"].ljust(16))
+          end
+        end
+        # aws
+        if "#{environment}" != "dev" && "#{server}".start_with?("windows")
+          # provider
+          row.push("aws".ljust(13))
+          # find the instance
+          if @api_aws == nil
+            # this means there are no instances
+            instance = nil
+          else
+            @api_aws.search("reservationSet item instancesSet").each do |key|
+              # default value
+              instance = nil
+              # names, or tags, are not required, so check for nil first
+              if key.at("item tagSet item value") == nil
+                next
+              elsif key.at("item tagSet item value").text == "#{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}"
+                # any other status than running can not be trusted
+                if key.at("item instanceState name").text == "running"
+                  instance = key
+                  break
+                else
+                  instance = nil
+                  break
+                end
+              end
+            end
+          end
+          # state
+          if instance != nil
+            row.push(instance.at("item instanceState name").text.ljust(12))
+          else
+            row.push("not running".ljust(12))
+          end
+          # id
+          if instance != nil
+            row.push(instance.at("item instanceId").text.ljust(11))
+            # vagrant-aws is broken, so let's write out the id of the EC2 instance ourselves
+            path = ".vagrant/machines/#{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}/aws"
+            FileUtils.mkpath("#{path}") unless File.exists?("#{path}")
+            File.write("#{path}/id", instance.at("item instanceId").text)
+          end
+          # type
+          if instance != nil
+            row.push(instance.at("item instanceType").text.ljust(12))
+            # write type to secrets/configuration.yml
+            if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["type"]) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["type"].nil?) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["type"] != instance.at("item instanceType").text)
+              if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["type"])
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge! ({"type" => ""})
+              else
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge ({"type" => ""})
+              end
+              @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["type"] = instance.at("item instanceType").text
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+              File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+            end
+          end
+          # ipv4_public
+          if instance != nil
+            row.push(instance.at("item ipAddress").text.ljust(16))
+            # write public ip address to secrets/configuration.yml
+            if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"]) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"].nil?) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"] != instance.at("item ipAddress").text)
+              if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"])
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge! ({"ip" => ""})
+              else
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge ({"ip" => ""})
+              end
+              @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"] = instance.at("item ipAddress").text
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+              File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+            end
+          end
+          # ipv4_private
+          if instance != nil
+            row.push(instance.at("item privateIpAddress").text.ljust(16))
+            # write private ip address to secrets/configuration.yml
+            if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"]) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"].nil?) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"] != instance.at("item privateIpAddress").text)
+              if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"])
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge! ({"ip" => ""})
+              else
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge ({"ip_private" => ""})
+              end
+              @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"] = instance.at("item privateIpAddress").text
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+              File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+            end
+          end
+        end
+        # digitalocean
+        if "#{environment}" != "dev" && "#{server}".start_with?("redhat")
+          # provider
+          row.push("digitalocean".ljust(13))
+          # find the droplet
+          if @api_digitalocean == nil
+            # this means there are no droplets
+            droplet = nil
+          else
+            droplet = @api_digitalocean["droplets"].find { |element| element['name'] == "#{@configuration["company"]["name"].downcase}-#{environment}-#{server.gsub("_","-")}" }
+            if "#{droplet["status"]}" != "active"
+              # any other status than active can not be trusted
+              droplet = nil
+            end
+          end
+          # state
+          if droplet != nil
+            row.push("#{droplet["status"]}".ljust(12))
+          else
+            row.push("not running".ljust(12))
+          end
+          # id
+          if droplet != nil
+            row.push("#{droplet["id"]}".ljust(11))
+          end
+          # type
+          if droplet != nil
+            row.push("#{droplet["size"]["slug"]}".ljust(12))
+            # write slug to secrets/configuration.yml
+            if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"]) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"].nil?) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"] != droplet["size"]["slug"])
+              if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"])
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge! ({"slug" => ""})
+              else
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge ({"slug" => ""})
+              end
+              @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"] = droplet["size"]["slug"]
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+              File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+            end
+          end
+          if @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"] == nil
+            catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat is empty and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
+          end
+          if not @api_digitalocean_slugs.include?("#{@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"]}")
+            catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat is invalid and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
+          end
+          # ipv4_public
+          if droplet != nil
+            droplet_ip = droplet["networks"]["v4"].find { |element| element["type"] == "public" }
+            row.push("#{droplet_ip["ip_address"]}".ljust(16))
+            # write public ip address to secrets/configuration.yml
+            if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"]) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"].nil?) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"] != droplet_ip["ip_address"])
+              if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"])
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge! ({"ip" => ""})
+              else
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge ({"ip" => ""})
+              end
+              @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip"] = droplet_ip["ip_address"]
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+              File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+            end
+          end
+          # ipv4_private
+          if droplet != nil
+            droplet_ip_private = droplet["networks"]["v4"].find { |element| element["type"] == "private" }
+            row.push("#{droplet_ip_private["ip_address"]}".ljust(16))
+            # write private ip address to secrets/configuration.yml
+            if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"]) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"].nil?) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"] != droplet_ip_private["ip_address"])
+              if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"])
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge! ({"ip" => ""})
+              else
+                @configuration["environments"]["#{environment}"]["servers"]["#{server}"].merge ({"ip_private" => ""})
+              end
+              @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["ip_private"] = droplet_ip_private["ip_address"]
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+              File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+              `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+            end
+          end
+          # kernel
+          if droplet != nil
+            # make sure the droplet has the correct kernel, if not, update it
+            if defined?(droplet["kernel"]["id"]).! || (defined?(droplet["kernel"]["id"]) && "#{droplet["kernel"]["id"]}" != "7516")
+              puts "   - The Kernel version must be updated to DigitalOcean GrubLoader v0.2, performing now...".color(Colors::YELLOW)
+              uri = URI("https://api.digitalocean.com/v2/droplets/#{droplet["id"]}/actions")
+              Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+                request = Net::HTTP::Post.new uri.request_uri
+                request.add_field "Authorization", "Bearer #{@configuration["company"]["digitalocean_personal_access_token"]}"
+                request.add_field "Content-Type", "application/json"
+                request.body = ""\
+                  "{"\
+                    "\"type\":\"change_kernel\","\
+                    "\"kernel\":7516"\
+                  "}"
+                response = http.request request
+                if response.code.to_f.between?(399,499)
+                  catapult_exception("#{response.code} The DigitalOcean API could not authenticate, please verify [\"company\"][\"digitalocean_personal_access_token\"].")
+                elsif response.code.to_f.between?(500,600)
+                  puts "   - The DigitalOcean API seems to be down, skipping... (this may impact provisioning and automated deployments)".color(Colors::RED)
+                else
+                  puts "   - Successfully updated the kernel, moving on..."
+                end
+              end
+            end
           end
 
         end
+
+        puts row.join(" ")
       
       end
       # if environment passwords do not exist, create them
-      unless @configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"]
-        @configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"] = SecureRandom.urlsafe_base64(16)
+      ######################################################################
+      # BE VERY CAREFUL WITH THE MERGE OPERATIONS                          #
+      # @todo step through hierarchy and create null values if not defined #
+      ######################################################################
+
+      #####################
+      # windows           #
+      #####################
+      # ["servers"]["windows"]["admin_password"]
+      if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows"]["admin_password"]) || (@configuration["environments"]["#{environment}"]["servers"]["windows"]["admin_password"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows"]["admin_password"])
+          @configuration["environments"]["#{environment}"]["servers"].merge! ({"windows" => {"admin_password" => ""}})
+        else
+          @configuration["environments"]["#{environment}"]["servers"].merge ({"windows" => {"admin_password" => ""}})
+        end
+        if "#{environment}" == "dev"
+          @configuration["environments"]["#{environment}"]["servers"]["windows"]["admin_password"] = "vagrant"
+        else
+          @configuration["environments"]["#{environment}"]["servers"]["windows"]["admin_password"] = SecureRandom.urlsafe_base64(16)
+        end
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
         File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
       end
-      unless @configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["root_password"]
-        @configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["root_password"] = SecureRandom.urlsafe_base64(16)
+
+      #####################
+      # windows_mssql     #
+      #####################
+      # ["servers"]["windows_mssql"]["admin_password"]
+      if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["admin_password"]) || (@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["admin_password"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["admin_password"])
+          @configuration["environments"]["#{environment}"]["servers"].merge! ({"windows_mssql" => {"admin_password" => ""}})
+        else
+          @configuration["environments"]["#{environment}"]["servers"].merge ({"windows_mssql" => {"admin_password" => ""}})
+        end
+        if "#{environment}" == "dev"
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["admin_password"] = "vagrant"
+        else
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["admin_password"] = SecureRandom.urlsafe_base64(16)
+        end
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
         File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
       end
-      unless @configuration["environments"]["#{environment}"]["software"]["admin_password"]
-        @configuration["environments"]["#{environment}"]["software"]["admin_password"] = SecureRandom.urlsafe_base64(16)
+      # ["servers"]["windows_mssql"]["mssql"]["user"]
+      if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["user"]) || (@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["user"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["user"])
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"].merge! ({"mssql" => {"user" => ""}})
+        else
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"].merge ({"mssql" => {"user" => ""}})
+        end
+        @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["user"] = "#{environment}"
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
         File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
       end
-      unless @configuration["environments"]["#{environment}"]["software"]["drupal"]["admin_password"]
-        @configuration["environments"]["#{environment}"]["software"]["drupal"]["admin_password"] = SecureRandom.urlsafe_base64(16)
+      # ["servers"]["windows_mssql"]["mssql"]["user_password"]
+      if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["user_password"]) || (@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["user_password"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["user_password"])
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"].merge! ({"user_password" => ""})
+        else
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"].merge ({"user_password" => ""})
+        end
+        if "#{environment}" == "dev"
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["user_password"] = "password"
+        else
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["user_password"] = SecureRandom.urlsafe_base64(16)
+        end
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
         File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
       end
-      unless @configuration["environments"]["#{environment}"]["software"]["wordpress"]["admin_password"]
-        @configuration["environments"]["#{environment}"]["software"]["wordpress"]["admin_password"] = SecureRandom.urlsafe_base64(16)
+      # ["servers"]["windows_mssql"]["mssql"]["sa_password"]
+      if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["sa_password"]) || (@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["sa_password"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["sa_password"])
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"].merge! ({"sa_password" => ""})
+        else
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"].merge ({"sa_password" => ""})
+        end
+        if "#{environment}" == "dev"
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["sa_password"] = "drowssap"
+        else
+          @configuration["environments"]["#{environment}"]["servers"]["windows_mssql"]["mssql"]["sa_password"] = SecureRandom.urlsafe_base64(16)
+        end
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
         File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
         `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
       end
+
+      #####################
+      # redhat_mysql      #
+      #####################
+      # ["servers"]["redhat_mysql"]["mysql"]["user_password"]
+      if !defined?(@configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"]) || (@configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"])
+          @configuration["environments"]["#{environment}"]["servers"].merge! ({"redhat_mysql" => {"mysql" => {"user_password" => ""}}})
+        else
+          @configuration["environments"]["#{environment}"]["servers"].merge ({"redhat_mysql" => {"mysql" => {"user_password" => ""}}})
+        end
+        if "#{environment}" == "dev"
+          @configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"] = "password"
+        else
+          @configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["user_password"] = SecureRandom.urlsafe_base64(16)
+        end
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+      # ["servers"]["redhat_mysql"]["mysql"]["root_password"]
+      if !defined?(@configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["root_password"]) || (@configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["root_password"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["root_password"])
+          @configuration["environments"]["#{environment}"]["servers"].merge! ({"redhat_mysql" => {"mysql" => {"root_password" => ""}}})
+        else
+          @configuration["environments"]["#{environment}"]["servers"].merge ({"redhat_mysql" => {"mysql" => {"root_password" => ""}}})
+        end
+        if "#{environment}" == "dev"
+          @configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["root_password"] = "password"
+        else
+          @configuration["environments"]["#{environment}"]["servers"]["redhat_mysql"]["mysql"]["root_password"] = SecureRandom.urlsafe_base64(16)
+        end
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+
+      #####################
+      # software          #
+      #####################
+      # ["software"]["admin_password"]
+      if !defined?(@configuration["environments"]["#{environment}"]["software"]["admin_password"]) || (@configuration["environments"]["#{environment}"]["software"]["admin_password"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["software"]["admin_password"])
+          @configuration["environments"]["#{environment}"]["software"].merge! ({"admin_password" => ""})
+        else
+          @configuration["environments"]["#{environment}"]["software"].merge ({"admin_password" => ""})
+        end
+        if "#{environment}" == "dev"
+          @configuration["environments"]["#{environment}"]["software"]["admin_password"] = "password"
+        else
+          @configuration["environments"]["#{environment}"]["software"]["admin_password"] = SecureRandom.urlsafe_base64(16)
+        end
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+      # ["software"]["drupal"]["admin_password"]
+      if !defined?(@configuration["environments"]["#{environment}"]["software"]["drupal"]["admin_password"]) || (@configuration["environments"]["#{environment}"]["software"]["drupal"]["admin_password"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["software"]["drupal"]["admin_password"])
+          @configuration["environments"]["#{environment}"]["software"].merge! ({"drupal" => {"admin_password" => ""}})
+        else
+          @configuration["environments"]["#{environment}"]["software"].merge ({"drupal" => {"admin_password" => ""}})
+        end
+        if "#{environment}" == "dev"
+          @configuration["environments"]["#{environment}"]["software"]["drupal"]["admin_password"] = "password"
+        else
+          @configuration["environments"]["#{environment}"]["software"]["drupal"]["admin_password"] = SecureRandom.urlsafe_base64(16)
+        end
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+      # ["software"]["wordpress"]["admin_password"]
+      if !defined?(@configuration["environments"]["#{environment}"]["software"]["wordpress"]["admin_password"]) || (@configuration["environments"]["#{environment}"]["software"]["wordpress"]["admin_password"].nil?)
+        if !defined?(@configuration["environments"]["#{environment}"]["software"]["wordpress"]["admin_password"])
+          @configuration["environments"]["#{environment}"]["software"].merge! ({"wordpress" => {"admin_password" => ""}})
+        else
+          @configuration["environments"]["#{environment}"]["software"].merge ({"wordpress" => {"admin_password" => ""}})
+        end
+        if "#{environment}" == "dev"
+          @configuration["environments"]["#{environment}"]["software"]["wordpress"]["admin_password"] = "password"
+        else
+          @configuration["environments"]["#{environment}"]["software"]["wordpress"]["admin_password"] = SecureRandom.urlsafe_base64(16)
+        end
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml --decrypt secrets/configuration.yml.gpg`
+        File.open('secrets/configuration.yml', 'w') {|f| f.write configuration.to_yaml }
+        `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+      end
+
     end
 
 
@@ -997,16 +1450,30 @@ module Catapult
               end
             end
           end
+          # validate force_auth
+          unless instance["force_auth"] == nil
+            if instance["force_auth"].length < 10 || instance["force_auth"].length > 20
+              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth for websites => #{service} => domain => #{instance["domain"]} must be 10 to 20 characters in length.")
+            end
+            if not instance["force_auth"] =~ /^[0-9a-zA-Z]*$/
+              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, lowercase letters, and uppercase letters.")
+            end
+          end
           # validate force_auth_exclude
           unless instance["force_auth_exclude"] == nil
+            # this can only be used with force_auth
+            if instance["force_auth"] == nil
+              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth_exclude for websites => #{service} => domain => #{instance["domain"]} requires force_auth to be set.")
+            end
+            # only test, qc, and production are valid values
             @force_auth_exclude_valid_values = true
             instance["force_auth_exclude"].each do |value|
-              if not ["test","qc","production"].include?("#{value}")
+              if not ["dev","test","qc","production"].include?("#{value}")
                 @force_auth_exclude_valid_values = false
               end
             end
             unless @force_auth_exclude_valid_values
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth_exclude for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only include one, some, or all of the following [\"test\",\"qc\",\"production\"].")
+              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth_exclude for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only include one, some, or all of the following [\"dev\",\"test\",\"qc\",\"production\"].")
             end
           end
           # validate force_https
@@ -1402,7 +1869,7 @@ module Catapult
       puts "\nAvailable websites:".color(Colors::WHITE)
 
       @configuration["websites"].each do |service,data|
-        puts "\n[#{service}] #{@configuration["websites"]["#{service}"].nil? ? "0" : @configuration["websites"]["#{service}"].length} websites"
+        puts "\n[#{service}] #{@configuration["websites"]["#{service}"].nil? ? "0" : @configuration["websites"]["#{service}"].length} total"
         puts "[domain]".ljust(40) + "[domain_tld_override]".ljust(30) + "[software]".ljust(21) + "[workflow]".ljust(14) + "[80:dev.]".ljust(22) + "[80:test.]".ljust(22) + "[80:qc.]".ljust(22) + "[80:production]"
         puts "\n"
         if @configuration["websites"]["#{service}"] != nil
