@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+# variables inbound from provisioner args
+# $1 => environment
+# $2 => repository
+# $3 => gpg key
+# $4 => instance
+
+
 # resources function
 function resources() {
     module="${1}"
@@ -59,11 +67,18 @@ sudo pip install --upgrade pip
 sudo pip install shyaml --upgrade
 
 # run server provision
-if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redhat.servers.redhat.$4.modules) ]; then
+if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redhat.servers.$4.modules) ]; then
     provisionstart=$(date +%s)
     echo -e "\n\n\n==> PROVISION: ${4}"
-    # decrypt configuration
-    source "/catapult/provisioners/redhat/modules/catapult_decrypt.sh"
+
+    # decrypt secrets
+    gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/configuration.yml --decrypt /catapult/secrets/configuration.yml.gpg
+    gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa --decrypt /catapult/secrets/id_rsa.gpg
+    gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa.pub --decrypt /catapult/secrets/id_rsa.pub.gpg
+    chmod 700 /catapult/secrets/configuration.yml
+    chmod 700 /catapult/secrets/id_rsa
+    chmod 700 /catapult/secrets/id_rsa.pub
+
     # get configuration
     source "/catapult/provisioners/redhat/modules/catapult.sh"
 
@@ -83,8 +98,9 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
     fi
 
     # loop through each required module
-    cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redhat.servers.redhat.$4.modules |
+    cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redhat.servers.$4.modules |
     while read -r -d $'\0' module; do
+
         # cleanup leftover utility files
         for file in /catapult/provisioners/redhat/logs/${module}.*.log; do
             if [ -e "$file" ]; then
@@ -96,11 +112,30 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
                 rm $file
             fi
         done
+
+        # check for reboot status between modules
+        # not required for red hat to properly install and update software
+        kernel_running=$(uname --release)
+        kernel_running="kernel-${kernel_running}"
+        kernel_staged=$(rpm --last --query kernel | head --lines 1 | awk '{print $1}')
+        if [ "${kernel_running}" != "${kernel_staged}" ]; then
+            echo -e "\n\n\n==> REBOOT REQUIRED STATUS: [RECOMMENDED] Red Hat kernel requires a reboot of this machine. The current running kernal is ${kernel_running} and the staged kernel is ${kernel_staged}."
+            if [ $1 = "dev" ]; then
+                echo -e "Please run this command: vagrant reload <machine-name> --provision"
+                # require a reboot in dev only
+                exit 1
+            fi
+        else
+            echo -e "\n\n\n==> REBOOT REQUIRED STATUS: [NOT REQUIRED] Continuing..."
+        fi
+
+        # start the module
         start=$(date +%s)
-        echo -e "\n\n\n==> MODULE: ${module}"
+        echo -e "==> MODULE: ${module}"
         echo -e "==> DESCRIPTION: $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.description)"
         echo -e "==> MULTITHREADING: $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.multithreading)"
-        # if multithreading is supported
+        
+        # invoke multithreading module in parallel
         if ([ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.multithreading) == "True" ]); then
             # enable job control
             set -m
@@ -149,9 +184,11 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
                 echo -e "=> software_workflow: ${software_workflow}"
                 cat "/catapult/provisioners/redhat/logs/${module}.${domain}.log" | sed 's/^/     /'
             done < <(echo "${configuration}" | shyaml get-values-0 websites.apache)
+        # invoke standard module in series
         else
             bash "/catapult/provisioners/redhat/modules/${module}.sh" $1 $2 $3 $4
         fi
+
         end=$(date +%s)
         echo -e "==> MODULE: ${module}"
         echo -e "==> DURATION: $(($end - $start)) seconds"
@@ -168,14 +205,19 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
         done
     done
 
+    # remove secrets
+    if [ $1 != "dev" ]; then
+        sudo rm /catapult/secrets/configuration.yml
+        sudo rm /catapult/secrets/id_rsa
+        sudo rm /catapult/secrets/id_rsa.pub
+    fi
+    
     provisionend=$(date +%s)
     provisiontotal=$(date -d@$(($provisionend - $provisionstart)) -u +%H:%M:%S)
-    # remove configuration
-    source "/catapult/provisioners/redhat/modules/catapult_clean.sh"
     echo -e "\n\n\n==> PROVISION: ${4}"
     echo -e "==> FINISH: $(date)" | tee -a /catapult/provisioners/redhat/logs/$4.log
     echo -e "==> DURATION: ${provisiontotal} total time" | tee -a /catapult/provisioners/redhat/logs/$4.log
 else
-    "Error: Cannot detect the server type."
+    echo -e "Error: Cannot detect the server type."
     exit 1
 fi

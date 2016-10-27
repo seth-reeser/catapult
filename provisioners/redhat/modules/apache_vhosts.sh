@@ -55,7 +55,7 @@ while IFS='' read -r -d '' key; do
         ServerAlias www.${domain_environment}.${domain_tld_override}"
     fi
     # handle the force_auth option
-    if ([ ! -z "${force_auth}" ]) && ([ "$1" = "test" ] || [ "$1" = "qc" ] || [ "$1" = "production" ]); then
+    if ([ ! -z "${force_auth}" ]); then
         if ([ ! -z "${force_auth_exclude}" ]); then
             force_auth_excludes=( $(echo "${key}" | shyaml get-values force_auth_exclude) )
             if ([[ "${force_auth_excludes[@]}" =~ "$1" ]]); then
@@ -89,21 +89,20 @@ while IFS='' read -r -d '' key; do
         force_auth_value=""
     fi
     # handle ssl certificates
-    if ([ "$1" != "dev" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem ]); then
-        # letsencrypt upstream
-        if [ -z "${domain_tld_override}" ]; then
-            ssl_certificates="
-            SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem
-            SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/privkey.pem
-            SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/chain.pem
-            "
-        else
-            ssl_certificates="
-            SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/cert.pem
-            SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/privkey.pem
-            SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/chain.pem
-            "
-        fi
+    if ([ "$1" != "dev" ]) && ([ -z "${domain_tld_override}" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem ]); then
+        # upstream without domain_tld_override and a letsencrypt cert available
+        ssl_certificates="
+        SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem
+        SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/privkey.pem
+        SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/chain.pem
+        "
+    elif ([ "$1" != "dev" ]) && ([ ! -z "${domain_tld_override}" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/cert.pem ]); then
+        # upstream with domain_tld_override and a letsencrypt cert available
+        ssl_certificates="
+        SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/cert.pem
+        SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/privkey.pem
+        SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/chain.pem
+        "
     else
         # self-signed in localdev or if we do not have a letsencrypt cert
         ssl_certificates="
@@ -118,7 +117,7 @@ while IFS='' read -r -d '' key; do
         # !https rather than =http to match when X-Forwarded-Proto is not set
         RewriteEngine On
         RewriteCond %{HTTP:X-Forwarded-Proto} !https
-        RewriteRule ^(.*)$ https://${domain_environment}\$1  [R=301,L]
+        RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
         "
         force_https_hsts="Header always set Strict-Transport-Security \"max-age=15768000\""
     else
@@ -148,6 +147,7 @@ while IFS='' read -r -d '' key; do
             ServerAdmin ${company_email}
             ServerName ${domain_environment}
             ServerAlias www.${domain_environment}
+            $domain_tld_override_alias_additions
             DocumentRoot /var/www/repositories/apache/${domain}/${webroot}
             ErrorLog /var/log/httpd/${domain_environment}/error_log
             CustomLog /var/log/httpd/${domain_environment}/access_log combined

@@ -6,14 +6,14 @@ sudo systemctl enable mariadb.service
 sudo systemctl start mariadb.service
 
 # configure mysql conf so user/pass isn't logged in shell history or memory
-sudo cat > "/catapult/provisioners/redhat/installers/${1}.cnf" << EOF
+sudo cat > "/catapult/provisioners/redhat/installers/temp/${1}.cnf" << EOF
 [client]
 host = "localhost"
 user = "root"
 password = "$(catapult environments.${1}.servers.redhat_mysql.mysql.root_password)"
 EOF
 # set a variable to the .cnf
-dbconf="/catapult/provisioners/redhat/installers/${1}.cnf"
+dbconf="/catapult/provisioners/redhat/installers/temp/${1}.cnf"
 
 # only set root password on fresh install of mysql
 if mysqladmin --defaults-extra-file=$dbconf ping 2>&1 | grep -q "failed"; then
@@ -22,6 +22,7 @@ fi
 
 # disable remote root login
 mysql --defaults-extra-file=$dbconf -e "DELETE FROM mysql.user WHERE user='root' AND host NOT IN ('localhost', '127.0.0.1', '::1')"
+
 # remove anonymous user
 mysql --defaults-extra-file=$dbconf -e "DELETE FROM mysql.user WHERE user=''"
 
@@ -75,11 +76,12 @@ done
 mysql --defaults-extra-file=$dbconf -e "FLUSH PRIVILEGES"
 
 # configure a cron task for database maintenance
-touch /etc/cron.daily/catapult-mysql.cron
+touch /etc/cron.daily/catapult-mysql
 cat > "/etc/cron.daily/catapult-mysql.cron" << EOF
 #!/bin/bash
 mysqlcheck -u maintenance --all-databases --auto-repair --optimize
 EOF
+chmod 755 /etc/cron.daily/catapult-mysql.cron
 
 echo "${configuration}" | shyaml get-values-0 websites.apache |
 while IFS='' read -r -d '' key; do
@@ -359,4 +361,4 @@ while IFS='' read -r -d '' key; do
 done
 
 # remove .cnf file after usage
-rm --force /catapult/provisioners/redhat/installers/${1}.cnf
+rm --force /catapult/provisioners/redhat/installers/temp/${1}.cnf
