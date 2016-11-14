@@ -17,6 +17,8 @@ if [ "${4}" == "mysql" ]; then
     touch "/etc/cron.daily/catapult-mysql.cron"
     cat "/catapult/provisioners/redhat/modules/cron_mysql.sh" > "/etc/cron.daily/catapult-mysql.cron"
     chmod 755 "/etc/cron.daily/catapult-mysql.cron"
+    # remove task from previous implemenation
+    rm -f "/etc/cron.daily/catapult-mysql"
 fi
 
 
@@ -25,22 +27,25 @@ echo -e "\n> configuring weekly cron task: system reboot"
 touch "/etc/cron.weekly/catapult-reboot.cron"
 cat "/catapult/provisioners/redhat/modules/cron_reboot.sh" > "/etc/cron.weekly/catapult-reboot.cron"
 chmod 755 "/etc/cron.weekly/catapult-reboot.cron"
-# remove daily task from previous implemenation
+# remove task from previous implemenation
 rm -f "/etc/cron.daily/catapult-reboot.cron"
 
 
 
-echo -e "=> anacron configuration"
+echo -e "\n> anacron configuration"
 cat /etc/anacrontab
 
-echo -e "=> cron hourly"
+echo -e "\n> cron hourly"
 ls /etc/cron.hourly/
 
-echo -e "=> cron daily"
+echo -e "\n> cron daily"
 ls /etc/cron.daily/
 
-echo -e "=> cron monthly"
+echo -e "\n> cron weekly"
+ls /etc/cron.weekly/
+
+echo -e "\n> cron monthly"
 ls /etc/cron.monthly/
 
-echo -e "=> cron log"
+echo -e "\n> cron log"
 tail /var/log/cron

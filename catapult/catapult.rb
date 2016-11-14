@@ -53,7 +53,9 @@ module Catapult
         raise error
       rescue => exception
         # remove the known unique lock file
-        FileUtils.rm(@lock_file_unique)
+        if File.exist?(@lock_file_unique)
+          FileUtils.rm(@lock_file_unique)
+        end
         puts "\n\n"
         title = "Catapult Error:"
         length = title.size
@@ -391,6 +393,43 @@ module Catapult
           puts "\n * There were no changes to secrets/configuration.yml, no need to encrypt as this would create a new cipher to commit.\n\n"
         else
           puts "\n * There were changes to secrets/configuration.yml, encrypting secrets/configuration.yml as secrets/configuration.yml.gpg. Please commit these changes to the master branch for your team to get the changes.\n\n"
+          # flipping from downstream to upstream requires a production build to be run to ensure latest from production
+          # flipping from upstream to downstream requires a test build to be run to ensure latest from test
+          @temp_configuration_decrypted = YAML.load_file('secrets/configuration.yml')
+          @temp_configuration_encrypted = YAML.load_file('secrets/configuration.yml.compare')
+          @temp_configuration_decrypted["websites"].each do |service,data|
+            # loop through what is new to compare to what exists
+            unless @temp_configuration_decrypted["websites"]["#{service}"] == nil
+              @temp_configuration_decrypted["websites"]["#{service}"].each do |decrypted_instance|
+                # loop through what exists, find a match, then look for a difference
+                unless @temp_configuration_encrypted["websites"]["#{service}"] == nil
+                  @temp_configuration_encrypted["websites"]["#{service}"].each do |encrypted_instance|
+                    # find a matching domain
+                    if encrypted_instance["domain"] == decrypted_instance["domain"]
+                      # accomodate new websites
+                      unless encrypted_instance["software_workflow"] == nil
+                        # determine if there was a change to the software_workflow
+                        if encrypted_instance["software_workflow"] != decrypted_instance["software_workflow"]
+                          current_time = DateTime.now
+                          todays_date = current_time.strftime("%Y%m%d")
+                          todays_file = "repositories/#{service}/#{decrypted_instance["domain"]}/_sql/#{todays_date}.sql"
+                          unless File.exist?(todays_file)
+                            # from downstream to upstream
+                            if decrypted_instance["software_workflow"] == "upstream"
+                              catapult_exception("There was a change in software_workflow direction for #{decrypted_instance["domain"]} from #{encrypted_instance["software_workflow"]} to #{decrypted_instance["software_workflow"]} and today's SQL backup does not exist (#{todays_file}). Please first run a Production then Test deployment followed by a LocalDev provision.")
+                            # from upstream to upstream
+                            elsif decrypted_instance["software_workflow"] == "downstream"
+                              catapult_exception("There was a change in software_workflow direction for #{decrypted_instance["domain"]} from #{encrypted_instance["software_workflow"]} to #{decrypted_instance["software_workflow"]} and today's SQL backup does not exist (#{todays_file}). Please first run a Test deployment followed by a LocalDev deployment.")
+                            end
+                          end
+                        end
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
           `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
         end
         FileUtils.rm('secrets/configuration.yml.compare')
