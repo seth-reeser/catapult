@@ -154,7 +154,15 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
 
             if [ "${software_auto_update}" = "true" ]; then
                 #@todo - automate the manual https://www.mediawiki.org/wiki/Manual:Upgrading
+                # v1.26 is the latest compatible with PHP v5.4 https://www.mediawiki.org/wiki/Compatibility#PHP
+                # there will need to be more work with this, upgrading from v1.25 to v1.26 requires to delete the LocalSettings.php and run through the setup and the skins do not seem to translate properly
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && curl --silent --show-error --connect-timeout 5 --output mediawiki.tar.gz --retry 5 --location --url https://github.com/wikimedia/mediawiki/archive/1.26.4.tar.gz
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && tar --exclude='images' --extract --file=mediawiki.tar.gz --no-same-owner --strip-components=1 --totals --ungzip
                 #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && composer update
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php maintenance/update.php
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php maintenance/runJobs.php
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php maintenance/rebuildall.php
+                #cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && rm -f mediawiki.tar.gz
                 : #no-op
             fi
 
@@ -272,66 +280,6 @@ else
 
     echo -e "> software tools have yet to be installed, skipping..."
 
-fi
-
-# reference: https://www.drupal.org/node/244924#script-based-on-guidelines-given-above
-
-# set ownership of repository [directory]
-if [ "$1" != "dev" ]; then
-    chown root:root "/var/www/repositories/apache/${domain}"
-fi
-
-# set ownership of software [directories and files]
-if [ "$1" != "dev" ]; then
-    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" \
-        && chown -R root:apache .
-fi
-
-# set permissions of software [directories and files]
-cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" \
-    && find . -type d -exec chmod u=rwx,g=rx,o= '{}' \; \
-    && find . -type f -exec chmod u=rw,g=r,o= '{}' \;
-
-# set permissions of software file store containers
-if [ ! -z "$(provisioners_array software.apache.${software}.file_store_containers)" ]; then
-    cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 software.apache.$(catapult websites.apache.$5.software).file_store_containers | while read -r -d $'\0' file_store_container; do
-
-        # create the software file store container if it does not exist
-        if [ ! -d "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_store_container}" ]; then
-            echo -e "- file store container does not exist, creating..."
-            sudo mkdir --parents "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_store_container}"
-        fi
-
-        # set permissions of file store container [directory]
-        chmod ug=rwx,o= "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_store_container}"
-
-        # set permissions of contents of file store container [directories and files]
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_store_container}" \
-            && find . -type d -exec chmod ug=rwx,o= '{}' \; \
-            && find . -type f -exec chmod ug=rw,o= '{}' \;
-
-    done
-fi
-
-# set permissions of software file stores
-if [ ! -z "$(provisioners_array software.apache.${software}.file_stores)" ]; then
-    cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 software.apache.$(catapult websites.apache.$5.software).file_stores | while read -r -d $'\0' file_store; do
-
-        # create the software file store if it does not exist
-        if [ ! -d "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_store}" ]; then
-            echo -e "- file store container does not exist, creating..."
-            sudo mkdir --parents "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_store}"
-        fi
-
-        # set permissions of file store [directory]
-        chmod ug=rwx,o= "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_store}"
-
-        # set permissions of contents of file store [directories and files]
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${file_store}" \
-            && find . -type d -exec chmod ug=rwx,o= '{}' \; \
-            && find . -type f -exec chmod ug=rw,o= '{}' \;
-
-    done
 fi
 
 touch "/catapult/provisioners/redhat/logs/software_operations_file.$(catapult websites.apache.$5.domain).complete"
