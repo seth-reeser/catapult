@@ -386,34 +386,12 @@ Bitbucket provides free private repositories and GitHub provides free public rep
 ### 3. **Automated Deployments:**
 Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used Bamboo Cloud until recent, there is now an implemenation of Bamboo Server. Please use the setup instructions for Bamboo Server, Bamboo Cloud documenation kept for transitioning users.
 
-**Bamboo Cloud sign-up**
+**Bamboo Cloud sign-up and set-up**
 
 1. Create a Bamboo Cloud account at https://www.atlassian.com/software/bamboo
 2. Sign in to your new custom Bamboo instance https://[your-name-here].atlassian.net
 3. Place your Bamboo base URL at `~/secrets/configuration.yml["company"]["bamboo_base_url"]`, the format should be https://[your-name-here].atlassian.net/builds/
-
-**Bamboo Server set-up**
-
-1. Access your MyAtlassian License section at https://my.atlassian.com/products/index
-    * Please read the Bamboo Licensing and Pricing page for more information https://www.atlassian.com/licensing/bamboo
-2a. For current Bamboo Cloud customers transitioning to Bamboo Server, you will see a Bamboo Starter License
-2b. For new Bamboo customers, please purchase a Bamboo Server license from https://www.atlassian.com/purchase/product/bamboo 
-3. It's now time to bring up your build server, please run `vagrant up ~/secrets/configuration.yml["company"]["name"]-build`
-    * The initial `up` will take some time for, please be patient
-    * Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
-4. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
-5. You will next be prompted to enter the following information:
-    * Username (required) - root
-    * Password (required) - specify a complex password
-    * Confirm password (required)
-    * Full name (required) - use `~/secrets/configuration.yml["company"]["name"]`
-    * Email - use `~/secrets/configuration.yml["company"]["email"]`
-
-**Bamboo Configuration**
-
-1. Place your Bamboo username (usually admin) at `~/secrets/configuration.yml["company"]["bamboo_username"]`
-2. Place your Bamboo password (usually admin) at `~/secrets/configuration.yml["company"]["bamboo_password"]`
-3. Click the settings gear from the top right in the header and select Elastic instances:
+4. Click the settings gear from the top right in the header and select Elastic instances:
     1. Click Configuration from the left
     2. Click Edit configuration
         1. **Amazon Web Services configuration**
@@ -428,7 +406,7 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
             6. Number of elastic builds in queue threshold: `1`
             7. Average queue time threshold: `2`
         3. Click Save
-4. Click the settings gear from the top right in the header and select Elastic instances:
+5. Click the settings gear from the top right in the header and select Elastic instances:
     1. Click Image configurations from the left
         1. Disable all of the elastic images
         2. Create elastic image configuration:
@@ -438,7 +416,32 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
             4. Availability Zone: `Chosen by EC2`
             5. Product: `Linux/UNIX`
             6. Click Save
-5. Click Create > Create a new plan from the header:
+
+**Bamboo Server set-up**
+
+1. Access your MyAtlassian License section at https://my.atlassian.com/products/index
+    * Please read the Bamboo Licensing and Pricing page for more information https://www.atlassian.com/licensing/bamboo
+2a. For current Bamboo Cloud customers transitioning to Bamboo Server, you will see a Bamboo Starter License
+2b. For new Bamboo customers, please purchase a Bamboo Server license from https://www.atlassian.com/purchase/product/bamboo 
+3. It's now time to bring up your build server, please run `vagrant up ~/secrets/configuration.yml["company"]["name"]-build`
+    * The initial `up` will take some time for, please be patient
+4. Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
+    * Place your Bamboo base URL at `~/secrets/configuration.yml["company"]["bamboo_base_url"]`, the format should be http://[digitalocean-ip-here]/
+5. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
+6. You will next be prompted to enter the following information:
+    * Username (required) - root
+    * Password (required) - specify a complex password
+    * Confirm password (required)
+    * Full name (required) - use `~/secrets/configuration.yml["company"]["name"]`
+    * Email - use `~/secrets/configuration.yml["company"]["email"]`
+
+**Bamboo Configuration**
+
+1. Place your Bamboo username at `~/secrets/configuration.yml["company"]["bamboo_username"]`
+    * Normally admin for Bamboo Cloud
+    * Normally root for Bamboo Server
+2. Place your Bamboo password at `~/secrets/configuration.yml["company"]["bamboo_password"]`
+3. Click Create > Create a new plan from the header:
     1. **Create Catapult Project and create TEST Plan**
         * *Project and build plan name*
             1. Project > New Project
