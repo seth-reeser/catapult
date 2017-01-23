@@ -70,8 +70,7 @@ Catapult orchestrates the following key components of DevOps to provide you with
     * **Cloud**
         * CloudFlare
 * **Continuous Integration**
-    * **Cloud**
-        * Automated Deployments - Bamboo
+    * Automated Deployments - Atlassian Bamboo Server
 * **Monitoring and Performance**
     * Server Resources - New Relic Servers
     * Application Performance - New Relic APM
@@ -193,6 +192,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
     - [Cloud Compliance](#cloud-compliance)
     - [Self Compliance](#self-compliance)
     - [HTTPS and SSL Certificates](#https-and-ssl-certificates)
+        - [Custom SSL Certificates](#custom-ssl-certificates)
     - [Security Breach Notification Laws](#security-breach-notification-laws)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
@@ -324,9 +324,9 @@ Service | Product | Use Case | Monthly Cost
 Source Code Repositories | Atlassian Bitbucket | Private Repositories | Free
 Source Code Repositories | GitHub | Public Repositories | Free
 Continuous Integration | Amazon Web Services (AWS) | Build Server | \**$0+
-Continuous Integration | Atlassian Bamboo | Deployment Management | $10
+Continuous Integration | Atlassian Bamboo Server | Deployment Management | $10
 DNS | CloudFlare | Cloud DNS | Free
-Monitoring | New Relic Application (APM), Browser, Server, and \***Synthetics | Performance and Infrastructure Monitoring | Free
+Monitoring | New Relic Application Performance Monitoring (APM), Browser, Server, and \***Synthetics | Performance and Infrastructure Monitoring | Free
 **Total** | | | &dagger;$40+
 
 &dagger; Only one platform (Red Hat or Windows) is required to have a full-featured infrastructure. Generally speaking, the industry standard Red Hat platform will be used.
@@ -622,7 +622,7 @@ Catapult enforces a unique solution to Release Management of a website, Software
 **Downstream Software Workflow - Untracked File Stores** | rsync file stores from **Production**                       | rsync file stores from **Production**                                                                          | rsync file stores from **Production**                          | 
 **Downstream Software Workflow - Tracked File Stores**   | Pull file stores from **develop**                           | Pull file stores from **develop**                                                                              | Pull file stores from **release**                              | Auto-commit file stores (up to 750MB each) to **master** of website repo
 
-**NOTE:** Catapult will automatically pull the **master** branch into the **develop** branch of a website's repository when in the **Downstream Software Workflow** direction.
+**Note:** Catapult will automatically pull the **master** branch into the **develop** branch of a website's repository when in the **Downstream Software Workflow** direction.
 
 ### Upstream ###
 
@@ -1054,10 +1054,9 @@ Security **of** the cloud. This is the responsibility of the cloud service.
 
 Service           | Catapult Context                         | SOC 1                                                              | SOC 2                                                              | SOC 3
 ------------------|------------------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------
-AWS EC2 US EAST   | Temporary build servers                  | [:white_check_mark:](https://aws.amazon.com/compliance/soc-faqs/)  | [:white_check_mark:](https://aws.amazon.com/compliance/soc-faqs/)  | [:white_check_mark:](https://aws.amazon.com/compliance/soc-faqs/)
-Bamboo            | Server communication, log files, secrets | [:white_check_mark:](https://www.atlassian.com/cloud/security/)    |                                                                    |
+AWS EC2 US EAST   | Windows server hosting                   | [:white_check_mark:](https://aws.amazon.com/compliance/soc-faqs/)  | [:white_check_mark:](https://aws.amazon.com/compliance/soc-faqs/)  | [:white_check_mark:](https://aws.amazon.com/compliance/soc-faqs/)
 BitBucket         | Repository hosting                       | [:white_check_mark:](https://www.atlassian.com/cloud/security/)    |                                                                    |
-DigitalOcean NYC3 | Red Hat server hosting                   |                                                                    | [:white_check_mark:](https://www.digitalocean.com/help/policy/)    | [:white_check_mark:](https://www.digitalocean.com/help/policy/)
+DigitalOcean NYC3 | Red Hat and Bamboo server hosting        |                                                                    | [:white_check_mark:](https://www.digitalocean.com/help/policy/)    | [:white_check_mark:](https://www.digitalocean.com/help/policy/)
 GitHub            | Repository hosting                       |                                                                    |                                                                    |
 New Relic         | Server communication, log files          |                                                                    | [:white_check_mark:](http://newrelic.com/why-new-relic/security)   |
 
@@ -1067,16 +1066,15 @@ Security **in** the cloud. This is your responsibility, however, the underlying 
 
 Service           | Catapult Context                         | HIPAA BAA                                                                 | PCI DSS Level 1
 ------------------|------------------------------------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------
-AWS EC2           | Windows server hosting                   | [:white_check_mark:](https://aws.amazon.com/compliance/hipaa-compliance/) | [:white_check_mark:](https://aws.amazon.com/compliance/pci-dss-level-1-faqs/)
+AWS EC2 US EAST   | Windows server hosting                   | [:white_check_mark:](https://aws.amazon.com/compliance/hipaa-compliance/) | [:white_check_mark:](https://aws.amazon.com/compliance/pci-dss-level-1-faqs/)
 CloudFlare (Pro)  | Web application firewall                 |                                                                           | [:white_check_mark:](https://support.cloudflare.com/hc/en-us/articles/202249734-CloudFlare-and-PCI-Compliance)
-Bamboo            | Server communication, log files, secrets | [:x:](https://www.atlassian.com/security/security-faq/)                   |
 BitBucket         | Repository hosting                       | [:x:](https://www.atlassian.com/security/security-faq/)                   |
-DigitalOcean NYC3 | Red Hat server hosting                   | [:question:](https://www.digitalocean.com/help/policy/)                   | [:question:](https://www.digitalocean.com/help/policy/)
+DigitalOcean NYC3 | Red Hat and Bamboo server hosting        | [:question:](https://www.digitalocean.com/help/policy/)                   | [:question:](https://www.digitalocean.com/help/policy/)
 GitHub            | Repository hosting                       | [:question:](https://help.github.com/articles/github-security/)           |
 
 ## HTTPS and SSL Certificates ##
 
-Catapult manages free HTTPS compliments of Cloudflare and Let's Encrypt, however, depending on your compliance needs you may need to purchase SSL certificates unique to your orginazation. Once you're aware of your compliance responsiblity, you can then make a decision for purchasing and implementing SSL certificates. Catapult will soon incorporate the ability to add custom SSL certificates.
+Catapult manages free HTTPS compliments of Cloudflare and Let's Encrypt, however, depending on your compliance needs you may need to purchase SSL certificates unique to your orginazation. Once you're aware of your compliance responsiblity, you can then make a decision for purchasing and implementing SSL certificates.
 
 Feature                                        | Domain Validation (DV certificates)                                                          | Organization Validation (OV certificates)                                                   | Extended Validation (EV certificates)
 -----------------------------------------------|----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------
@@ -1092,6 +1090,34 @@ Industry Accepted Issuing Standard             | :x:                            
 Standard Browser Padlock                       | :white_check_mark:                                                                           | :white_check_mark:                                                                          | :x:
 Greenbar Browser Padlock                       | :x:                                                                                          | :x:                                                                                         | :white_check_mark:
 Browser Compatibility                          | Google Chrome 1+, Mozilla Firefox 1+, Internet Explorer 5+                                   | Google Chrome 1+, Mozilla Firefox 1+, Internet Explorer 5+                                  | Google Chrome 1+, Mozilla Firefox 3+, Internet Explorer 7+
+
+### Custom SSL Certificates
+
+Catapult supports custom SSL certificates purchased and issued by a Certificate Authority. The following files are required for Catapult to detect and use the custom SSL certificate:
+
+* A bundled file that contains the Root Certificate Authority (CA) certificate and any Intermediate Certificate Authority certificates
+    * CA root and intermediate certificate files can be combined like this `cat COMODORSADomainValidationSecureServerCA.crt COMODORSAAddTrustCA.crt AddTrustExternalCARoot.crt >> example_com.ca-bundle`
+* The certificate file
+* The Certificate Signing Request (CSR) including the CSR file and private key file
+    * Generated with `openssl req -new -newkey rsa:2048 -nodes -keyout server.key -out server.csr`
+    * Your Certificate Signing Request file
+    * Your private key file
+
+Here is an example of a certificate implemenation for example.com:
+
+* `reporoot/_cert/example_com/example_com.ca-bundle`
+* `reporoot/_cert/example_com/example_com.crt`
+* `reporoot/_cert/example_com/server.csr`
+* `reporoot/_cert/example_com/server.key`
+
+Here is an example of a certificate implemenation for dev.example.com:
+
+* `reporoot/_cert/dev_example_com/dev_example_com.ca-bundle`
+* `reporoot/_cert/dev_example_com/dev_example_com.crt`
+* `reporoot/_cert/dev_example_com/server.csr`
+* `reporoot/_cert/dev_example_com/server.key`
+
+**Note:** If you have a wildcard certificate, duplicate each 
 
 ## Security Breach Notification Laws ##
 
