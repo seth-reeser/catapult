@@ -75,17 +75,44 @@ echo -e "\n> system swap configuration"
 swaps=$(swapon --noheadings --show=NAME)
 swap_volumes=$(cat /etc/fstab | grep "swap" | awk '{print $1}')
 
-# remove all swaps except /swapfile
+# create a 256MB swap at /swapfile if it does not exist
+if [[ ! ${swaps[*]} =~ "/swapfile" ]]; then
+    echo -e "the swap /swapfile does not exist, creating..."
+    sudo dd if=/dev/zero of=/swapfile count=256 bs=1MiB
+    sudo chmod 0600 /swapfile
+    sudo mkswap /swapfile
+fi
+sudo swapon /swapfile
+# add the swap /swapfile to startup if it does not exist
+if [[ ! ${swap_volumes[*]} =~ "/swapfile" ]]; then
+    sudo bash -c 'echo -e "\n/swapfile swap    swap    defaults    0   0" >> /etc/fstab'
+fi
+
+# create a 512MB swap at /swapfile if it does not exist
+if [[ ! ${swaps[*]} =~ "/swapfile512" ]]; then
+    echo -e "the swap /swapfile512 does not exist, creating..."
+    sudo dd if=/dev/zero of=/swapfile512 count=512 bs=1MiB
+    sudo chmod 0600 /swapfile512
+    sudo mkswap /swapfile512
+fi
+sudo swapon /swapfile512
+# add the swap /swapfile512 to startup if it does not exist
+if [[ ! ${swap_volumes[*]} =~ "/swapfile512" ]]; then
+    sudo bash -c 'echo -e "\n/swapfile512 swap    swap    defaults    0   0" >> /etc/fstab'
+fi
+
+# define the swaps
+defined_swaps=("/swapfile" "/swapfile512")
+# remove all swaps except /swapfile and /swapfile512
 while read -r swap; do
-    if [ "${swap}" != "/swapfile" ]; then
+    if [[ ! ${defined_swaps[*]} =~ "${swap}" ]]; then
         echo -e "only the /swapfile should exist, removing ${swap}..."
         sudo swapoff "${swap}"
     fi
 done <<< "${swaps}"
-
-# remove all swap volumes from startup except /swapfile
+# remove all swap volumes from startup except /swapfile and /swapfile512
 while read -r swap_volume; do
-    if [ "${swap_volume}" != "/swapfile" ]; then
+    if [[ ! ${defined_swaps[*]} =~ "${swap_volume}" ]]; then
         echo -e "only the /swapfile should exist, removing ${swap_volume}..."
         # escape slashes for sed
         swap_volume=$(echo -e "${swap_volume}" | sed 's#\/#\\\/#g')
@@ -93,20 +120,6 @@ while read -r swap_volume; do
         sed --in-place "/${swap_volume}/d" /etc/fstab
     fi
 done <<< "${swap_volumes}"
-
-# create the swap /swapfile if it does not exist
-if [[ ! ${swaps[*]} =~ "/swapfile" ]]; then
-    echo -e "the swap /swapfile does not exist, creating..."
-    sudo dd if=/dev/zero of=/swapfile count=256 bs=1MiB
-    sudo chmod 0600 /swapfile
-    sudo mkswap /swapfile
-    sudo swapon /swapfile
-fi
-
-# add the swap /swapfile to startup
-if [[ ! ${swap_volumes[*]} =~ "/swapfile" ]]; then
-    sudo bash -c 'echo -e "\n/swapfile swap    swap    defaults    0   0" >> /etc/fstab'
-fi
 
 # output the resulting swap
 swapon --summary

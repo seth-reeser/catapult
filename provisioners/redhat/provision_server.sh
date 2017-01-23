@@ -135,9 +135,14 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
         echo -e "==> MODULE: ${module}"
         echo -e "==> DESCRIPTION: $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.description)"
         echo -e "==> MULTITHREADING: $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.multithreading)"
-        
+        echo -e "==> PERSISTENCE: $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.persistent)"
+        echo -e "==> MULTITHREADING PERSISTENCE: $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.multithreading_persistent)"
+
+        # if there are no catpult updates and the module is not persistent, skip
+        if ([ ! -f "/catapult/provisioners/redhat/logs/catapult.changes" ] && [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.persistent) == "False" ]); then
+            echo "> This module does not need to be ran when there are no Catapult updates, skipping..."
         # invoke multithreading module in parallel
-        if ([ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.multithreading) == "True" ]); then
+        elif ([ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.multithreading) == "True" ]); then
             # enable job control
             set -m
             # create a website index to pass to each sub-process
@@ -145,18 +150,26 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
             # loop through websites and start sub-processes
             while read -r -d $'\0' website; do
                 # only allow a certain number of parallel bash sub-processes at once
-                sleep 1
+                sleep 0.15
                 while true; do
                     resources=$(resources ${module})
                     if ([[ $resources == *"!"* ]]); then
                         echo "${resources}"
-                        sleep 1
+                        sleep 0.25
                     else
                         echo "${resources}"
                         break
                     fi
                 done
-                bash "/catapult/provisioners/redhat/modules/${module}.sh" $1 $2 $3 $4 $website_index >> "/catapult/provisioners/redhat/logs/${module}.$(echo "${website}" | shyaml get-value domain).log" 2>&1 &
+                # if there are no incoming catapult changes, website changes, and there is no need to run persistent modules for this domain
+                if ([ ! -f "/catapult/provisioners/redhat/logs/catapult.changes" ] && [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-value redhat.modules.${module}.multithreading_persistent) != "True" ] && [ ! -f "/catapult/provisioners/redhat/logs/domain.$(echo "${website}" | shyaml get-value domain).changes" ]); then
+                    echo -e "=> repository_changes: no" > "/catapult/provisioners/redhat/logs/${module}.$(echo "${website}" | shyaml get-value domain).log"
+                    touch "/catapult/provisioners/redhat/logs/${module}.$(echo "${website}" | shyaml get-value domain).complete"
+                # if there are incoming websites changes, run the persistent module for this domain
+                else
+                    echo -e "=> repository_changes: yes" > "/catapult/provisioners/redhat/logs/${module}.$(echo "${website}" | shyaml get-value domain).log"
+                    bash "/catapult/provisioners/redhat/modules/${module}.sh" $1 $2 $3 $4 $website_index >> "/catapult/provisioners/redhat/logs/${module}.$(echo "${website}" | shyaml get-value domain).log" 2>&1 &
+                fi
                 (( website_index += 1 ))
             done < <(echo "${configuration}" | shyaml get-values-0 websites.apache)
             # determine when each subprocess finishes
@@ -172,18 +185,21 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
                     resources=$(resources ${module})
                     if [ ! -e "/catapult/provisioners/redhat/logs/${module}.${domain}.complete" ]; then
                         echo "${resources}"
-                        sleep 1
+                        sleep 0.25
                     else
                         break
                     fi
                 done
+                echo -e "========================================================="
+                echo -e "=> environment: ${1}"
                 echo -e "=> domain: ${domain}"
                 echo -e "=> domain_tld_override: ${domain_tld_override}"
                 echo -e "=> software: ${software}"
                 echo -e "=> software_auto_update: ${software_auto_update}"
                 echo -e "=> software_dbprefix: ${software_dbprefix}"
                 echo -e "=> software_workflow: ${software_workflow}"
-                cat "/catapult/provisioners/redhat/logs/${module}.${domain}.log" | sed 's/^/     /'
+                cat "/catapult/provisioners/redhat/logs/${module}.${domain}.log"
+                echo -e "========================================================="
             done < <(echo "${configuration}" | shyaml get-values-0 websites.apache)
         # invoke standard module in series
         else
@@ -205,14 +221,21 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
             fi
         done
     done
+    # cleanup leftover utility files
+    for file in /catapult/provisioners/redhat/logs/*.changes; do
+        if [ -e "$file" ]; then
+            rm $file
+        fi
+    done
 
     # remove secrets
-    if [ $1 != "dev" ]; then
+    if [ "${1}" != "dev" ]; then
         sudo rm /catapult/secrets/configuration.yml
         sudo rm /catapult/secrets/id_rsa
         sudo rm /catapult/secrets/id_rsa.pub
     fi
-    
+    sudo rm /catapult/provisioners/redhat/installers/temp/${1}.cnf
+
     provisionend=$(date +%s)
     provisiontotal=$(date -d@$(($provisionend - $provisionstart)) -u +%H:%M:%S)
     echo -e "\n\n\n==> PROVISION: ${4}"

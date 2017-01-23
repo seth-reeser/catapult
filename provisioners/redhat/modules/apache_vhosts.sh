@@ -24,7 +24,11 @@ while IFS='' read -r -d '' key; do
     else
         domain_root="${domain}"
     fi
-    domainvaliddbname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_")
+    domainvaliddbname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_" | tr "-" "_")
+    domainvalidcertname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_")
+    if [ "$1" != "production" ]; then
+        domainvalidcertname="${1}_${domainvalidcertname}"
+    fi
     force_auth=$(echo "$key" | grep -w "force_auth" | cut -d ":" -f 2 | tr -d " ")
     force_auth_exclude=$(echo "$key" | grep -w "force_auth_exclude" | tr -d " ")
     force_https=$(echo "$key" | grep -w "force_https" | cut -d ":" -f 2 | tr -d " ")
@@ -37,8 +41,14 @@ while IFS='' read -r -d '' key; do
     if ([ "$1" != "dev" ]); then
         if [ -z "${domain_tld_override}" ]; then
             bash /catapult/provisioners/redhat/installers/dehydrated/dehydrated --cron --domain "${domain_environment}" --domain "www.${domain_environment}" 2>&1
+            sudo cat >> /catapult/provisioners/redhat/installers/dehydrated/domains.txt << EOF
+${domain_environment} www.${domain_environment}
+EOF
         else
             bash /catapult/provisioners/redhat/installers/dehydrated/dehydrated --cron --domain "${domain_environment}.${domain_tld_override}" --domain "www.${domain_environment}.${domain_tld_override}" 2>&1
+            sudo cat >> /catapult/provisioners/redhat/installers/dehydrated/domains.txt << EOF
+${domain_environment}.${domain_tld_override} www.${domain_environment}.${domain_tld_override}
+EOF
         fi
     fi
 
@@ -89,22 +99,32 @@ while IFS='' read -r -d '' key; do
         force_auth_value=""
     fi
     # handle ssl certificates
-    if ([ "$1" != "dev" ]) && ([ -z "${domain_tld_override}" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem ]); then
-        # upstream without domain_tld_override and a letsencrypt cert available
+    # if there is a specified custom certificate available
+    if ([ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.ca-bundle" ] \
+     && [ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.crt" ] \
+     && [ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/server.csr" ] \
+     && [ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/server.key" ]); then
+        ssl_certificates="
+        SSLCertificateFile /var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.crt
+        SSLCertificateKeyFile /var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/server.key
+        SSLCertificateChainFile /var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.ca-bundle
+        "
+    # upstream without domain_tld_override and a letsencrypt cert available
+    elif ([ "$1" != "dev" ]) && ([ -z "${domain_tld_override}" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem ]); then
         ssl_certificates="
         SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem
         SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/privkey.pem
         SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/chain.pem
         "
+    # upstream with domain_tld_override and a letsencrypt cert available
     elif ([ "$1" != "dev" ]) && ([ ! -z "${domain_tld_override}" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/cert.pem ]); then
-        # upstream with domain_tld_override and a letsencrypt cert available
         ssl_certificates="
         SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/cert.pem
         SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/privkey.pem
         SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/chain.pem
         "
+    # self-signed in localdev or if we do not have a letsencrypt cert
     else
-        # self-signed in localdev or if we do not have a letsencrypt cert
         ssl_certificates="
         SSLCertificateFile /etc/ssl/certs/httpd-dummy-cert.key.cert
         SSLCertificateKeyFile /etc/ssl/certs/httpd-dummy-cert.key.cert
@@ -140,7 +160,7 @@ while IFS='' read -r -d '' key; do
         LogLevel warn
         ${force_auth_value}
         ${force_https_value}
-    </VirtualHost> 
+    </VirtualHost>
 
     <IfModule mod_ssl.c>
         <VirtualHost *:443> # must listen * to support cloudflare
@@ -172,19 +192,19 @@ while IFS='' read -r -d '' key; do
             # Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1
             SSLHonorCipherOrder On
             SSLCipherSuite ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA
-            
+
             # disable the SSL_ environment variable (usually CGI and SSI requests only)
             SSLOptions -StdEnvVars
-            
+
             # help old browsers
             BrowserMatch "MSIE [2-5]" nokeepalive ssl-unclean-shutdown downgrade-1.0 force-response-1.0
-            
+
             # set the ssl certificates
             ${ssl_certificates}
-            
+
             # force httpd basic auth if configured
             ${force_auth_value}
-            
+
         </VirtualHost>
     </IfModule>
 
