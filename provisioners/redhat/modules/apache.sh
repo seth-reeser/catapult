@@ -117,6 +117,13 @@ sudo cat > /etc/logrotate.d/httpd_vhosts << EOF
 }
 EOF
 
+# add support for cloudflare and report real user IP addresses
+# also helps resolve redirect loops when HSTS is enabled
+# https://www.cloudflare.com/technical-resources/
+# new versions released here https://github.com/cloudflare/mod_cloudflare
+sudo yum install -y libtool httpd-devel
+sudo apxs -a -i -c /catapult/provisioners/redhat/installers/cloudflare/mod_cloudflare.c
+
 # reload apache
 sudo systemctl reload httpd.service
 sudo systemctl status httpd.service
