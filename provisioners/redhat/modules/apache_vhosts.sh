@@ -12,6 +12,7 @@ company_email="$(echo "${configuration}" | shyaml get-value company.email)"
 echo "${configuration}" | shyaml get-values-0 websites.apache |
 while IFS='' read -r -d '' key; do
 
+    # define variables
     domain=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " ")
     domain_environment=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " ")
     if [ "$1" != "production" ]; then
@@ -23,7 +24,11 @@ while IFS='' read -r -d '' key; do
     else
         domain_root="${domain}"
     fi
-    domainvaliddbname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_")
+    domainvaliddbname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_" | tr "-" "_")
+    domainvalidcertname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_")
+    if [ "$1" != "production" ]; then
+        domainvalidcertname="${1}_${domainvalidcertname}"
+    fi
     force_auth=$(echo "$key" | grep -w "force_auth" | cut -d ":" -f 2 | tr -d " ")
     force_auth_exclude=$(echo "$key" | grep -w "force_auth_exclude" | tr -d " ")
     force_https=$(echo "$key" | grep -w "force_https" | cut -d ":" -f 2 | tr -d " ")
@@ -32,12 +37,23 @@ while IFS='' read -r -d '' key; do
     software_workflow=$(echo "$key" | grep -w "software_workflow" | cut -d ":" -f 2 | tr -d " ")
     webroot=$(echo "$key" | grep -w "webroot" | cut -d ":" -f 2 | tr -d " ")
 
-    # configure vhost
-    if [ "$1" = "production" ]; then
-        echo -e "\t * configuring vhost for ${domain_root}"
-    else
-        echo -e "\t * configuring vhost for ${1}.${domain_root}"
+    # generate letsencrypt certificates for upstream
+    if ([ "$1" != "dev" ]); then
+        if [ -z "${domain_tld_override}" ]; then
+            bash /catapult/provisioners/redhat/installers/dehydrated/dehydrated --cron --domain "${domain_environment}" --domain "www.${domain_environment}" 2>&1
+            sudo cat >> /catapult/provisioners/redhat/installers/dehydrated/domains.txt << EOF
+${domain_environment} www.${domain_environment}
+EOF
+        else
+            bash /catapult/provisioners/redhat/installers/dehydrated/dehydrated --cron --domain "${domain_environment}.${domain_tld_override}" --domain "www.${domain_environment}.${domain_tld_override}" 2>&1
+            sudo cat >> /catapult/provisioners/redhat/installers/dehydrated/domains.txt << EOF
+${domain_environment}.${domain_tld_override} www.${domain_environment}.${domain_tld_override}
+EOF
+        fi
     fi
+
+    # configure vhost
+    echo -e "Configuring vhost for ${domain_environment}"
     sudo mkdir --parents /var/log/httpd/${domain_environment}
     sudo touch /var/log/httpd/${domain_environment}/access_log
     sudo touch /var/log/httpd/${domain_environment}/error_log
@@ -49,13 +65,13 @@ while IFS='' read -r -d '' key; do
         ServerAlias www.${domain_environment}.${domain_tld_override}"
     fi
     # handle the force_auth option
-    if ([ ! -z "${force_auth}" ]) && ([ "$1" = "test" ] || [ "$1" = "qc" ] || [ "$1" = "production" ]); then
+    if ([ ! -z "${force_auth}" ]); then
         if ([ ! -z "${force_auth_exclude}" ]); then
             force_auth_excludes=( $(echo "${key}" | shyaml get-values force_auth_exclude) )
             if ([[ "${force_auth_excludes[@]}" =~ "$1" ]]); then
                 force_auth_value=""
             else
-                sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t/"
+                sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1
                 force_auth_value="
                     <Location />
                         # Force HTTP authentication
@@ -67,7 +83,7 @@ while IFS='' read -r -d '' key; do
                 "
             fi
         else
-            sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1 | sed "s/^/\t\t/"
+            sudo htpasswd -b -c /etc/httpd/sites-enabled/${domain_environment}.htpasswd ${force_auth} ${force_auth} 2>&1
             force_auth_value="
                 <Location />
                     # Force HTTP authentication
@@ -82,6 +98,38 @@ while IFS='' read -r -d '' key; do
         # never force_auth in dev
         force_auth_value=""
     fi
+    # handle ssl certificates
+    # if there is a specified custom certificate available
+    if ([ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.ca-bundle" ] \
+     && [ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.crt" ] \
+     && [ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/server.csr" ] \
+     && [ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/server.key" ]); then
+        ssl_certificates="
+        SSLCertificateFile /var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.crt
+        SSLCertificateKeyFile /var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/server.key
+        SSLCertificateChainFile /var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.ca-bundle
+        "
+    # upstream without domain_tld_override and a letsencrypt cert available
+    elif ([ "$1" != "dev" ]) && ([ -z "${domain_tld_override}" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem ]); then
+        ssl_certificates="
+        SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem
+        SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/privkey.pem
+        SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/chain.pem
+        "
+    # upstream with domain_tld_override and a letsencrypt cert available
+    elif ([ "$1" != "dev" ]) && ([ ! -z "${domain_tld_override}" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/cert.pem ]); then
+        ssl_certificates="
+        SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/cert.pem
+        SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/privkey.pem
+        SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/chain.pem
+        "
+    # self-signed in localdev or if we do not have a letsencrypt cert
+    else
+        ssl_certificates="
+        SSLCertificateFile /etc/ssl/certs/httpd-dummy-cert.key.cert
+        SSLCertificateKeyFile /etc/ssl/certs/httpd-dummy-cert.key.cert
+        "
+    fi
     # handle the force_https option
     if [ "${force_https}" = true ]; then
         force_https_value="
@@ -89,7 +137,7 @@ while IFS='' read -r -d '' key; do
         # !https rather than =http to match when X-Forwarded-Proto is not set
         RewriteEngine On
         RewriteCond %{HTTP:X-Forwarded-Proto} !https
-        RewriteRule ^(.*)$ https://${domain_environment}\$1  [R=301,L]
+        RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
         "
         force_https_hsts="Header always set Strict-Transport-Security \"max-age=15768000\""
     else
@@ -110,15 +158,16 @@ while IFS='' read -r -d '' key; do
         ErrorLog /var/log/httpd/${domain_environment}/error_log
         CustomLog /var/log/httpd/${domain_environment}/access_log combined
         LogLevel warn
-        $force_auth_value
-        $force_https_value
-    </VirtualHost> 
+        ${force_auth_value}
+        ${force_https_value}
+    </VirtualHost>
 
     <IfModule mod_ssl.c>
         <VirtualHost *:443> # must listen * to support cloudflare
             ServerAdmin ${company_email}
             ServerName ${domain_environment}
             ServerAlias www.${domain_environment}
+            $domain_tld_override_alias_additions
             DocumentRoot /var/www/repositories/apache/${domain}/${webroot}
             ErrorLog /var/log/httpd/${domain_environment}/error_log
             CustomLog /var/log/httpd/${domain_environment}/access_log combined
@@ -143,19 +192,19 @@ while IFS='' read -r -d '' key; do
             # Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1
             SSLHonorCipherOrder On
             SSLCipherSuite ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA
-            
+
             # disable the SSL_ environment variable (usually CGI and SSI requests only)
             SSLOptions -StdEnvVars
-            
+
             # help old browsers
             BrowserMatch "MSIE [2-5]" nokeepalive ssl-unclean-shutdown downgrade-1.0 force-response-1.0
-            
-            # set the server certificate
-            SSLCertificateFile /etc/ssl/certs/httpd-dummy-cert.key.cert
-            SSLCertificateKeyFile /etc/ssl/certs/httpd-dummy-cert.key.cert
-            
+
+            # set the ssl certificates
+            ${ssl_certificates}
+
+            # force httpd basic auth if configured
             ${force_auth_value}
-            
+
         </VirtualHost>
     </IfModule>
 
@@ -183,6 +232,7 @@ EOF
     fi
 
 done
+
 # reload apache
 sudo systemctl reload httpd.service
 sudo systemctl status httpd.service

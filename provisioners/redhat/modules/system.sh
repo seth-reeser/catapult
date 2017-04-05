@@ -1,5 +1,12 @@
 source "/catapult/provisioners/redhat/modules/catapult.sh"
 
+
+
+echo -e "\n> system authentication configuration"
+# install sshd
+sudo yum install -y sshd
+sudo systemctl enable sshd.service
+sudo systemctl start sshd.service
 # only allow authentication via ssh key pair
 # assist this number - There were 34877 failed login attempts since the last successful login.
 echo -e "$(lastb | head -n -2 | wc -l) failed login attempts"
@@ -7,50 +14,105 @@ echo -e "$(last | head -n -2 | wc -l) successful login attempts"
 sudo last
 sed -i -e "/PasswordAuthentication/d" /etc/ssh/sshd_config
 if ! grep -q "PasswordAuthentication no" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo "PasswordAuthentication no" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "\nPasswordAuthentication no" >> /etc/ssh/sshd_config'
 fi
 sed -i -e "/PubkeyAuthentication/d" /etc/ssh/sshd_config
 if ! grep -q "PubkeyAuthentication yes" "/etc/ssh/sshd_config"; then
-   sudo bash -c 'echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config'
+   sudo bash -c 'echo -e "\nPubkeyAuthentication yes" >> /etc/ssh/sshd_config'
 fi
 sudo systemctl reload sshd.service
 
 
 
-# send root's mail as company email
-sudo cat > "/root/.forward" << EOF
-"$(echo "${configuration}" | shyaml get-value company.email)"
+echo -e "\n> system email configuration"
+# prevent a billion emails from localdev
+if ([ "${1}" = "dev" ]); then
+    sudo cat "/dev/null" > "/root/.forward"
+# send root's mail as company email from upstream servers
+else
+    sudo cat > "/root/.forward" << EOF
+    "$(echo "${configuration}" | shyaml get-value company.email)"
 EOF
+fi
 
 
 
+echo -e "\n> system hostname configuration"
 # remove pretty hostname
 hostnamectl set-hostname "" --pretty
 
 # configure the hostname
 if ([ "${4}" = "apache" ]); then
     hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat"
+elif ([ "${4}" = "bamboo" ]); then
+    hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-build"
 elif ([ "${4}" = "mysql" ]); then
-    hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat-${4}"
+    hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat-mysql"
 fi
 
 
 
+echo -e "\n> system SELinux configuration"
+sudo cat > /etc/sysconfig/selinux << EOF
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+#     enforcing - SELinux security policy is enforced.
+#     permissive - SELinux prints warnings instead of enforcing.
+#     disabled - No SELinux policy is loaded.
+SELINUX=disabled
+# SELINUXTYPE= can take one of these two values:
+#     targeted - Targeted processes are protected,
+#     minimum - Modification of targeted policy. Only selected processes are protected. 
+#     mls - Multi Level Security protection.
+SELINUXTYPE=targeted
+EOF
+sestatus -v
+
+
+
+echo -e "\n> system swap configuration"
 # get current swaps
 swaps=$(swapon --noheadings --show=NAME)
 swap_volumes=$(cat /etc/fstab | grep "swap" | awk '{print $1}')
 
-# remove all swaps except /swapfile
+# create a 256MB swap at /swapfile if it does not exist
+if [[ ! ${swaps[*]} =~ "/swapfile" ]]; then
+    echo -e "the swap /swapfile does not exist, creating..."
+    sudo dd if=/dev/zero of=/swapfile count=256 bs=1MiB
+    sudo chmod 0600 /swapfile
+    sudo mkswap /swapfile
+fi
+sudo swapon /swapfile
+# add the swap /swapfile to startup if it does not exist
+if [[ ! ${swap_volumes[*]} =~ "/swapfile" ]]; then
+    sudo bash -c 'echo -e "\n/swapfile swap    swap    defaults    0   0" >> /etc/fstab'
+fi
+
+# create a 512MB swap at /swapfile if it does not exist
+if [[ ! ${swaps[*]} =~ "/swapfile512" ]]; then
+    echo -e "the swap /swapfile512 does not exist, creating..."
+    sudo dd if=/dev/zero of=/swapfile512 count=512 bs=1MiB
+    sudo chmod 0600 /swapfile512
+    sudo mkswap /swapfile512
+fi
+sudo swapon /swapfile512
+# add the swap /swapfile512 to startup if it does not exist
+if [[ ! ${swap_volumes[*]} =~ "/swapfile512" ]]; then
+    sudo bash -c 'echo -e "\n/swapfile512 swap    swap    defaults    0   0" >> /etc/fstab'
+fi
+
+# define the swaps
+defined_swaps=("/swapfile" "/swapfile512")
+# remove all swaps except /swapfile and /swapfile512
 while read -r swap; do
-    if [ "${swap}" != "/swapfile" ]; then
+    if [[ ! ${defined_swaps[*]} =~ "${swap}" ]]; then
         echo -e "only the /swapfile should exist, removing ${swap}..."
         sudo swapoff "${swap}"
     fi
 done <<< "${swaps}"
-
-# remove all swap volumes from startup except /swapfile
+# remove all swap volumes from startup except /swapfile and /swapfile512
 while read -r swap_volume; do
-    if [ "${swap_volume}" != "/swapfile" ]; then
+    if [[ ! ${defined_swaps[*]} =~ "${swap_volume}" ]]; then
         echo -e "only the /swapfile should exist, removing ${swap_volume}..."
         # escape slashes for sed
         swap_volume=$(echo -e "${swap_volume}" | sed 's#\/#\\\/#g')
@@ -58,20 +120,6 @@ while read -r swap_volume; do
         sed --in-place "/${swap_volume}/d" /etc/fstab
     fi
 done <<< "${swap_volumes}"
-
-# create the swap /swapfile if it does not exist
-if [[ ! ${swaps[*]} =~ "/swapfile" ]]; then
-    echo -e "the swap /swapfile does not exist, creating..."
-    sudo dd if=/dev/zero of=/swapfile count=256 bs=1MiB
-    sudo chmod 0600 /swapfile
-    sudo mkswap /swapfile
-    sudo swapon /swapfile
-fi
-
-# add the swap /swapfile to startup
-if [[ ! ${swap_volumes[*]} =~ "/swapfile" ]]; then
-    sudo bash -c 'echo "/swapfile swap    swap    defaults    0   0" >> /etc/fstab'
-fi
 
 # output the resulting swap
 swapon --summary
@@ -89,6 +137,7 @@ EOF
 
 
 
+echo -e "\n> system known hosts configuration"
 # initialize known_hosts
 sudo mkdir -p ~/.ssh
 sudo touch ~/.ssh/known_hosts
@@ -96,7 +145,7 @@ sudo touch ~/.ssh/known_hosts
 # ssh-keyscan bitbucket.org for a maximum of 10 tries
 i=0
 until [ $i -ge 10 ]; do
-    sudo ssh-keyscan bitbucket.org > ~/.ssh/known_hosts
+    sudo ssh-keyscan -4 -T 10 bitbucket.org > ~/.ssh/known_hosts
     if grep -q "bitbucket\.org" ~/.ssh/known_hosts; then
         echo "ssh-keyscan for bitbucket.org successful"
         break
@@ -109,7 +158,7 @@ done
 # ssh-keyscan github.com for a maximum of 10 tries
 i=0
 until [ $i -ge 10 ]; do
-    sudo ssh-keyscan github.com >> ~/.ssh/known_hosts
+    sudo ssh-keyscan -4 -T 10 github.com >> ~/.ssh/known_hosts
     if grep -q "github\.com" ~/.ssh/known_hosts; then
         echo "ssh-keyscan for github.com successful"
         break
@@ -121,6 +170,12 @@ done
 
 
 
+echo -e "\n> system epel-release configuration"
+sudo yum install -y epel-release
+
+
+
+echo -e "\n> system yum-cron configuration"
 # install yum-cron to apply updates nightly
 sudo yum install -y yum-cron
 sudo systemctl enable yum-cron.service

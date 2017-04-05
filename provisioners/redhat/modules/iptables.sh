@@ -1,10 +1,8 @@
 source "/catapult/provisioners/redhat/modules/catapult.sh"
 
-if [ "${1}" == "dev" ]; then
-    redhat_ip="$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat.ip)"
-else
-    redhat_ip="$(echo "${configuration}" | shyaml get-value environments.${1}.servers.redhat.ip_private)"
-fi
+
+# IPTABLES CONFIGURATION
+echo -e "\n> configuring iptables-services"
 
 # disable the baked in firewalld
 sudo systemctl stop firewalld
@@ -18,6 +16,19 @@ sudo systemctl start iptables
 
 # ensure iptables starts during boot
 sudo systemctl enable iptables
+
+
+
+# IPTABLES RULES BEFORE
+echo -e "\n> iptables rules before configuration"
+
+# output the iptables
+sudo iptables --list-rules
+
+
+
+# IPTABLES RULES CONFIGURATION
+echo -e "\n> iptables rules configuration"
 
 # establish default policies
 sudo iptables --policy INPUT ACCEPT
@@ -69,10 +80,33 @@ if [ "${4}" == "apache" ]; then
         --match state\
         --state NEW,ESTABLISHED\
         --jump ACCEPT
+# allow incoming traffic for bamboo
+elif [ "${4}" == "bamboo" ]; then
+    sudo iptables\
+        --append INPUT\
+        --protocol tcp\
+        --dport 80\
+        --match state\
+        --state NEW,ESTABLISHED\
+        --jump ACCEPT
+    sudo iptables\
+        --append INPUT\
+        --protocol tcp\
+        --dport 443\
+        --match state\
+        --state NEW,ESTABLISHED\
+        --jump ACCEPT
+    sudo iptables\
+        --append INPUT\
+        --protocol tcp\
+        --dport 8085\
+        --match state\
+        --state NEW,ESTABLISHED\
+        --jump ACCEPT
 # allow incoming database traffic
 elif [ "${4}" == "mysql" ]; then
+    # allow any connection from the developer workstation
     if [ "${1}" == "dev"  ]; then
-        # from developer machine
         sudo iptables\
             --append INPUT\
             --protocol tcp\
@@ -80,8 +114,9 @@ elif [ "${4}" == "mysql" ]; then
             --match state\
             --state NEW,ESTABLISHED\
             --jump ACCEPT
+    # restrict incoming connection only from redhat private interface
     else
-        # from the redhat server
+        redhat_ip="$(catapult environments.${1}.servers.redhat.ip_private)"
         sudo iptables\
             --append INPUT\
             --protocol tcp\
@@ -95,8 +130,6 @@ fi
 
 # now that everything is configured, we drop everything else (drop does not send any return packets, reject does)
 sudo iptables --policy INPUT DROP
-# output the iptables
-sudo iptables --list-rules
 
 # save our newly created config
 # saves to cat /etc/sysconfig/iptables
@@ -104,3 +137,43 @@ sudo service iptables save
 
 # restart iptables service
 sudo systemctl restart iptables
+
+
+
+# IPTABLES RULES CONFIGURATION
+echo -e "\n> fail2ban service configuration and fail2ban jail/filter configuration"
+
+# install fail2ban
+sudo yum install -y fail2ban
+
+# ensure fail2ban starts during boot
+sudo systemctl enable fail2ban
+
+# define our fail2ban jails
+# look for attacks from below
+## cat /var/log/httpd/access_log
+# get a list of filters from below
+## ls /etc/fail2ban/filter.d
+sudo cat > /etc/fail2ban/jail.local << EOF
+[DEFAULT]
+bantime = 3600
+banaction = iptables-multiport
+
+[sshd]
+enabled = true
+
+EOF
+
+# restart fail2ban
+sudo systemctl restart fail2ban
+
+# output the fail2ban jails
+sudo fail2ban-client status
+
+
+
+# IPTABLES RULES AFTER
+echo -e "\n> iptables rules after configuration"
+
+# output the iptables
+sudo iptables --list-rules
