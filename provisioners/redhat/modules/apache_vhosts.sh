@@ -174,11 +174,6 @@ EOF
             LogLevel warn
             SSLEngine on
 
-            # allow only secure protocols for client to connect
-            # SSLv2: FUBAR
-            # SSLv3: POODLE
-            SSLProtocol all -SSLv2 -SSLv3
-
             # SSLCompression: CRIME
             SSLCompression off
 
@@ -189,9 +184,10 @@ EOF
 
             # allow only secure ciphers that client can negotiate
             # https://wiki.mozilla.org/Security/Server_Side_TLS
-            # Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1
-            SSLHonorCipherOrder On
-            SSLCipherSuite ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA
+            # https://mozilla.github.io/server-side-tls/ssl-config-generator/
+            # Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1, Windows XP IE8, Android 2.3, Java 7
+            SSLHonorCipherOrder on
+            SSLCipherSuite ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA:!DSS
 
             # disable the SSL_ environment variable (usually CGI and SSI requests only)
             SSLOptions -StdEnvVars
@@ -215,6 +211,45 @@ EOF
         # define new relic appname
         <IfModule php5_module>
             php_value newrelic.appname "${domain_environment};$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat"
+        </IfModule>
+        <IfModule mod_deflate.c>
+            # compressed certain content types before being sent to the client over the network
+            # https://github.com/h5bp/server-configs-apache
+            # https://httpd.apache.org/docs/current/mod/mod_filter.html#addoutputfilterbytype
+            <IfModule mod_filter.c>
+                AddOutputFilterByType DEFLATE "application/atom+xml"
+                AddOutputFilterByType DEFLATE "application/javascript"
+                AddOutputFilterByType DEFLATE "application/json"
+                AddOutputFilterByType DEFLATE "application/ld+json"
+                AddOutputFilterByType DEFLATE "application/manifest+json"
+                AddOutputFilterByType DEFLATE "application/rdf+xml"
+                AddOutputFilterByType DEFLATE "application/rss+xml"
+                AddOutputFilterByType DEFLATE "application/schema+json"
+                AddOutputFilterByType DEFLATE "application/vnd.geo+json"
+                AddOutputFilterByType DEFLATE "application/vnd.ms-fontobject"
+                AddOutputFilterByType DEFLATE "application/x-font-ttf"
+                AddOutputFilterByType DEFLATE "application/x-javascript"
+                AddOutputFilterByType DEFLATE "application/x-web-app-manifest+json"
+                AddOutputFilterByType DEFLATE "application/xhtml+xml"
+                AddOutputFilterByType DEFLATE "application/xml"
+                AddOutputFilterByType DEFLATE "font/eot"
+                AddOutputFilterByType DEFLATE "font/opentype"
+                AddOutputFilterByType DEFLATE "image/bmp"
+                AddOutputFilterByType DEFLATE "image/svg+xml"
+                AddOutputFilterByType DEFLATE "image/vnd.microsoft.icon"
+                AddOutputFilterByType DEFLATE "image/x-icon"
+                AddOutputFilterByType DEFLATE "text/cache-manifest"
+                AddOutputFilterByType DEFLATE "text/css"
+                AddOutputFilterByType DEFLATE "text/html"
+                AddOutputFilterByType DEFLATE "text/javascript"
+                AddOutputFilterByType DEFLATE "text/plain"
+                AddOutputFilterByType DEFLATE "text/vcard"
+                AddOutputFilterByType DEFLATE "text/vnd.rim.location.xloc"
+                AddOutputFilterByType DEFLATE "text/vtt"
+                AddOutputFilterByType DEFLATE "text/x-component"
+                AddOutputFilterByType DEFLATE "text/x-cross-domain-policy"
+                AddOutputFilterByType DEFLATE "text/xml"
+            </IfModule>
         </IfModule>
     </Directory>
 
