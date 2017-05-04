@@ -149,21 +149,41 @@ sudo yum install -y fail2ban
 # ensure fail2ban starts during boot
 sudo systemctl enable fail2ban
 
-# define our fail2ban jails
+# ensure fail2ban starts during boot
+sudo systemctl start fail2ban
+
+# define fail2ban filters
+if [ "${4}" == "apache" ]; then
+fail2ban_filters="
+[apache-botsearch]
+enabled = true
+[sshd-ddos]
+enabled = true
+[sshd]
+enabled = true
+"
+else
+fail2ban_filters="
+[sshd-ddos]
+enabled = true
+[sshd]
+enabled = true
+"
+fi
+
+# define fail2ban jails
 # see cron_security.sh for more information
 sudo cat > /etc/fail2ban/jail.local << EOF
 [DEFAULT]
 banaction = iptables-multiport
 # "bantime" is the number of seconds that a host is banned.
-bantime  = 3600
+bantime  = 7200
 # a host is banned if it has generated "maxretry" during the last "findtime" seconds.
-findtime  = 600
+findtime  = 3600
 # "maxretry" is the number of failures before a host get banned.
 maxretry = 5
-
-[sshd]
-enabled = true
-
+# enable carefully selected filters
+${fail2ban_filters}
 EOF
 
 # restart fail2ban

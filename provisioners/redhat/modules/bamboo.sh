@@ -1,6 +1,9 @@
 # define our bamboo version
 bamboo_version="5.15.3"
 
+# install pywinrm for windows deployment support
+sudo pip install pywinrm --upgrade
+
 # install java
 sudo yum install -y java-1.8.0-openjdk-devel.x86_64 
 java -version
@@ -27,7 +30,8 @@ sed --in-place 's/:8085//g' /usr/local/src/bamboo/atlassian-bamboo/xml-data/conf
 sed --in-place 's/port="8085"/port="80"/g' /usr/local/src/bamboo/atlassian-bamboo-${bamboo_version}/conf/server.xml
 
 # increase jvm maximum memory
-sed --in-place 's/JVM_MAXIMUM_MEMORY="1024m"/JVM_MAXIMUM_MEMORY="2048m"/g' /usr/local/src/bamboo/atlassian-bamboo-${bamboo_version}/bin/setenv.sh
+sed --in-place --expression='s/JVM_MINIMUM_MEMORY="512m"/JVM_MINIMUM_MEMORY="768m"/g' /usr/local/src/bamboo/atlassian-bamboo-${bamboo_version}/bin/setenv.sh
+sed --in-place --expression='s/JVM_MAXIMUM_MEMORY="1024m"/JVM_MAXIMUM_MEMORY="2048m"/g' /usr/local/src/bamboo/atlassian-bamboo-${bamboo_version}/bin/setenv.sh
 bash /usr/local/src/bamboo/atlassian-bamboo-${bamboo_version}/bin/setenv.sh
 
 # run bamboo as as service

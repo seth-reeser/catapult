@@ -1,11 +1,11 @@
 #!/bin/bash
 
 /bin/echo -e "==========================================================================================="
-/bin/echo -e "THIS CATAPULT CRON_CERTIFICATES MODULE RENEWS LET'S ENCRYPT HTTPS CERTIFICATES FOR WEBSITES"
+/bin/echo -e "THIS CATAPULT CRON_ANTIVIRUS MODULE IS USED TO HELP FIND INFECTED FILES IN WEBSITE WEBROOTS"
 /bin/echo -e "==========================================================================================="
 
-/bin/bash /catapult/provisioners/redhat/installers/dehydrated/dehydrated --cron --keep-going
+/usr/bin/freshclam
 
-sudo /usr/bin/systemctl reload httpd.service
+/usr/bin/clamscan /var/www/ --infected --recursive
 
 /bin/echo -e "\n"

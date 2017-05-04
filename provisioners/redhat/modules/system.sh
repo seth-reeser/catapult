@@ -213,3 +213,13 @@ sudo sed --in-place --expression='/^apply_updates\s=/s|.*|apply_updates = yes|' 
 sudo sed --in-place --expression='/^emit_via\s=/s|.*|emit_via = None|' /etc/yum/yum-cron.conf
 # restart the service to re-read any new configuration
 sudo systemctl restart yum-cron.service
+
+
+
+echo -e "\n> system clamav configuration"
+# install clamav
+sudo yum install -y clamav
+# install clamav-update
+sudo yum install -y clamav-update
+sed --in-place --expression='/^Example/d' /etc/freshclam.conf
+sed --in-place --expression="s/^FRESHCLAM_DELAY=disabled-warn/FRESHCLAM_DELAY=disabled/g" /etc/sysconfig/freshclam
