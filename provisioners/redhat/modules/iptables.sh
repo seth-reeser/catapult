@@ -23,7 +23,8 @@ sudo systemctl enable iptables
 echo -e "\n> iptables rules before configuration"
 
 # output the iptables
-sudo iptables --list-rules
+echo -e "> check for rules which didn't get a hit (0 packets / 0 bytes)"
+sudo iptables --list --numeric --verbose
 
 
 
@@ -128,8 +129,12 @@ elif [ "${4}" == "mysql" ]; then
     fi
 fi
 
+# log everything that hasn't matched thus far
+# https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html
+sudo iptables --append INPUT --jump LOG --log-prefix "INPUT:DROP: " --log-level 6 --match limit --limit 5/min --limit-burst 10
+
 # now that everything is configured, we drop everything else (drop does not send any return packets, reject does)
-sudo iptables --policy INPUT DROP
+sudo iptables --policy INPUT --jump DROP
 
 # save our newly created config
 # saves to cat /etc/sysconfig/iptables
@@ -198,4 +203,5 @@ sudo fail2ban-client status
 echo -e "\n> iptables rules after configuration"
 
 # output the iptables
-sudo iptables --list-rules
+echo -e "> check for rules which didn't get a hit (0 packets / 0 bytes)"
+sudo iptables --list --numeric --verbose
