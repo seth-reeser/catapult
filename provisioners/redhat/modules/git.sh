@@ -41,6 +41,7 @@ if [ -d "/var/www/repositories/apache/${domain}/.git" ]; then
             && git config core.fileMode false \
             && git config core.packedGitLimit 128m \
             && git config core.packedGitWindowSize 128m \
+            && git config merge.renameLimit 999999 \
             && git config pack.deltaCacheSize 128m \
             && git config pack.packSizeLimit 128m \
             && git config pack.threads 1 \
@@ -155,6 +156,7 @@ else
         sudo rm --force --recursive "/var/www/repositories/apache/${domain}"
     fi
     sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git clone --recursive -b ${branch} ${repo} /var/www/repositories/apache/${domain}"
+    touch "/catapult/provisioners/redhat/logs/domain.${domain}.changes"
 fi
 
 touch "/catapult/provisioners/redhat/logs/git.${domain}.complete"
