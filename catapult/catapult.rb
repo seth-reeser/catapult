@@ -194,7 +194,7 @@ module Catapult
     if remote.include?("devopsgroup-io/")
       catapult_exception("In order to use Catapult, you must fork the repository so that the committed and encrypted configuration is unique to you! See https://github.com/devopsgroup-io/catapult for more information.")
     end
-    puts "\n\nSelf updating Catapult:\n".color(Colors::WHITE)
+    puts "\n\nVerfication and self updating of this Catapult instance:\n".color(Colors::WHITE)
     `#{@git} fetch`
     # get current branch
     branch = `#{@git} rev-parse --abbrev-ref HEAD`.strip
@@ -217,11 +217,24 @@ module Catapult
     if not @branches.find { |element| element.include?("refs/heads/master") }
       catapult_exception("Cannot find the master branch for your Catapult's fork, please fork again or manually correct.")
     end
-    # create the release branch if it does not yet exist
-    if not @branches.find { |element| element.include?("refs/heads/release") }
-      `#{@git} checkout master`
-      `#{@git} checkout -b release`
-      `#{@git} push origin release`
+    # verify that there is a ssh public and private key
+    if !File.exist?(ENV['HOME']+'/.ssh/id_rsa.pub')
+        catapult_exception("Could not detect your SSH public key at ~/.ssh/id_rsa.pub - please follow the Instance Setup at https://github.com/devopsgroup-io/catapult#instance-setup")
+    end
+    if !File.exist?(ENV['HOME']+'/.ssh/id_rsa')
+        catapult_exception("Could not detect your SSH private key at ~/.ssh/id_rsa - please follow the Instance Setup at https://github.com/devopsgroup-io/catapult#instance-setup")
+    end
+    # create the develop-catapult branch if it does not yet exist
+    if not @branches.find { |element| element.include?("refs/heads/develop-catapult") }
+      `#{@git} fetch upstream`
+      `#{@git} checkout -b develop-catapult --track upstream/master`
+      `#{@git} pull upstream master`
+      `#{@git} push origin develop-catapult`
+      # this is our first opportunity to verify write access to the repository
+      if $?.exitstatus > 0
+        ssh_public_key = File.read(ENV['HOME']+'/.ssh/id_rsa.pub')
+        catapult_exception("It seems that your SSH public key pair does not have write access to this Catapult repository.\nPlease ensure that your GitHub user has appropriate rights.\n\nHere is your workstation's SSH public key for reference:\n\n#{ssh_public_key}")
+      end
     end
     # create the develop branch if it does not yet exist
     if not @branches.find { |element| element.include?("refs/heads/develop") }
@@ -230,21 +243,20 @@ module Catapult
       `#{@git} pull upstream master`
       `#{@git} push origin develop`
     end
-    # create the develop-catapult branch if it does not yet exist
-    if not @branches.find { |element| element.include?("refs/heads/develop-catapult") }
-      `#{@git} fetch upstream`
-      `#{@git} checkout -b develop-catapult --track upstream/master`
-      `#{@git} pull upstream master`
-      `#{@git} push origin develop-catapult`
+    # create the release branch if it does not yet exist
+    if not @branches.find { |element| element.include?("refs/heads/release") }
+      `#{@git} checkout master`
+      `#{@git} checkout -b release`
+      `#{@git} push origin release`
     end
     # if on the master or release branch, stop user
     if "#{branch}" == "master" || "#{branch}" == "release"
       catapult_exception(""\
         "You are on the #{branch} branch, all interaction should be done from either the develop or develop-catapult branch."\
-        " * The develop branch is running in test"\
-        " * The release branch is running in qc"\
-        " * The master branch is running in production"\
-        "To move your configuration from environment to environment, create pull requests (develop => release, release => master)."\
+        "\n\n* The develop branch is running in test"\
+        "\n* The release branch is running in qc"\
+        "\n* The master branch is running in production"\
+        "\n\nTo move your configuration from environment to environment, create pull requests (develop => release, release => master)."\
       "")
     end
     puts "\n * Configuring the #{branch} branch:\n\n"
@@ -368,7 +380,7 @@ module Catapult
     @configuration_user_template = YAML.load_file("catapult/installers/templates/configuration-user.yml.template")
     # check for required fields
     if @configuration_user["settings"]["gpg_key"] == nil || @configuration_user["settings"]["gpg_key"].match(/\s/) || @configuration_user["settings"]["gpg_key"].length < 20
-      catapult_exception("Please set your team's gpg_key in secrets/configuration-user.yml - spaces are not permitted and must be at least 20 characters.")
+      catapult_exception("Please set your team's gpg_key in secrets/configuration-user.yml - spaces are not permitted and must be at least 20 characters. Please visit https://github.com/devopsgroup-io/catapult#instance-setup for more information.")
     end
 
 
@@ -457,7 +469,7 @@ module Catapult
       # decrypt id_rsa and id_rsa.pub
       if File.zero?("secrets/id_rsa.gpg") || File.zero?("secrets/id_rsa.pub.gpg")
         if not File.exist?("secrets/id_rsa") || File.zero?("secrets/id_rsa.pub")
-          catapult_exception("Please place your team's ssh public (id_rsa.pub) and private key (id_rsa.pub) in the ~/secrets folder.")
+          catapult_exception("Please place your team's ssh public (id_rsa.pub) and private key (id_rsa.pub) in the ~/secrets folder. Please visit https://github.com/devopsgroup-io/catapult#instance-setup for more information.")
         else
           `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa.gpg --armor --cipher-algo AES256 --symmetric secrets/id_rsa`
           `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/id_rsa.pub.gpg --armor --cipher-algo AES256 --symmetric secrets/id_rsa.pub`
@@ -513,6 +525,16 @@ module Catapult
 
     puts "\nVerification of configuration[\"company\"]:\n".color(Colors::WHITE)
     # validate @configuration["company"]
+    if @configuration["company"]["name"] == nil
+      if @configuration_user["settings"]["gpg_edit"] == false
+        confirm = ask("The gpg_edit settings in your configuration-user.yml file is set to false, would you like to set it to true? [Y/N]") { |yn| yn.limit = 1, yn.validate = /[yn]/i }
+        if confirm.downcase == 'y'
+          @configuration_user["settings"]["gpg_edit"] = true
+          File.open('secrets/configuration-user.yml', 'w') {|f| f.write configuration_user.to_yaml }
+          @configuration_user = YAML.load_file("secrets/configuration-user.yml")
+        end
+      end
+    end
     if @configuration["company"]["name"] == nil
       catapult_exception("Please set [\"company\"][\"name\"] in secrets/configuration.yml")
     end
@@ -1758,13 +1780,8 @@ module Catapult
 
     # validate @configuration["websites"]
     puts "\nVerification of configuration[\"websites\"]:".color(Colors::WHITE)
-    # add catapult temporarily to verify repo and add bamboo services
-    @configuration["websites"]["catapult"] = *(["domain" => "#{@repo}", "repo" => "#{@repo}"])
     # validate @configuration["websites"]
     @configuration["websites"].each do |service,data|
-      if "#{service}" == "catapult"
-        puts "\nVerification of this Catapult instance:".color(Colors::WHITE)
-      end
       # create array of domains to later validate domain alpha order per service
       domains = Array.new
       domains_sorted = Array.new
@@ -1777,41 +1794,39 @@ module Catapult
           row = Array.new
           # get domain
           row.push(" * #{instance["domain"]}".slice!(0, 39).ljust(39))
-          unless "#{service}" == "catapult"
-            # validate the domain to ensure it only includes the domain and not protocol
-            if instance["domain"].include? "://"
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} is invalid, it must not include http:// or https://.")
+          # validate the domain to ensure it only includes the domain and not protocol
+          if instance["domain"].include? "://"
+            catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} is invalid, it must not include http:// or https://.")
+          end
+          # validate the domain_tld_override to ensure only valid characters
+          if not instance["domain"] =~ /^[0-9a-zA-Z\-\.]*$/
+            catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, letters, hyphens, and periods.")
+          end
+          # validate the domain depth
+          domain_depth = instance["domain"].split(".")
+          if domain_depth.count > 3
+            catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} is invalid, there is a maximum of one subdomain.")
+          end
+          unless instance["domain_tld_override"] == nil
+            # validate the domain_tld_override to ensure it only includes the domain and not protocol
+            if instance["domain_tld_override"].include? "://"
+              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} is invalid, it must not include http:// or https://.")
             end
             # validate the domain_tld_override to ensure only valid characters
-            if not instance["domain"] =~ /^[0-9a-zA-Z\-\.]*$/
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, letters, hyphens, and periods.")
+            if not instance["domain_tld_override"] =~ /^[0-9a-zA-Z\-\.]*$/
+              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, letters, hyphens, and periods.")
             end
-            # validate the domain depth
-            domain_depth = instance["domain"].split(".")
-            if domain_depth.count > 3
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} is invalid, there is a maximum of one subdomain.")
+            # validate the domain_tld_override depth
+            domain_tld_override_depth = instance["domain_tld_override"].split(".")
+            if domain_tld_override_depth.count != 2
+              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only be one domain level (company.com).")
             end
-            unless instance["domain_tld_override"] == nil
-              # validate the domain_tld_override to ensure it only includes the domain and not protocol
-              if instance["domain_tld_override"].include? "://"
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} is invalid, it must not include http:// or https://.")
-              end
-              # validate the domain_tld_override to ensure only valid characters
-              if not instance["domain_tld_override"] =~ /^[0-9a-zA-Z\-\.]*$/
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, letters, hyphens, and periods.")
-              end
-              # validate the domain_tld_override depth
-              domain_tld_override_depth = instance["domain_tld_override"].split(".")
-              if domain_tld_override_depth.count != 2
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only be one domain level (company.com).")
-              end
-            end
-            # there is a maximum domain (including domain_tld_override) length of 53 characters
-            # max mysql database name length of 64 - 11 for longest prefix of production_ = 53
-            # max mssql database name length of 128
-            if (instance["domain"].length + (instance["domain_tld_override"].nil? ? 0 : instance["domain_tld_override"].length)) > 53
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe combination of domain and domain_tld_override for websites => #{service} => domain => #{instance["domain"]} must not exceed 53 characters in length.")
-            end
+          end
+          # there is a maximum domain (including domain_tld_override) length of 53 characters
+          # max mysql database name length of 64 - 11 for longest prefix of production_ = 53
+          # max mssql database name length of 128
+          if (instance["domain"].length + (instance["domain_tld_override"].nil? ? 0 : instance["domain_tld_override"].length)) > 53
+            catapult_exception("There is an error in your secrets/configuration.yml file.\nThe combination of domain and domain_tld_override for websites => #{service} => domain => #{instance["domain"]} must not exceed 53 characters in length.")
           end
           # validate force_auth
           unless instance["force_auth"] == nil
@@ -2346,8 +2361,6 @@ module Catapult
         catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domains in secrets/configuration.yml are not in alpha order for websites => #{service} - please adjust.")
       end
     end
-    # remove catapult as this was done to temporarily verify repo and add bamboo services
-    @configuration["websites"].delete("catapult")
 
 
 
