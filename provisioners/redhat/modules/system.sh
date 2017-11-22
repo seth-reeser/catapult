@@ -99,7 +99,7 @@ sudo yum install -y postfix
 sudo systemctl enable postfix.service
 sudo systemctl start postfix.service
 # prevent a billion emails from localdev
-if ([ "${1}" = "dev" ]); then
+if ([ "${1}" == "dev" ]); then
     sudo cat "/dev/null" > "/root/.forward"
 # send root's mail as company email from upstream servers
 else
@@ -143,6 +143,13 @@ SELINUX=disabled
 SELINUXTYPE=targeted
 EOF
 sestatus -v
+# restart if SELinux is enabled
+if $(sestatus | grep "SELinux status:" | grep -q "enabled"); then
+    echo -e "\n> SELinux is enabled, this is normally due to a fresh install. We need to reboot to disable it, rebooting in 1 minute..."
+    echo -e "\n> Please re-run the provisioner when the machine is back up."
+    /sbin/shutdown --reboot
+    sleep 90
+fi
 
 
 
@@ -275,6 +282,14 @@ install firewire_core /bin/true
 install firewire_ohci /bin/true
 install usb_storage /bin/true
 EOF
+
+
+
+echo -e "\n> system monitoring configuration"
+# new relic servers is no longer available, so until we find an agnostic monir, let's rely on the provider
+if ([ "$1" != "dev" ]); then
+    curl --silent --show-error --connect-timeout 5 --max-time 5 --location https://agent.digitalocean.com/install.sh | sh
+fi
 
 
 
