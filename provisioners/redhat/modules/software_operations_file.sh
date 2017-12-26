@@ -27,7 +27,7 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                if [ "${version}" != "2.2.6" ]; then 
+                if [ "${version}" != "2.2.6" ]; then
                     # https://www.codeigniter.com/userguide2/installation/upgrading.html
                     git clone https://github.com/bcit-ci/CodeIgniter "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter"
                     cd "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter" && git checkout tags/2.2.6
@@ -55,10 +55,10 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                if [ "${version}" != "3.1.5" ]; then 
+                if [ "${version}" != "3.1.6" ]; then
                     # https://www.codeigniter.com/userguide3/installation/upgrading.html
                     git clone https://github.com/bcit-ci/CodeIgniter "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter"
-                    cd "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter" && git checkout tags/3.1.5
+                    cd "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter" && git checkout tags/3.1.6
                     # upgrading from 3.0.0 to 3.0.1
                     yes | cp -rf /catapult/provisioners/redhat/installers/temp/$domain/codeigniter/application/views/errors/cli/* "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}/application/views/errors/cli"
                     # upgrading constant
@@ -82,7 +82,7 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
 
             if [ "${software_auto_update}" = "true" ]; then
                 cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-refresh
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-updatecode
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-updatecode --check-disabled
             fi
 
         else
@@ -98,7 +98,23 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
 
             if [ "${software_auto_update}" = "true" ]; then
                 cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-refresh
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-updatecode
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-updatecode --check-disabled
+            fi
+
+        else
+            echo -e "\nSUPPORTED SOFTWARE NOT DETECTED\n"
+        fi
+
+    elif [ "${software}" = "drupal8" ]; then
+
+        version=$(cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && cat core/lib/Drupal.php 2>/dev/null | grep "const VERSION =" | grep --extended-regexp --only-matching --regexp="[0-9]\.[0-9][0-9]?[0-9]?(\.[0-9][0-9]?[0-9]?)?" || echo "0")
+
+        if [[ "${softwareversion_array[@]}" =~ "$(grep --only-matching --regexp="^[0-9]" <<< "${version}")" ]]; then
+            echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
+
+            if [ "${software_auto_update}" = "true" ]; then
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-refresh
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-updatecode --check-disabled
             fi
 
         else
@@ -106,6 +122,21 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
         fi
 
     elif [ "${software}" = "elgg1" ]; then
+
+        version=$(cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && cat composer.json 2>/dev/null | grep "\"version\":" | grep --extended-regexp --only-matching --regexp="[0-9]\.[0-9][0-9]?[0-9]?(\.[0-9][0-9]?[0-9]?)?" || echo "0")
+
+        if [[ "${softwareversion_array[@]}" =~ "$(grep --only-matching --regexp="^[0-9]" <<< "${version}")" ]]; then
+            echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
+
+            if [ "${software_auto_update}" = "true" ]; then
+                : #no-op
+            fi
+
+        else
+            echo -e "\nSUPPORTED SOFTWARE NOT DETECTED\n"
+        fi
+
+    elif [ "${software}" = "elgg2" ]; then
 
         version=$(cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && cat composer.json 2>/dev/null | grep "\"version\":" | grep --extended-regexp --only-matching --regexp="[0-9]\.[0-9][0-9]?[0-9]?(\.[0-9][0-9]?[0-9]?)?" || echo "0")
 
@@ -202,18 +233,18 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php admin/cli/maintenance.php --enable
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && /opt/rh/rh-php70/root/usr/bin/php admin/cli/maintenance.php --enable
                 cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && git remote add source https://github.com/moodle/moodle
                 cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && git remote update
                 # Moodle 3.2 and later requires at least PHP 5.6.5
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && git merge --strategy=recursive --strategy-option=theirs source/MOODLE_31_STABLE
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && git merge --strategy=recursive --strategy-option=theirs source/MOODLE_34_STABLE
                 # clean up any merge conflicts
                 cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && git diff --name-only --diff-filter=U | while read line; do
                     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && git checkout --theirs -- $line
                     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && git add $line
                 done
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php admin/cli/upgrade.php --non-interactive
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php admin/cli/maintenance.php --disable
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && /opt/rh/rh-php70/root/usr/bin/php admin/cli/upgrade.php --non-interactive
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && /opt/rh/rh-php70/root/usr/bin/php admin/cli/maintenance.php --disable
             fi
 
         else
@@ -255,7 +286,7 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE NOT DETECTED\n"
         fi
 
-    elif [ "${software}" = "wordpress" ]; then
+    elif [ "${software}" = "wordpress4" ]; then
 
         version=$(cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && cat wp-includes/version.php 2>/dev/null | grep "\$wp_version" | grep --extended-regexp --only-matching --regexp="[0-9]\.[0-9][0-9]?[0-9]?(\.[0-9][0-9]?[0-9]?)?" || echo "0")
 
@@ -274,7 +305,7 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE NOT DETECTED\n"
         fi
 
-    elif [ "${software}" = "xenforo" ]; then
+    elif [ "${software}" = "xenforo1" ]; then
 
         version=$(cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && cat library/XenForo/Application.php 2>/dev/null | grep "public static \$version =" | grep --extended-regexp --only-matching --regexp="[0-9]\.[0-9][0-9]?[0-9]?(\.[0-9][0-9]?[0-9]?)?" || echo "0")
 
@@ -297,7 +328,7 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && composer require "zendframework/zendframework:^2.0" --no-update
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && composer require "zendframework/zendframework:^2" --no-update
                 cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && composer update
             fi
 

@@ -1,12 +1,7 @@
 source "/catapult/provisioners/redhat/modules/catapult.sh"
 
 # set variables from secrets/configuration.yml
-mysql_user="$(echo "${configuration}" | shyaml get-value environments.$1.servers.redhat_mysql.mysql.user)"
-mysql_user_password="$(echo "${configuration}" | shyaml get-value environments.$1.servers.redhat_mysql.mysql.user_password)"
-mysql_root_password="$(echo "${configuration}" | shyaml get-value environments.$1.servers.redhat_mysql.mysql.root_password)"
-redhat_ip="$(echo "${configuration}" | shyaml get-value environments.$1.servers.redhat.ip)"
-redhat_mysql_ip="$(echo "${configuration}" | shyaml get-value environments.$1.servers.redhat_mysql.ip)"
-company_email="$(echo "${configuration}" | shyaml get-value company.email)"
+company_email="$(catapult company.email)"
 
 # create a vhost per website
 echo "${configuration}" | shyaml get-values-0 websites.apache |
@@ -34,6 +29,7 @@ while IFS='' read -r -d '' key; do
     force_https=$(echo "$key" | grep -w "force_https" | cut -d ":" -f 2 | tr -d " ")
     software=$(echo "$key" | grep -w "software" | cut -d ":" -f 2 | tr -d " ")
     software_dbprefix=$(echo "$key" | grep -w "software_dbprefix" | cut -d ":" -f 2 | tr -d " ")
+    software_php_version=$(provisioners software.apache.${software}.php_version)
     software_workflow=$(echo "$key" | grep -w "software_workflow" | cut -d ":" -f 2 | tr -d " ")
     webroot=$(echo "$key" | grep -w "webroot" | cut -d ":" -f 2 | tr -d " ")
 
@@ -104,28 +100,28 @@ EOF
      && [ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.crt" ] \
      && [ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/server.csr" ] \
      && [ -f "/var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/server.key" ]); then
-        ssl_certificates="
+        https_certificates="
         SSLCertificateFile /var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.crt
         SSLCertificateKeyFile /var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/server.key
         SSLCertificateChainFile /var/www/repositories/apache/${domain}/_cert/${domainvalidcertname}/${domainvalidcertname}.ca-bundle
         "
     # upstream without domain_tld_override and a letsencrypt cert available
     elif ([ "$1" != "dev" ]) && ([ -z "${domain_tld_override}" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem ]); then
-        ssl_certificates="
+        https_certificates="
         SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/cert.pem
         SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/privkey.pem
         SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}/chain.pem
         "
     # upstream with domain_tld_override and a letsencrypt cert available
     elif ([ "$1" != "dev" ]) && ([ ! -z "${domain_tld_override}" ]) && ([ -f /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/cert.pem ]); then
-        ssl_certificates="
+        https_certificates="
         SSLCertificateFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/cert.pem
         SSLCertificateKeyFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/privkey.pem
         SSLCertificateChainFile /catapult/provisioners/redhat/installers/dehydrated/certs/${domain_environment}.${domain_tld_override}/chain.pem
         "
     # self-signed in localdev or if we do not have a letsencrypt cert
     else
-        ssl_certificates="
+        https_certificates="
         SSLCertificateFile /etc/ssl/certs/httpd-dummy-cert.key.cert
         SSLCertificateKeyFile /etc/ssl/certs/httpd-dummy-cert.key.cert
         "
@@ -143,6 +139,26 @@ EOF
     else
         force_https_value="# HTTPS is only forced when force_https=true"
         force_https_hsts="# HSTS is only enabled when force_https=true"
+    fi
+    # handle the software php_version setting
+    if [ "${software_php_version}" = "7.0" ]; then
+        software_php_version_value="
+        <FilesMatch \.php$>
+            SetHandler \"proxy:fcgi://127.0.0.1:9700\"
+        </FilesMatch>
+        "
+    elif [ "${software_php_version}" = "5.6" ]; then
+        software_php_version_value="
+        <FilesMatch \.php$>
+            SetHandler \"proxy:fcgi://127.0.0.1:9560\"
+        </FilesMatch>
+        "
+    else
+        software_php_version_value="
+        <FilesMatch \.php$>
+            SetHandler \"proxy:fcgi://127.0.0.1:9540\"
+        </FilesMatch>
+        "
     fi
     # write vhost apache conf file
     sudo cat > /etc/httpd/sites-available/${domain_environment}.conf << EOF
@@ -196,7 +212,7 @@ EOF
             BrowserMatch "MSIE [2-5]" nokeepalive ssl-unclean-shutdown downgrade-1.0 force-response-1.0
 
             # set the ssl certificates
-            ${ssl_certificates}
+            ${https_certificates}
 
             # force httpd basic auth if configured
             ${force_auth_value}
@@ -206,6 +222,9 @@ EOF
 
     # define apache ruleset for the web root
     <Directory "/var/www/repositories/apache/${domain}/${webroot}">
+
+        # define the php version being used
+        ${software_php_version_value}
 
         # allow .htaccess in apache 2.4+
         AllowOverride All
@@ -224,7 +243,18 @@ EOF
             </IfModule>
         </Files>
 
-        # compressed certain content types before being sent to the client over the network
+        # set security related response headers
+        # https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#tab=Headers
+        # https://securityheaders.io/?q=devopsgroup.io&followRedirects=on
+        # https://github.com/h5bp/server-configs-apache/tree/master/src/security
+        <IfModule mod_headers.c>
+            #Header set Content-Security-Policy "script-src 'self'; object-src 'self'"
+            Header set X-Content-Type-Options: "nosniff"
+            Header set X-Frame-Options: "sameorigin"
+            Header set X-XSS-Protection: "1; mode=block"
+        </IfModule>
+
+        # compress certain content types before being sent to the client over the network
         # https://github.com/h5bp/server-configs-apache
         # https://httpd.apache.org/docs/current/mod/mod_filter.html#addoutputfilterbytype
         <IfModule mod_deflate.c>
@@ -341,8 +371,14 @@ EOF
 
     </Directory>
 
-    # deny access to _sql folders
-    <Directory "/var/www/repositories/apache/${domain}/${webroot}_sql">
+    # deny access to .git folder
+    <Directory "/var/www/repositories/apache/${domain}/.git">
+        Order Deny,Allow
+        Deny From All
+    </Directory>
+
+    # deny access to _sql folder
+    <Directory "/var/www/repositories/apache/${domain}/_sql">
         Order Deny,Allow
         Deny From All
     </Directory>
