@@ -82,26 +82,27 @@ Catapult orchestrates the following key components of DevOps to provide you with
 
 ## Supported Software ##
 
-Catapult intelligently manages the following software that has been chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and align with the [CentOS 7 trunk](http://mirror.centos.org/centos/7/os/x86_64/Packages/):
+Catapult intelligently manages the following software that has been chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and aligns with the [CentOS 7 trunk](http://mirror.centos.org/centos/7/os/x86_64/Packages/) along with the [Software Collections trunk](https://www.softwarecollections.org/):
 
-Software | [Key](#websites) | Released | End-of-Life
----------|------------------|----------|------------
-CodeIgniter 2                     | `codeigniter2`         | January 28, 2011   | [October 31, 2015](http://forum.codeigniter.com/thread-61357.html)
-CodeIgniter 3                     | `codeigniter3`         | March 30, 2015     | 
-Drupal 6                          | `drupal6`              | February 13, 2008  | [February 24, 2016](https://www.drupal.org/drupal-6-eol)
-Drupal 7                          | `drupal7`              | January 5, 2011    |
-Elgg 1                            | `elgg1`                | August 20, 2008    |
-ExpressionEngine 3                | `expressionengine3`    | October 13, 2015   |
-Joomla 3                          | `joomla3`              | September 27, 2012 |
-Laravel 5.0.x                     | `laravel5`             | February 4, 2015   |
-MediaWiki 1                       | `mediawiki1`           | December 8, 2003   |
-Moodle 3                          | `moodle3`              | November 16, 2015  |
-SilverStripe 3                    | `silverstripe3`        | June 29, 2012      |
-SuiteCRM 7                        | `suitecrm7`            | October 21, 2013   |
-WordPress >=3.7                   | `wordpress`            | June 17, 2010      |
-WordPress 4                       | `wordpress`            | September 4, 2014  |
-XenForo 1                         | `xenforo`              | March 8, 2011      |
-Zend Framework 2.0.x <=2.4.x      | `zendframework2`       | September 5, 2012  |
+Software | [Key](#websites) | Required PHP Version | Defined PHP Version | Released | End-of-Life
+---------|------------------|---------------------|---------------------|----------|------------
+CodeIgniter 2                     | `codeigniter2`         | 5.1.6  | 5.4 | January 28, 2011   | [October 31, 2015](http://forum.codeigniter.com/thread-61357.html)
+CodeIgniter 3                     | `codeigniter3`         | 5.6    | 5.4 | March 30, 2015     | 
+Drupal 6                          | `drupal6`              | 5.4    | 5.4 | February 13, 2008  | [February 24, 2016](https://www.drupal.org/drupal-6-eol)
+Drupal 7                          | `drupal7`              | 5.2.5  | 5.6 | January 5, 2011    |
+Drupal 8                          | `drupal8`              | 5.5.9  | 7.0 | November 19, 2015  |
+Elgg 1                            | `elgg1`                | 5.4    | 5.4 | August 20, 2008    |
+Elgg 2                            | `elgg2`                | 5.6    | 5.6 | December 14, 2015  |
+ExpressionEngine 3                | `expressionengine3`    | 5.3.10 | 5.4 | October 13, 2015   |
+Joomla 3                          | `joomla3`              | 5.3.10 | 5.6 | September 27, 2012 |
+Laravel 5                         | `laravel5`             | 7.0.0  | 7.0 | February 4, 2015   |
+MediaWiki 1                       | `mediawiki1`           | 5.5.9  | 5.6 | December 8, 2003   |
+Moodle 3                          | `moodle3`              | 5.6.5  | 5.6 | November 16, 2015  |
+SilverStripe 3                    | `silverstripe3`        | 5.3.3  | 5.4 | June 29, 2012      |
+SuiteCRM 7                        | `suitecrm7`            | 5.5    | 5.6 | October 21, 2013   |
+WordPress 4                       | `wordpress4`           | 5.2.4  | 7.0 | September 4, 2014  |
+XenForo 1                         | `xenforo1`             | 5.2.11 | 5.4 | March 8, 2011      |
+Zend Framework 2                  | `zendframework2`       | 5.3.23 | 5.4 | September 5, 2012  |
 
 Catapult additionally supports basic PHP projects that do not have a database requirement:
 
@@ -118,7 +119,7 @@ Source                                        | Open                            
 Subscription Feature Set                      | Bundled                               | Separated                     | Separated
 Traditional Tooling (VMs & Shell)             | :white_check_mark:                    | :x:                           | :x:
 Multi-Platform (Linux & Windows)              | :white_check_mark:                    | :x:                           | :x:
-Supported PHP Software                        | 15                                    | 2                             | 1
+Supported PHP Software                        | 17                                    | 2                             | 1
 Supported .NET Software                       | TBA                                   | :x:                           | :x:
 Minimum Bundled<br>Monthly Cost               | $40                                   | $400                          | $134
 Websites per Instance/Subscription            | Unlimited                             | 1                             | 1
@@ -177,16 +178,13 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
         - [Software Updates and Fresh Installs](#software-updates-and-fresh-installs)
         - [HTTPS and Certificates](#https-and-certificates)
         - [Forcing www](#forcing-www)
-        - [Caching](#caching)
+        - [Cache Busting](#cache-busting)
         - [Progressive Web App](#progressive-web-app)
         - [Email](#email)
         - [Database Migrations](#database-migrations)
         - [Refreshing Databases](#refreshing-databases)
         - [Connecting to Databases](#connecting-to-databases)
         - [Production Hotfixes](#production-hotfixes)
-    - [Performance Testing](#performance-testing)
-        - [Website Concurrency Maximum](#website-concurrency-maximum)
-        - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
     - [Maintenance Cycle](#maintenance-cycle)
         - [Daily](#daily)
         - [Weekly](#weekly)
@@ -206,6 +204,9 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
     - [Caching Optimizations](#caching-optimizations)
     - [Geographic Optimizations](#geographic-optimizations)
     - [Recommended Optimizations](#recommended-optimizations)
+- [Performance Testing](#performance-testing)
+    - [Website Concurrency Maximum](#website-concurrency-maximum)
+    - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
     - [Releases](#releases)
@@ -305,7 +306,7 @@ Catapult is quick to setup. Fork the Github repository and start adding your con
     1. Fork https://github.com/devopsgroup-io/catapult and clone via SourceTree or the git utility of your choice.
 2. **SSH Key Pair**
     1. Create a *passwordless* SSH key pair - this will drive authentication for Catapult.
-        1. For instructions please see https://help.github.com/articles/generating-ssh-keys/
+        1. For instructions please see https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/
         2. Place the newly created *passwordless* SSH key pair `id_rsa` and `id_rsa.pub` in the `~/secrets/` folder.
 3. **GPG Key**
     1. Generate a GPG key - this will drive encryption for Catapult.
@@ -372,9 +373,10 @@ Monitoring | New Relic Application Performance Monitoring (APM), Browser, Server
         1. Select your newly created "Catapult" group.
         2. Select Add Users to Group and add your newly created "Catapult" user.
     6. Go to your AWS EC2 Key Pairs Dashboard https://console.aws.amazon.com/ec2/home#KeyPairs
-        1. Click Import Key Pair
-        2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key
-        3. Set the Key pair name to "Catapult"
+        1. Select "N. Virginia" from the top navigation
+        2. Click Import Key Pair
+        3. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key
+        4. Set the Key pair name to "Catapult"
     7. Go to your AWS EC2 Security Groups Dashboard https://console.aws.amazon.com/ec2/home#SecurityGroups
         1. Select the "default" Group Name
         2. Select the Inbound tab and click Edit
@@ -396,7 +398,7 @@ Bitbucket provides free private repositories and GitHub provides free public rep
     2. Add your newly created `id_rsa.pub` from `~/secrets/id_rsa.pub` key in https://github.com/settings/ssh named "Catapult"
 
 ### 3. **Automated Deployments:**
-Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used Bamboo Cloud until recent, there is now an implemenation of Bamboo Server. Please use the setup instructions for Bamboo Server, Bamboo Cloud documenation kept for transitioning users.
+Please note that Bamboo Cloud's end-of-life is January 31, 2017. For new setups, please use the **Bamboo Server sign-up and set-up** documentation. Existing Catapult user's may still be using Bamboo Cloud, in that case, please use the **Bamboo Cloud sign-up and set-up** documentation.
 
 **Bamboo Cloud sign-up and set-up**
 
@@ -431,16 +433,17 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
 
 **Bamboo Server set-up**
 
-1. Access your MyAtlassian License section at https://my.atlassian.com/products/index
+1. Sign up for an Atlassian account at https://my.atlassian.com/
+2. Access your My Atlassian license section at https://my.atlassian.com/products/index
     * Please read the Bamboo Licensing and Pricing page for more information https://www.atlassian.com/licensing/bamboo
-2a. For current Bamboo Cloud customers transitioning to Bamboo Server, you will see a Bamboo Starter License
-2b. For new Bamboo customers, please purchase a Bamboo Server license from https://www.atlassian.com/purchase/product/bamboo 
-3. It's now time to bring up your build server, please run `vagrant up ~/secrets/configuration.yml["company"]["name"]-build`
+3a. For current Bamboo Cloud customers transitioning to Bamboo Server, you will see a Bamboo Starter License
+3b. For new Bamboo customers, please purchase a Bamboo Server license from https://www.atlassian.com/purchase/product/bamboo 
+4. It's now time to bring up your build server, please run `vagrant up ~/secrets/configuration.yml["company"]["name"]-build`
     * The initial `up` will take some time for, please be patient
-4. Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
+5. Login to DigitalOcean to obtain the IP address of the virtual machine to access via URL
     * Place your Bamboo base URL at `~/secrets/configuration.yml["company"]["bamboo_base_url"]`, the format should be http://[digitalocean-ip-here]/
-5. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
-6. You will next be prompted to enter the following information:
+6. Once your Bamboo Server instance is accessible via URL, you will be prompted with a license prompt, enter your license.
+7. You will next be prompted to enter the following information:
     * Username (required) - root
     * Password (required) - specify a complex password
     * Confirm password (required)
@@ -449,14 +452,26 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
 
 **Bamboo Configuration**
 
+To avoid having to manually configure the Bamboo project, plans, stages, jobs, and tasks configuration, you may optionally install and purchase the "Bob Swift Atlassian Add-ons - Bamboo CLI Connector" Bamboo add-on. Otherwise, the manual setup configuration steps are outlined below:
+
 1. Place your Bamboo username at `~/secrets/configuration.yml["company"]["bamboo_username"]`
     * Normally admin for Bamboo Cloud
     * Normally root for Bamboo Server
 2. Place your Bamboo password at `~/secrets/configuration.yml["company"]["bamboo_password"]`
 3. Disable anonymous user access by clicking the gear at the top right and going to Overview
     1. Next, under Security, go to Global permissions and remove Access from Anonymous Users
-4. Click Create > Create a new plan from the header:
-    1. **Create Catapult Project and create TEST Plan**
+4. Click Create > Create a new plan from the top navigation:
+    1. **Create Catapult Project and create BUILD Plan**
+        * *Project and build plan name*
+            1. Project > New Project
+            2. Project name: Catapult
+            3. Project key: CAT
+            4. Plan name: BUILD
+            5. Plan key: BUILD
+            6. Plan description:
+        * *Link repository to new build plan*
+            1. Repository host: Other > None
+    2. **Create Catapult Project and create TEST Plan**
         * *Project and build plan name*
             1. Project > New Project
             2. Project name: Catapult
@@ -466,7 +481,7 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
             6. Plan description:
         * *Link repository to new build plan*
             1. Repository host: Other > None
-    2. **Create QC Plan**
+    3. **Create QC Plan**
         * *Project and build plan name*
             1. Project: Catapult
             4. Plan name: QC
@@ -474,7 +489,7 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
             6. Plan description:
         * *Link repository to new build plan*
             1. Repository host: Other > None
-    2. **Create PROD Plan**
+    4. **Create PROD Plan**
         * *Project and build plan name*
             1. Project: Catapult
             4. Plan name: PROD
@@ -482,7 +497,7 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
             6. Plan description:
         * *Link repository to new build plan*
             1. Repository host: Other > None
-    2. **Create WINTEST Plan**
+    5. **Create WINTEST Plan**
         * *Project and build plan name*
             1. Project: Catapult
             4. Plan name: WINTEST
@@ -490,7 +505,7 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
             6. Plan description:
         * *Link repository to new build plan*
             1. Repository host: Other > None
-    2. **Create WINQC Plan**
+    6. **Create WINQC Plan**
         * *Project and build plan name*
             1. Project: Catapult
             4. Plan name: WINQC
@@ -498,7 +513,7 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
             6. Plan description:
         * *Link repository to new build plan*
             1. Repository host: Other > None
-    2. **Create WINPROD Plan**
+    7. **Create WINPROD Plan**
         * *Project and build plan name*
             1. Project: Catapult
             4. Plan name: WINPROD
@@ -511,7 +526,7 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
 1. **CloudFlare** sign-up and configuration
     1. Create a CloudFlare account at https://www.cloudflare.com
     2. Sign in to your new CloudFlare account
-    3. Visit your My Account section at https://www.cloudflare.com/a/account/my-account and scroll down to your API Key and place the token value at `~/secrets/configuration.yml["company"]["cloudflare_api_key"]`
+    3. Visit your My Account section at https://www.cloudflare.com/a/account/my-account and scroll down to your Global API Key and place the token value at `~/secrets/configuration.yml["company"]["cloudflare_api_key"]`
     4. Place the email address of the email address that you used to sign up for CloudFlare at `~/secrets/configuration.yml["company"]["cloudflare_email"]`
 
 ### 5. **Monitoring:**
@@ -523,12 +538,12 @@ Please note that Bamboo Cloud has an end-of-life January 31, 2017. Catapult used
     3. Go to your Account Settings > Integrations > API keys.
     4. Generate and place your REST API key at `~/secrets/configuration.yml["company"]["newrelic_api_key"]`
     5. Generate and place your Admin API key at `~/secrets/configuration.yml["company"]["newrelic_admin_api_key"]`
-    3. Go to your Account Settings > Account > Summary.
-    5. Place your License key at `~/secrets/configuration.yml["company"]["newrelic_license_key"]`
+    6. Go to your Account Settings > Account > Summary.
+    7. Place your License key at `~/secrets/configuration.yml["company"]["newrelic_license_key"]`
 
 ### 6. **Email:**
 1. **SendGrid** sign-up and configuration
-    1. Create a New Relic account at https://sendgrid.com/
+    1. Create a SendGrid account at https://sendgrid.com/
     2. Sign in to your SendGrid account
     3. Go to Settings > API Keys.
     4. Generate an API key named "Catapult" and place at `~/secrets/configuration.yml["company"]["sendgrid_api_key"]`
@@ -568,11 +583,21 @@ For each **Environment** you will need to:
 
 ## Configure Automated Deployments ##
 
-Once the Web and Database Servers are up and running, it's then time to configure your Bamboo Catapult project's TEST, QC, and PROD plans.
+Once the Web and Database Servers are up and running, it's then time to configure your Bamboo Catapult project's TEST, QC, and PROD plans. To avoid having to manually configure the Bamboo project, plans, stages, jobs, and tasks configuration, you may optionally install and purchase the "Bob Swift Atlassian Add-ons - Bamboo CLI Connector" Bamboo add-on. Otherwise, the manual setup configuration steps are outlined below:
 
-1. Sign in to your new custom Bamboo instance https://[your-name-here].atlassian.net
+1. Sign in to your new custom Bamboo instance `~/secrets/configuration.yml["company"]["bamboo_base_url"]`
 2. Click Build > All build plans from the header:
 3. From the Build Dashboard and under the Catapult project:
+    * **Configure Catapult Project BUILD Plan**
+        1. Click the edit icon for the BUILD plan
+        2. From the Stages tab, select Default Job
+        3. Remove all tasks that may have been added by default during initial setup
+        4. Click Add task
+            1. Search for Script Task and select it
+            2. Interpreter: `shell`
+            3. Script Location: `Inline`
+            6. Script body: `bash /catapult/provisioners/redhat/provision.sh "build" "https://github.com/[your-name-here]/catapult" "~/secrets/configuration-user.yml["settings"]["gpg_key"]" "bamboo"`
+            7. Click Save
     * **Configure Catapult Project TEST Plan**
         1. Click the edit icon for the TEST plan
         2. From the Stages tab, select Default Job
@@ -839,6 +864,7 @@ The following options are available:
     * option: `software: codeigniter3`
     * option: `software: drupal6`
     * option: `software: drupal7`
+    * option: `software: drupal8`
     * option: `software: elgg1`
     * option: `software: expressionengine3`
     * option: `software: joomla3`
@@ -847,8 +873,8 @@ The following options are available:
     * option: `software: moodle3`
     * option: `software: silverstripe3`
     * option: `software: suitecrm7`
-    * option: `software: wordpress`
-    * option: `software: xenforo`
+    * option: `software: wordpress4`
+    * option: `software: xenforo1`
     * option: `software: zendframework2`
 * `software_auto_update:`
     * required: no
@@ -910,7 +936,9 @@ Software | `software_auto_update` Support | Install Approach | Install Notes
 `codeigniter3`      | [:white_check_mark:](https://www.codeigniter.com/userguide3/installation/upgrading.html) |          | Follow the [Installation Instructions](https://www.codeigniter.com/userguide3/installation/index.html).
 `drupal6`           | :white_check_mark:                                                       | Drush    | `drush dl drupal-6`
 `drupal7`           | :white_check_mark:                                                       | Drush    | `drush dl drupal-7`
+`drupal8`           | :white_check_mark:                                                       | Drush    | `drush dl drupal-8`
 `elgg1`             | [:x:](http://learn.elgg.org/en/2.0/admin/upgrading.html)                 | Fork     | Follow the installation [Overview](http://learn.elgg.org/en/2.0/intro/install.html). Catapult requires the `dataroot` directory to be within the webroot, it's pertinant to create a `.gitignore` to ignore and `.htaccess` to deny access to this directory.
+`elgg2`             | [:x:](http://learn.elgg.org/en/2.0/admin/upgrading.html)                 | Fork     | Follow the installation [Overview](http://learn.elgg.org/en/2.0/intro/install.html). Catapult requires the `dataroot` directory to be within the webroot, it's pertinant to create a `.gitignore` to ignore and `.htaccess` to deny access to this directory.
 `expressionengine3` | [:x:](https://docs.expressionengine.com/latest/installation/update.html) | Download |
 `joomla3`           | [:x:](https://docs.joomla.org/J3.x:Updating_from_an_existing_version)    | Fork     |
 `laravel5`          | [:x:](https://www.laravel.com/docs/master/upgrade)                       | Composer | Follow the [Composer Create-Project](https://laravel.com/docs/5.0/installation) documentation.
@@ -918,8 +946,8 @@ Software | `software_auto_update` Support | Install Approach | Install Notes
 `moodle3`           | :white_check_mark:                                                       | Fork     | Catapult requires the `moodledata` directory to be within the webroot, it's pertinant to create a `.gitignore` to ignore and `.htaccess` to deny access to this directory.
 `silverstripe3`     | [:x:](https://docs.silverstripe.org/en/3.4/upgrading/)                   | Composer | Follow the [Installing and Upgrading with Composer](https://docs.silverstripe.org/en/3.4/getting_started/composer/). During a fresh install, the database config file `mysite/_config.php` will need to be given 0777 permissions.
 `suitecrm7`         | [:x:](https://suitecrm.com/wiki/index.php/Upgrade)                       | Fork     |
-`wordpress`         | :white_check_mark:                                                       | Fork     |
-`xenforo`           | [:x:](https://xenforo.com/help/upgrades/)                                | Download |
+`wordpress4`        | :white_check_mark:                                                       | Fork     |
+`xenforo1`          | [:x:](https://xenforo.com/help/upgrades/)                                | Download |
 `zendframework2`    | :white_check_mark:                                                       | Fork     | Your best bet is to start from the [zendframework/ZendSkeletonApplication](https://github.com/zendframework/ZendSkeletonApplication) GitHub project. Catapult assumes Zend Framwork is at the root of your repo and writes a database config file at `config/autoload/global.php`, you will also need to set `webroot: public/` in your Catapult configuration.
 
 ### HTTPS and Certificates ###
@@ -993,8 +1021,9 @@ Software | Approach | Documentation
 ---------|----------|--------------
 `codeigniter2`      |                      |
 `codeigniter3`      |                      |
-`drupal6`           | `.htaccess`          | https://www.drupal.org/node/150215
-`drupal7`           | `.htaccess`          | https://www.drupal.org/node/150215
+`drupal6`           | `.htaccess`          |
+`drupal7`           | `.htaccess`          |
+`drupal8`           | `.htaccess`          |
 `elgg1`             |                      |
 `expressionengine3` |                      |
 `joomla3`           |                      |
@@ -1003,13 +1032,13 @@ Software | Approach | Documentation
 `moodle3`           |                      |
 `silverstripe3`     | `mysite/_config.php` | http://api.silverstripe.org/3.1/class-Director.html -> http://stackoverflow.com/a/26865882
 `suitecrm7`         |                      | 
-`wordpress`         | Database             | http://codex.wordpress.org/Changing_The_Site_URL
-`xenforo`           |                      |
+`wordpress4`        | Database             | http://codex.wordpress.org/Changing_The_Site_URL
+`xenforo1`          |                      |
 `zendframework2`    |                      |
 
-### Caching ###
+### Cache Busting ###
 
-Caching plays a very important role in the performance of your website, Catapult generally enforces caching of files to 7 days. To ensure that a new website release is reflected in a user's browser you will want to adopt [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of files. Here's an example:
+Caching plays a very important role in the performance of your website and enforces and recommends many [performance optimizations](#performance). Catapult generally enforces caching of files to 7 days, because of this, to ensure that a new website release is reflected in a user's browser you should consider [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of website resource files. Here's an example:
 
 `<link rel="stylesheet" href="style.min.css?v=3.4.1">`
 
@@ -1017,14 +1046,14 @@ Ready to deploy a new release? Update the version number and the cache will be "
 
 `<link rel="stylesheet" href="style.min.css?v=3.4.2">`
 
-Each software type will vary as to the standard convention of asset versioning, here is a [Wordpress example](https://wordpress.stackexchange.com/a/90824) to get you started.
+Each software type will vary as to the standard convention of website resource file versioning, here is a [Wordpress example](https://wordpress.stackexchange.com/a/90824) to get you started.
 
 ### Progressive Web App ###
-Progressive Web App (PWA), in general, is a term used to denote web apps that use the latest web technologies. Catapult allows a `manifest.json` file to be placed anywhere in your `webroot` and accessible regardless of whether you're using the `force_auth` option, this is necessary as `manifest.json` is accessed outside of the session of which you are authenticated. Don't forget to include the `link` tag `<link rel="manifest" href="/manifest.json">` to notify the browser of your manifest. More information regarding WPAs can be found at Google's [Web App Manifest](https://developers.google.com/web/fundamentals/engage-and-retain/web-app-manifest/) and [Progressive Web App Checklist](https://developers.google.com/web/progressive-web-apps/checklist).
+Progressive Web App (PWA), in general, is a term used to denote web apps that use the latest web technologies. Catapult allows a `manifest.json` file to be placed in your `webroot`. Note that this will be accessible regardless of whether or not you are using the `force_auth` option, which is necessary because `manifest.json` is sometimes accessed outside of the session under which you authenticated. Don't forget to include the `link` tag `<link rel="manifest" href="/manifest.json">` to notify the browser of your manifest. More information regarding PWAs can be found at Google's [Web App Manifest](https://developers.google.com/web/fundamentals/engage-and-retain/web-app-manifest/) and [Progressive Web App Checklist](https://developers.google.com/web/progressive-web-apps/checklist).
 
 ### Email ###
 
-Email delivery is an art, there are many considerations when trying to get an email into someone's inbox. Some considerations include, IP reputation, bounce management, analytics visibility, and more. For that reason, Catapult requires setup of a SendGrid accoung and recommned use of. To configure SendGrid with your software type, please set the SMTP configurtion to the following:
+Email delivery is an art, there are many considerations when trying to get an email into someone's inbox. Some considerations include, IP reputation, bounce management, analytics visibility, and more. For that reason, Catapult requires setup of a SendGrid account and configuration of SMTP within your website's software. To configure SendGrid with your software type, please set the SMTP configurtion to the following:
 
 * SMTP host: `smtp.sendgrid.net`
 * SMTP port: `587`
@@ -1050,6 +1079,7 @@ Software | Tool | Command | Documentation
 `codeigniter3`      | Migrations      | `php index.php migrate`                                | https://www.codeigniter.com/user_guide/libraries/migration.html
 `drupal6`           | Drush           | `drush updatedb -y`                                    | https://www.drupal.org/node/150215
 `drupal7`           | Drush           | `drush updatedb -y`                                    | https://www.drupal.org/node/150215
+`drupal8`           | Drush           | `drush updatedb -y`                                    | https://www.drupal.org/docs/8/api/update-api/introduction-to-update-api-for-drupal-8
 `elgg1`             |                 |                                                        |
 `expressionengine3` |                 |                                                        |
 `joomla3`           |                 |                                                        |
@@ -1058,8 +1088,8 @@ Software | Tool | Command | Documentation
 `moodle3`           |                 |                                                        |
 `silverstripe3`     | MigrationTask   | `php framework/cli-script.php dev/tasks/MigrationTask` | http://api.silverstripe.org/3.3/class-MigrationTask.html
 `suitecrm7`         |                 |                                                        |
-`wordpress`         | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
-`xenforo`           |                 |                                                        |
+`wordpress4`        | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
+`xenforo1`          |                 |                                                        |
 `zendframework2`    |                 |                                                        |
 
 ### Refreshing Databases ###
@@ -1119,73 +1149,6 @@ Always weigh the risk of *not performing* a production hotfix versus *performing
             * (this ensures there is a known committed SQL dump of your change to the `develop` branch for when this branch is merged upstream)
         3. From LocalDev, temporarily checkout the `master` branch of the website's repository, make your change in the most recent SQL dump file from within the `~/sql` folder
             * (this ensures that during the next Production build your change is not overwritten)
-
-
-
-## Performance Testing ##
-
-Often disregarded, performance testing is a crucial component of quality assurance. The risks of neglecting performance testing include downtime, SEO impacts, gaps in analytics, poor user experience, and unknown ability to scale.
-
-With Catapult's exactly duplicated configuration, even the Test environment can accurately represent the performance potential of the Production environment. [ApacheBench](https://httpd.apache.org/docs/2.4/programs/ab.html) is a powerful tool to test request performance and concurrency - OSX includes ApacheBench out of the box, while [this StackOverflow post](http://stackoverflow.com/a/7407602/4838803) details how to get up and running on Windows.
-
-ApacheBench enables us to profile request performance (`-n` represents the number of requests to perform) and concurrency (`-c` represents the number of multiple requests to make at a time) to test for performance, including common limits such as [C10k and C10M](http://highscalability.com/blog/2013/5/13/the-secret-to-10-million-concurrent-connections-the-kernel-i.html).
-
-### Website Concurrency Maximum ###
-
-Using a website with historical Google Analytics data, access the Audience Overview and find the busiest Pageview day from the past 30-days and then drill into that date. Find the hour with the most Pageviews, then the accompanying Avg. Session Duration. Using the following formula, we are able to find the Concurrency Maxiumum.
-
-*(Pageviews x Avg. Session Duration in seconds) / 3,600 seconds* = **Concurrency Maxiumum**
-
-<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/catapult/installers/images/catapult_website_concurrency_maximum.png" alt="Catapult Website Concurrency Maximum">
-
-**365,000 pageviews per month**
-
-Take a website with an average of 500 pageviews per hour, or 365,000 pageviews per month, which has a busiest hour of 1,000 pageviews.
-
-Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
-----------|-----------------------|-----------------------|---------------------
-1,000 | 60 minutes (3,600 seconds) | 3,600,000 | **1,000**
-1,000 | 10 minutes (600 seconds) | 600,000 | **166**
-1,000 | 5 minutes (300 seconds) | 300,000 | **88**
-1,000 | 1 minute (60 seconds) | 60,000 | **16**
-
-*100 concurrent requests performed 10 times*
-```
-ab -l -r -n 1000 -c 100 -H "Accept-Encoding: gzip, deflate" http://test.drupal7.devopsgroup.io/
-```
-
-**14,600 pageviews per month**
-
-Take a website with an average of 20 pageviews per hour, or 14,600 pageviews per month, which has a busiest hour of 100 pageviews.
-
-Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
-----------|-----------------------|-----------------------|---------------------
-100 | 60 minutes (3,600 seconds) | 36,000 | **1,000**
-100 | 10 minutes (600 seconds) | 60,000 | **16**
-100 | 5 minutes (300 seconds) | 30,000 | **8**
-100 | 1 minute (60 seconds) | 6,000 | **1.6**
-
-*10 concurrent requests performed 10 times*
-```
-ab -l -r -n 100 -c 10 -H "Accept-Encoding: gzip, deflate" http://test.drupal7.devopsgroup.io/
-```
-
-### Interpreting Apache AB Results ###
-
-Using a satisifed [Apdex](https://en.wikipedia.org/wiki/Apdex) of 7 seconds, we can see that 98% of users would be satisfied.
-
-```
-Percentage of the requests served within a certain time (ms)
-  50%     19
-  66%     21
-  75%     24
-  80%     27
-  90%     34
-  95%   3968
-  98%   6127
-  99%   7227
- 100%   7325 (longest request)
-```
 
 
 
@@ -1258,8 +1221,9 @@ Catapult enforces many security best practices that are important for you to be 
 
 **Application**
 
-* OWASP ModSecurity core rule set
-* HTTPS strict protocol and cipher suite
+* [OWASP ModSecurity Core Rule Set (CRS)](https://www.owasp.org/index.php/Category:OWASP_ModSecurity_Core_Rule_Set_Project) Apache rules
+* [Mozilla OpSec](https://wiki.mozilla.org/Security/Server_Side_TLS) strict HTTPS protocol and cipher suite
+* [OWASP Secure Headers Project](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#tab=Headers) recommended HTTP response headers
 * Automatic hourly application updates
 
 **Software**
@@ -1362,6 +1326,10 @@ Catapult as a platform can only reach so far into the configuration of your webs
   * Image compression with [imagemin](https://www.npmjs.com/package/gulp-imagemin)
   * JavaScript minification with [UglifyJS2](https://www.npmjs.com/package/gulp-uglify)
   * CSS minification with [clean-css](https://www.npmjs.com/package/gulp-clean-css)
+* Execute `<script>` tags [asynchronously](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#attr-async)
+    * Note that asynchronous scripts are not guaranteed to execute in specified order
+* Execute `<script>` tags after the document has been parsed with [defer](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#attr-defer)
+    * Note this is the same as placing script tags just before the `</body>` tag
 * Use [CSS sprites](https://css-tricks.com/css-sprites/) to reduce the number of HTTP requests
 * Take advantage of [link prefetching](https://css-tricks.com/prefetching-preloading-prebrowsing/) using `rel="prefetch"`
 * Write [PHP the right way](http://www.phptherightway.com/#welcome)
@@ -1369,6 +1337,73 @@ Catapult as a platform can only reach so far into the configuration of your webs
 * Write [efficient PHP](http://www.phpbench.com/)
 
 Google's [PageSpeed Insights](https://developers.google.com/speed/pagespeed/insights/) is a good tool to test for performance optimizations.
+
+
+
+# Performance Testing #
+
+Often disregarded, performance testing is a crucial component of quality assurance. The risks of neglecting performance testing include downtime, SEO impacts, gaps in analytics, poor user experience, and unknown ability to scale.
+
+With Catapult's exactly duplicated configuration, even the Test environment can accurately represent the performance potential of the Production environment. [ApacheBench](https://httpd.apache.org/docs/2.4/programs/ab.html) is a powerful tool to test request performance and concurrency - OSX includes ApacheBench out of the box, while [this StackOverflow post](http://stackoverflow.com/a/7407602/4838803) details how to get up and running on Windows.
+
+ApacheBench enables us to profile request performance (`-n` represents the number of requests to perform) and concurrency (`-c` represents the number of multiple requests to make at a time) to test for performance, including common limits such as [C10k and C10M](http://highscalability.com/blog/2013/5/13/the-secret-to-10-million-concurrent-connections-the-kernel-i.html).
+
+## Website Concurrency Maximum ##
+
+Using a website with historical Google Analytics data, access the Audience Overview and find the busiest Pageview day from the past 30-days and then drill into that date. Find the hour with the most Pageviews, then the accompanying Avg. Session Duration. Using the following formula, we are able to find the Concurrency Maxiumum.
+
+*(Pageviews x Avg. Session Duration in seconds) / 3,600 seconds* = **Concurrency Maxiumum**
+
+<img src="https://cdn.rawgit.com/devopsgroup-io/catapult/master/catapult/installers/images/catapult_website_concurrency_maximum.png" alt="Catapult Website Concurrency Maximum">
+
+**365,000 pageviews per month**
+
+Take a website with an average of 500 pageviews per hour, or 365,000 pageviews per month, which has a busiest hour of 1,000 pageviews.
+
+Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
+----------|-----------------------|-----------------------|---------------------
+1,000 | 60 minutes (3,600 seconds) | 3,600,000 | **1,000**
+1,000 | 10 minutes (600 seconds) | 600,000 | **166**
+1,000 | 5 minutes (300 seconds) | 300,000 | **88**
+1,000 | 1 minute (60 seconds) | 60,000 | **16**
+
+*100 concurrent requests performed 10 times*
+```
+ab -l -r -n 1000 -c 100 -H "Accept-Encoding: gzip, deflate" http://test.drupal7.devopsgroup.io/
+```
+
+**14,600 pageviews per month**
+
+Take a website with an average of 20 pageviews per hour, or 14,600 pageviews per month, which has a busiest hour of 100 pageviews.
+
+Pageviews | Avg. Session Duration | Total Session Seconds | Concurrency Maxiumum
+----------|-----------------------|-----------------------|---------------------
+100 | 60 minutes (3,600 seconds) | 36,000 | **1,000**
+100 | 10 minutes (600 seconds) | 60,000 | **16**
+100 | 5 minutes (300 seconds) | 30,000 | **8**
+100 | 1 minute (60 seconds) | 6,000 | **1.6**
+
+*10 concurrent requests performed 10 times*
+```
+ab -l -r -n 100 -c 10 -H "Accept-Encoding: gzip, deflate" http://test.drupal7.devopsgroup.io/
+```
+
+## Interpreting Apache AB Results ##
+
+Using a satisifed [Apdex](https://en.wikipedia.org/wiki/Apdex) of 7 seconds, we can see that 98% of users would be satisfied.
+
+```
+Percentage of the requests served within a certain time (ms)
+  50%     19
+  66%     21
+  75%     24
+  80%     27
+  90%     34
+  95%   3968
+  98%   6127
+  99%   7227
+ 100%   7325 (longest request)
+```
 
 
 
@@ -1432,7 +1467,6 @@ The Catapult team values partnerships and continuous improvement.
 Catapult is making the conference tour! We plan to attend the following conferences, with more to come. Get a chance to see Catapult in action, presented by it's core developers.
 
 * Spring 2016 [04-08-2016] [Drupaldelphia](http://drupaldelphia.com/): DevOps Discipline: Detailed and Complete
-* Winter 2016 [WordCamp US](http://us.wordcamp.org/)
 
 
 

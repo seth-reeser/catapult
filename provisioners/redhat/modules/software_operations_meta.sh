@@ -53,7 +53,32 @@ elif [ "${software}" = "drupal7" ]; then
         ON DUPLICATE KEY UPDATE rid='3';
     "
 
+elif [ "${software}" = "drupal8" ]; then
+    
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --always-set variable-set site_mail $(catapult company.email)
+
+    password_hash=$(cd "/var/www/repositories/apache/${domain}/${webroot}" && php ./core/scripts/password-hash.sh $(catapult environments.${1}.software.drupal.admin_password))
+    password_hash=$(echo "${password_hash}" | awk '{ print $4 }' | tr -d " " | tr -d "\n")
+    mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+        INSERT INTO ${software_dbprefix}users_field_data (uid, pass, mail, status)
+        VALUES ('1', '${password_hash}', '$(catapult company.email)', '1')
+        ON DUPLICATE KEY UPDATE name='admin', mail='$(catapult company.email)', pass='${password_hash}', status='1';
+    "
+    #mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+    #    INSERT INTO ${software_dbprefix}users_roles (uid, rid)
+    #    VALUES ('1', '3')
+    #    ON DUPLICATE KEY UPDATE rid='3';
+    #"
+
 elif [ "${software}" = "elgg1" ]; then
+    
+    mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
+        INSERT INTO ${software_dbprefix}users_entity (username, password_hash, email, banned, admin)
+        VALUES ('admin', MD5('$(catapult environments.${1}.software.admin_password)'), '$(catapult company.email)', 'no', 'yes')
+        ON DUPLICATE KEY UPDATE username='admin', password_hash=MD5('$(catapult environments.${1}.software.admin_password)'), email='$(catapult company.email)', banned='no', admin='yes';
+    "
+
+elif [ "${software}" = "elgg2" ]; then
     
     mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "
         INSERT INTO ${software_dbprefix}users_entity (username, password_hash, email, banned, admin)
@@ -109,7 +134,7 @@ elif [ "${software}" = "suitecrm7" ]; then
         ON DUPLICATE KEY UPDATE user_name='admin', user_hash=MD5('$(catapult environments.${1}.software.admin_password)'), is_admin='1';
     "
 
-elif [ "${software}" = "wordpress" ]; then
+elif [ "${software}" = "wordpress4" ]; then
     
     mysql --defaults-extra-file=$dbconf ${1}_${domainvaliddbname} -e "UPDATE ${software_dbprefix}options SET option_value='$(catapult company.email)' WHERE option_name = 'admin_email';"
     
@@ -163,9 +188,23 @@ elif [ "${software}" = "drupal7" ]; then
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --always-set variable-set cache 1
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --always-set variable-set cache_lifetime 0
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --always-set variable-set page_cache_maximum_age 900
-        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --always-set variable-set page_compression 0
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --always-set variable-set page_compression 1
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --always-set variable-set preprocess_css 1
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --always-set variable-set preprocess_js 1
+    fi
+
+elif [ "${software}" = "drupal8" ]; then
+
+    # https://www.drupal.org/node/2598914
+
+    if [ "$1" = "dev" ]; then
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance cache.page.max_age 0
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance css.preprocess 0
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance js.preprocess 0
+    else
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance cache.page.max_age 900
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance css.preprocess 1
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance js.preprocess 1
     fi
 
 fi
@@ -207,7 +246,18 @@ elif [ "${software}" = "drupal7" ]; then
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes updatedb
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes cache-clear all
 
+elif [ "${software}" = "drupal8" ]; then
+
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes watchdog-delete all
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes core-cron
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes updatedb
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes cache-clear all
+
 elif [ "${software}" = "elgg1" ]; then
+
+    echo "nothing to perform, skipping..."
+
+elif [ "${software}" = "elgg2" ]; then
 
     echo "nothing to perform, skipping..."
 
@@ -250,12 +300,12 @@ elif [ "${software}" = "suitecrm7" ]; then
 
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && php cron.php
 
-elif [ "${software}" = "wordpress" ]; then
+elif [ "${software}" = "wordpress4" ]; then
 
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update-db
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root cache flush
 
-elif [ "${software}" = "xenforo" ]; then
+elif [ "${software}" = "xenforo1" ]; then
 
     echo "nothing to perform, skipping..."
 

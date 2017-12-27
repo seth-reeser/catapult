@@ -30,7 +30,7 @@ Vagrant.configure("2") do |config|
       provider.token = Catapult::Command.configuration["company"]["digitalocean_personal_access_token"]
       provider.image = "centos-7-x64"
       provider.region = "nyc3"
-      provider.size = "1gb"
+      provider.size = "s-1vcpu-3gb"
       provider.ipv6 = true
       provider.private_networking = true
       provider.backups_enabled = true
@@ -247,7 +247,7 @@ Vagrant.configure("2") do |config|
       override.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
       provider.access_key_id = Catapult::Command.configuration["company"]["aws_access_key"]
       provider.secret_access_key = Catapult::Command.configuration["company"]["aws_secret_key"]
-      provider.ami = "ami-11e84107"
+      provider.ami = "ami-d79d92c1"
       provider.region = "us-east-1"
       provider.instance_type = Catapult::Command.configuration["environments"]["test"]["servers"]["windows"]["type"] || "t2.micro"
       provider.tags = {
@@ -275,7 +275,7 @@ Vagrant.configure("2") do |config|
       override.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
       provider.access_key_id = Catapult::Command.configuration["company"]["aws_access_key"]
       provider.secret_access_key = Catapult::Command.configuration["company"]["aws_secret_key"]
-      provider.ami = "ami-11e84107"
+      provider.ami = "ami-d79d92c1"
       provider.region = "us-east-1"
       provider.instance_type = Catapult::Command.configuration["environments"]["test"]["servers"]["windows_mssql"]["type"] || "t2.micro"
       provider.tags = {
@@ -305,7 +305,7 @@ Vagrant.configure("2") do |config|
       override.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
       provider.access_key_id = Catapult::Command.configuration["company"]["aws_access_key"]
       provider.secret_access_key = Catapult::Command.configuration["company"]["aws_secret_key"]
-      provider.ami = "ami-11e84107"
+      provider.ami = "ami-d79d92c1"
       provider.region = "us-east-1"
       provider.instance_type = Catapult::Command.configuration["environments"]["qc"]["servers"]["windows"]["type"] || "t2.micro"
       provider.tags = {
@@ -333,7 +333,7 @@ Vagrant.configure("2") do |config|
       override.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
       provider.access_key_id = Catapult::Command.configuration["company"]["aws_access_key"]
       provider.secret_access_key = Catapult::Command.configuration["company"]["aws_secret_key"]
-      provider.ami = "ami-11e84107"
+      provider.ami = "ami-d79d92c1"
       provider.region = "us-east-1"
       provider.instance_type = Catapult::Command.configuration["environments"]["qc"]["servers"]["windows_mssql"]["type"] || "t2.micro"
       provider.tags = {
@@ -363,7 +363,7 @@ Vagrant.configure("2") do |config|
       override.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
       provider.access_key_id = Catapult::Command.configuration["company"]["aws_access_key"]
       provider.secret_access_key = Catapult::Command.configuration["company"]["aws_secret_key"]
-      provider.ami = "ami-11e84107"
+      provider.ami = "ami-d79d92c1"
       provider.region = "us-east-1"
       provider.instance_type = Catapult::Command.configuration["environments"]["production"]["servers"]["windows"]["type"] || "t2.micro"
       provider.tags = {
@@ -391,7 +391,7 @@ Vagrant.configure("2") do |config|
       override.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
       provider.access_key_id = Catapult::Command.configuration["company"]["aws_access_key"]
       provider.secret_access_key = Catapult::Command.configuration["company"]["aws_secret_key"]
-      provider.ami = "ami-11e84107"
+      provider.ami = "ami-d79d92c1"
       provider.region = "us-east-1"
       provider.instance_type = Catapult::Command.configuration["environments"]["production"]["servers"]["windows_mssql"]["type"] || "t2.micro"
       provider.tags = {
