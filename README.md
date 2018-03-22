@@ -1113,17 +1113,38 @@ Oracle SQL Developer is the recommended tool, to connect to and work with, datab
         * For convenience, you may also use `~/catapult/installers/jtds-1.3.1.jar`
 * **Connecting to:** LocalDev
     * The firewall allows direct connection to the database server. 
-        * Use the mysql values in `~/secrets/configuration.yml` to connect.
+        * From Oracle SQL Developer > View > Connections, add a New Connection with the respective environment's mysql user values in `~/secrets/configuration.yml`.
 * **Connecting to:** Test, QC, Production
     * The firewall does not allow direct connect to the database servers.
-        * Add a New SSH Host in Oracle SQL Developer with the respective environment's web server host public ip address, root username with key file at `~/secrets/id_rsa`.
+        * From Oracle SQL Developer > View > SSH, add a New SSH Host in Oracle SQL Developer with the respective environment's web server host public ip address, root username with key file at `~/secrets/id_rsa`.
             * Create a New Local Port Forward with the respective environment's database server host private ip address and port 3306.
-        * Then add a New Connection with the respective environment's mysql user values in `~/secrets/configuration.yml`.
+        * From Oracle SQL Developer > View > Connections, add a New Connection with the respective environment's mysql user values in `~/secrets/configuration.yml`.
             * The hostname will be localhost since we are forwarding the port through our local SSH tunnel.
 
 ### Production Hotfixes ###
 
-Always weigh the risk of *not performing* a production hotfix versus *performing* it, as production hotfixes require going outside of the normal development and testing workflow. Performing a production hotfix varies depending on the website's `software` type, `software_workflow` direction, and type of change (code or database).
+Always weigh the risk of *not performing* a production hotfix versus *performing* it, as production hotfixes require going outside of the normal development and testing workflow. Below is an example of how you can determine severity:
+
+Ask key stakeholders the following questions and assign a 1 or 0 for the answer, then add up the total:
+
+* What is the organizational risk?
+    * High = 1 or Low = 0
+* How many users does this effect?
+    * Many = 1 or Few = 0
+* Is there a workaround?
+    * No = 1 or Yes = 0
+* What is the user impact?
+    * High = 1 or Low = 0
+
+The total will determine the level of severity, typically a 4 would be considered a candidate for a production hotfix:
+
+* 0=Tolerate
+* 1=Trivial
+* 2=Minor
+* 3=Major
+* 4=Critical
+
+Performing a production hotfix varies depending on the website's `software` type, `software_workflow` direction, and type of change (code or database).
 
 * `software_workflow: downstream`
     * **Code**
