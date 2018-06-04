@@ -19,7 +19,6 @@ while IFS='' read -r -d '' key; do
     else
         domain_root="${domain}"
     fi
-    domainvaliddbname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_" | tr "-" "_")
     domainvalidcertname=$(echo "$key" | grep -w "domain" | cut -d ":" -f 2 | tr -d " " | tr "." "_")
     if [ "$1" != "production" ]; then
         domainvalidcertname="${1}_${domainvalidcertname}"
@@ -141,7 +140,13 @@ EOF
         force_https_hsts="# HSTS is only enabled when force_https=true"
     fi
     # handle the software php_version setting
-    if [ "${software_php_version}" = "7.0" ]; then
+    if [ "${software_php_version}" = "7.1" ]; then
+        software_php_version_value="
+        <FilesMatch \.php$>
+            SetHandler \"proxy:fcgi://127.0.0.1:9710\"
+        </FilesMatch>
+        "
+    elif [ "${software_php_version}" = "7.0" ]; then
         software_php_version_value="
         <FilesMatch \.php$>
             SetHandler \"proxy:fcgi://127.0.0.1:9700\"
