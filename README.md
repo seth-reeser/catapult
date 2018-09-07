@@ -80,9 +80,9 @@ Catapult orchestrates the following key components of DevOps to provide you with
 
 
 
-## Supported Software ##
+## Supported Website Software ##
 
-Catapult intelligently manages the following software that has been chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and aligns with the [CentOS 7 trunk](http://mirror.centos.org/centos/7/os/x86_64/Packages/) along with the [Software Collections trunk](https://www.softwarecollections.org/):
+Catapult intelligently manages the following website software that have been chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and aligns with the [CentOS 7 trunk](http://mirror.centos.org/centos/7/os/x86_64/Packages/) along with the [Software Collections trunk](https://www.softwarecollections.org/):
 
 Software | [Key](#websites) | Required PHP Version | Defined PHP Version | Released | End-of-Life
 ---------|------------------|---------------------|---------------------|----------|------------
@@ -107,6 +107,8 @@ Zend Framework 2                  | `zendframework2`       | 5.3.23 | 5.4 | Sept
 Catapult additionally supports basic PHP projects that do not have a database requirement:
 
 * PHP 5.4 compatible project
+
+Catapult additionally supports static site generators, such as, [Jekyll](https://jekyllrb.com/).
 
 
 ## Competition ##
@@ -155,7 +157,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
 - [Catapult](#catapult)
     - [Platform Overview](#platform-overview)
     - [Security Disclosure](#security-disclosure)
-    - [Supported Software](#supported-software)
+    - [Supported Website Software](#supported-website-software)
     - [Competition](#competition)
     - [Table of Contents](#table-of-contents)
 - [Setup Catapult](#setup-catapult)
@@ -178,6 +180,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
         - [Software Updates and Fresh Installs](#software-updates-and-fresh-installs)
         - [HTTPS and Certificates](#https-and-certificates)
         - [Forcing www](#forcing-www)
+        - [Debug Output](#debug-output)
         - [Cache Busting](#cache-busting)
         - [Progressive Web App](#progressive-web-app)
         - [Email](#email)
@@ -195,7 +198,7 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
         - [Website Rollbacks](#website-rollbacks)
 - [Security](#security)
     - [Preventive Controls](#preventive-controls)
-    - [Detective Controls](#reactive-controls)
+    - [Detective Controls](#detective-controls)
     - [Corrective Controls](#corrective-controls)
     - [Data Protection](#data-protection)
         - [United States](#united-states)
@@ -1017,15 +1020,32 @@ Software | Approach | Documentation
 `xenforo1`          |                      |
 `zendframework2`    |                      |
 
+### Debug Output ###
+
+Debug output, unlike logging, is a configuration that outputs exceptions on-screen of your website while you're developing in LocalDev for convenience. It also aligns with the testing activies as defined in [Release Management](#release-management). Debug output is configured at two levels; PHP and software specific, the below chart provides a breakdown.
+
+| LocalDev | Test | QC | Production
+|----------|------|----|-----------
+| Verbose | Verbose | Hidden | Hidden
+
+
 ### Cache Busting ###
 
-Caching plays a very important role in the performance of your website and enforces and recommends many [performance optimizations](#performance). Catapult generally enforces caching of files to 7 days, because of this, to ensure that a new website release is reflected in a user's browser you should consider [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of website resource files. Here's an example:
+Caching plays a very important role in the performance of your website and enforces and recommends many [performance optimizations](#performance). Catapult generally enforces caching of files to 7 days, because of this, to ensure that a new website release is reflected in a user's browser you should consider [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of website resource files. Here's an example of query string cache busting:
 
-`<link rel="stylesheet" href="style.min.css?v=3.4.1">`
+`<link rel="stylesheet" href="/css/style.min.css?v=3.4.1">`
 
 Ready to deploy a new release? Update the version number and the cache will be "busted":
 
-`<link rel="stylesheet" href="style.min.css?v=3.4.2">`
+`<link rel="stylesheet" href="/css/style.min.css?v=3.4.2">`
+
+A more complicated, yet effective method of cache busting is by using versioned folders. Resources with a "?" in the URL are not cached by some proxy caching servers. Here is an example of URL path cache busting:
+
+`<link rel="stylesheet" href="/css/3.4.1/style.min.css">`
+
+Ready to deploy a new release? Update the version number and the cache will be "busted":
+
+`<link rel="stylesheet" href="/css/3.4.2/style.min.css">`
 
 Each software type will vary as to the standard convention of website resource file versioning, here is a [Wordpress example](https://wordpress.stackexchange.com/a/90824) to get you started.
 
