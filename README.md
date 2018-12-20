@@ -246,16 +246,16 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
 1. **Vagrant**
     * **Using macOS?**
         1. Ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
-        2. Download and install the latest version of Vagrant v1 from https://releases.hashicorp.com/vagrant/
+        2. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
     * **Using Windows?**
-        1. Download and install the latest version of Vagrant v1 from https://releases.hashicorp.com/vagrant/
+        1. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
     * **Using Linux (Debian, Ubuntu)?**
-        1. Download the latest version of Vagrant v1 respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.9.8/vagrant_1.9.8_x86_64.deb`
-        2. Install Vagrant using dpkg e.g. `sudo dpkg --install vagrant_1.9.8_x86_64.deb`
+        1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.2/vagrant_2.2.2_x86_64.deb`
+        2. Install Vagrant using dpkg e.g. `sudo dpkg --install vagrant_2.2.2_x86_64.deb`
         3. Install Network File System (NFS) `sudo apt-get install nfs-kernel-server`
     * **Using Linux (Fedora, Red Hat, Suse)?**
-        1. Download the latest version of Vagrant v1 respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/1.9.8/vagrant_1.9.8_x86_64.rpm`
-        2. Install Vagrant using yum e.g. `sudo yum install vagrant_1.9.8_x86_64.rpm`
+        1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.2/vagrant_2.2.2_x86_64.rpm`
+        2. Install Vagrant using yum e.g. `sudo yum install vagrant_2.2.2_x86_64.rpm`
 2. **Vagrant Plugins**
     1. Open your command line and install the following Vagrant plugins:
         1. `vagrant plugin install vagrant-aws`
@@ -268,13 +268,13 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
             * [![Gem](https://img.shields.io/gem/dt/vagrant-vbguest.svg)](https://rubygems.org/gems/vagrant-vbguest)
 3. **VirtualBox**
     * **Using macOS?**
-        1. Download and install the latest version of VirtualBox v5.1 from https://www.virtualbox.org/wiki/Downloads
+        1. Download and install the latest version of VirtualBox v5.2 from https://www.virtualbox.org/wiki/Downloads
     * **Using Windows?**
-        1. Download and install the latest version of VirtualBox v5.1 from https://www.virtualbox.org/wiki/Downloads
+        1. Download and install the latest version of VirtualBox v5.2 from https://www.virtualbox.org/wiki/Downloads
     * **Using Linux (Debian, Ubuntu)?**
-        1. Download and install the latest version of VirtualBox v5.1 using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
+        1. Download and install the latest version of VirtualBox v5.2 using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
     * **Using Linux (Fedora, Red Hat, Suse)?**
-        1. Download and install the latest version of VirtualBox v5.1 using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
+        1. Download and install the latest version of VirtualBox v5.2 using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
 4. **GPG2**
     * **Using macOS?**
         1. Download and install GPG Suite from https://gpgtools.org
@@ -790,12 +790,13 @@ The following options are available:
     * required: yes
     * example: `domain: example.com`
     * example: `domain: subdomain.example.com`
-        * one subdomain level is supported for this root domain entry (`subdomain.example.com`)
         * this root domain entry is the Production canonical domain name without `www.`
             * a `www.` subdomain is created for you
             * the key for all management orchestration of this website
+        * one subdomain level is supported for this root domain entry (`subdomain.example.com`)
         * manages DNS of LocalDev (via hosts file) and Test, QC, Production (via CloudFlare)
             * `dev.example.com`, `test.example.com`, `qc.example.com`, `example.com`
+            * `www.dev.example.com`, `www.test.example.com`, `www.qc.example.com`, `www.example.com`
 * `domain_tld_override:`
     * required: no
     * example: `domain_tld_override: mycompany.com`
@@ -803,6 +804,7 @@ The following options are available:
             * useful when you cannot or do not wish to host the Test/QC website at the `domain`
         * appends the `domain_tld_override` for Environments
             * `dev.example.com.mycompany.com`, `test.example.com.mycompany.com`, `qc.example.com.mycompany.com`, `example.com.mycompany.com`
+            * `www.dev.example.com.mycompany.com`, `www.test.example.com.mycompany.com`, `www.qc.example.com.mycompany.com`, `www.example.com.mycompany.com`
         * PLEASE NOTE: When removing this option from a website with `software:`, you need to manually replace URLs in the database respective to the `software_workflow:` option.
             * ie `vagrant ssh mycompany.com-test-redhat-mysql`
             * `wp-cli --allow-root --path="/var/www/repositories/apache/example.com/(webroot if applicable)" search-replace ":\/\/(www\.)?(dev\.|test\.)?(example\.com\.mycompany\.com)" "://example.com" --regex`
