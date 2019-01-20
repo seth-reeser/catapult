@@ -171,6 +171,9 @@ windows:
     mssql:
       modules: ["time","system","git_clean","git","mssql"]
 
+# file_store_containers: directories that the software needs write access to
+# file_stores: directories that will grow over time with user-generated content (may be duplicitive with the above)
+
 software:
   apache:
     codeigniter2:
@@ -188,7 +191,7 @@ software:
       database_config_file: "application/config/database.php"
       file_store_containers: ["application/cache","application/logs","uploads"]
       file_stores: ["uploads"]
-      php_version: "5.6"
+      php_version: "7.1"
       version: [3]
     concrete58:
       repo: "https://github.com/concrete5/concrete5"
@@ -211,7 +214,7 @@ software:
       branch: "7.x"
       database_config_file: "sites/default/settings.php"
       file_stores: ["sites/default/files"]
-      php_version: "5.6"
+      php_version: "7.1"
       version: [7]
     drupal8:
       repo: "https://git.drupal.org/project/drupal.git"
@@ -225,18 +228,19 @@ software:
       branch: "1.12"
       database_config_file: "engine/settings.php"
       file_store_containers: ["dataroot"]
-      php_version: "5.6"
+      php_version: "7.1"
       version: [1]
     elgg2:
       repo: "https://github.com/Elgg/Elgg.git"
       branch: "2.3"
       database_config_file: "elgg-config/settings.php"
       file_store_containers: ["dataroot"]
-      php_version: "5.6"
+      php_version: "7.1"
       version: [2]
     expressionengine3:
       repo: PRIVATE
       database_config_file: "system/user/config/config.php"
+      eol: "2018-12-14"
       file_store_containers: ["system/user/cache","system/user/templates","images/avatars","images/captchas","images/member_photos","images/pm_attachments","images/signature_attachments","images/uploads"]
       php_version: "5.4"
       version: [3]
@@ -245,7 +249,7 @@ software:
       branch: "3.6.x"
       database_config_file: "configuration.php"
       file_store_containers: ["administrator/cache","cache","logs","tmp"]
-      php_version: "5.6"
+      php_version: "7.1"
       version: [3]
     laravel5:
       repo: "https://github.com/laravel/laravel.git"
@@ -253,7 +257,7 @@ software:
       database_config_file: "config/database.php"
       file_store_containers: ["bootstrap/cache","resources","storage"]
       file_stores: ["resources","storage"]
-      php_version: "7.0"
+      php_version: "7.1"
       softwareroot: "../"
       version: [5]
     mediawiki1:
@@ -262,7 +266,7 @@ software:
       database_config_file: "LocalSettings.php"
       file_store_containers: ["images"]
       file_stores: ["images"]
-      php_version: "5.6"
+      php_version: "7.1"
       version: [1]
     moodle3:
       repo: "https://github.com/moodle/moodle.git"
@@ -270,7 +274,7 @@ software:
       database_config_file: "config.php"
       file_store_containers: ["moodledata"]
       file_stores: ["moodledata/filedir"]
-      php_version: "7.0"
+      php_version: "7.1"
       version: [3]
     silverstripe3:
       repo: "https://github.com/silverstripe/silverstripe-installer"
@@ -278,15 +282,16 @@ software:
       database_config_file: "mysite/_config.php"
       file_store_containers: ["assets"]
       file_stores: ["assets/Uploads"]
-      php_version: "5.6"
+      php_version: "7.1"
       version: [3]
     suitecrm7:
       repo: "https://github.com/salesagility/SuiteCRM.git"
       branch: "7.5.x"
       database_config_file: "config_override.php"
+      eol: "2019-11-15"
       file_store_containers: ["cache","custom","data","modules","upload","themes","tmp"]
       file_stores: ["uploads"]
-      php_version: "5.6"
+      php_version: "7.1"
       version: [7]
     wordpress4:
       repo: "https://github.com/WordPress/WordPress.git"
@@ -294,7 +299,7 @@ software:
       database_config_file: "wp-config.php"
       file_store_containers: ["wp-content"]
       file_stores: ["wp-content/languages","wp-content/uploads"]
-      php_version: "7.0"
+      php_version: "7.1"
       version: [4]
     wordpress5:
       repo: "https://github.com/WordPress/WordPress.git"
@@ -306,11 +311,19 @@ software:
       version: [5]
     xenforo1:
       repo: PRIVATE
-      database_config_file: "sites/default/settings.php"
+      database_config_file: "config.php"
+      eol: "2019-12-31"
       file_store_containers: ["data","internal_data"]
       file_stores: ["data","internal_data"]
       php_version: "5.4"
       version: [1]
+    xenforo2:
+      repo: PRIVATE
+      database_config_file: "src/config.php"
+      file_store_containers: ["data","internal_data","src"]
+      file_stores: ["data","internal_data"]
+      php_version: "7.1"
+      version: [2]
     zendframework2:
       repo: "https://github.com/zendframework/zendframework.git"
       tag: "release-2.4.10"
