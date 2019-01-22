@@ -19,12 +19,14 @@ if ([ ! -z "${software}" ]); then
 
     if ([ "${1}" = "production" ] && [ "${software_workflow}" = "downstream" ] && [ "${software_db}" != "" ] && [ "${software_db_tables}" != "0" ]) || ([ "${1}" = "test" ] && [ "${software_workflow}" = "upstream" ] && [ "${software_db}" != "" ] && [ "${software_db_tables}" != "0" ]); then
         # dump the database as long as it hasn't already been dumped for the day
-        if ! [ -f /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql ]; then
+        if ! [ -f /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql.lock ]; then
             echo -e "\t* performing a database backup"
             # create the _sql directory if it does not exist
             mkdir --parents "/var/www/repositories/apache/${domain}/_sql"
             # dump the database
             mysqldump --defaults-extra-file=$dbconf --single-transaction --quick ${1}_${domain_valid_db_name} > /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql
+            # write out a sql lock file for use in controlling what is restored in other environments
+            touch "/var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d").sql.lock"
             # ensure no more than 250mb or at least the one, newest, YYYYMMDD.sql file exists
             sql_files_size_maximum=$(( 1024 * 250 ))
             sql_files_size_total=0
