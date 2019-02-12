@@ -1,8 +1,7 @@
 source "/catapult/provisioners/redhat/modules/catapult.sh"
 
-# set a variable to the .cnf
+branch=$(catapult environments.$1.branch)
 dbconf="/catapult/provisioners/redhat/installers/temp/${1}.cnf"
-
 domain=$(catapult websites.apache.$5.domain)
 domain_valid_db_name=$(catapult websites.apache.$5.domain | tr "." "_" | tr "-" "_")
 software=$(catapult websites.apache.$5.software)
@@ -29,6 +28,8 @@ if ([ ! -z "${software}" ]); then
         # dump the database tables that are specified
         # note if there is an invalid table, there will be an error of: mysqldump: Couldn't find table: "test"
         mysqldump --defaults-extra-file=$dbconf --single-transaction --quick ${1}_${domain_valid_db_name} ${software_dbtable_retain[*]} > /var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d")_software_dbtable_retain.sql
+        # write out a sql lock file for use in controlling what is restored in other environments
+        touch "/var/www/repositories/apache/${domain}/_sql/$(date +"%Y%m%d")_software_dbtable_retain.sql.lock"
         # ensure no more than 50mb or at least the one, newest, YYYYMMDD_software_dbtable_retain.sql file exists
         sql_files_size_maximum=$(( 1024 * 50 ))
         sql_files_size_total=0
@@ -42,13 +43,15 @@ if ([ ! -z "${software}" ]); then
                 if [[ "$(basename "$file")" != "${file_newest}" ]]; then
                     echo -e "\t\t removing the old /var/www/repositories/apache/${domain}/_sql/${file}..."
                     sudo rm --force "/var/www/repositories/apache/${domain}/_sql/${file}"
+                    sudo rm --force "/var/www/repositories/apache/${domain}/_sql/${file}.lock"
                 fi
             fi
         done
-        # git add and commit the _sql folder changes
-        cd "/var/www/repositories/apache/${domain}" && git add --all "/var/www/repositories/apache/${domain}/_sql" 2>&1
-        cd "/var/www/repositories/apache/${domain}" && git commit --message="Catapult auto-commit ${1}:${software_workflow}:software_dbtable_retain" 2>&1
-        cd "/var/www/repositories/apache/${domain}" && sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git push origin $(catapult environments.$1.branch)" 2>&1
+        # git add, commit, pull, then push the _sql folder changes
+        cd "/var/www/repositories/apache/${domain}" \
+            && git add --all "_sql" \
+            && git commit --message="Catapult auto-commit ${1}:${software_workflow}:software_dbtable_retain" \
+            && sudo ssh-agent bash -c "ssh-add /catapult/secrets/id_rsa; git fetch && git pull origin ${branch} && git push origin ${branch}"
     fi
 
 fi
