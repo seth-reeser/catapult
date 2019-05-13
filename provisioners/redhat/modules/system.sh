@@ -114,10 +114,17 @@ else
     "$(echo "${configuration}" | shyaml get-value company.email)"
 EOF
 fi
+# configure postfix
+sudo postconf -e "smtpd_tls_security_level = may"
+sudo postconf -e "smtpd_tls_loglevel = 1"
+sudo postconf -e "smtp_tls_security_level = may"
+sudo postconf -e "smtp_tls_loglevel = 1"
 # https://cisofy.com/controls/MAIL-8818/ - hide the mail_name (option: smtpd_banner) from your postfix configuration
 sed --in-place --expression="s/^#smtpd_banner\s=\s\$myhostname\sESMTP\s\$mail_name$/smtpd_banner = \$myhostname ESMTP/g" "/etc/postfix/main.cf"
-# reload postfix after configuration changes
-sudo systemctl reload postfix.service
+# install postfix-perl-scripts for postfix reporting. e.g. perl /usr/sbin/pflogsumm -d today /var/log/maillog
+sudo yum install -y postfix-perl-scripts
+# restart postfix after configuration changes
+sudo systemctl restart postfix.service
 
 
 
@@ -298,9 +305,9 @@ EOF
 
 
 echo -e "\n> system monitoring configuration"
-# new relic servers is no longer available, so until we find an agnostic monir, let's rely on the provider
+# new relic servers is no longer available, so until we find an agnostic monitor, let's rely on the provider
 if ([ "$1" != "dev" ]); then
-    curl --silent --show-error --connect-timeout 5 --max-time 5 --location https://agent.digitalocean.com/install.sh | sh
+    curl --silent --show-error --connect-timeout 5 --max-time 5 --location https://insights.nyc3.cdn.digitaloceanspaces.com/install.sh | sudo bash
 fi
 
 
