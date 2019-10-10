@@ -48,7 +48,7 @@ fi
 
 # bundled extensions
 # These extensions are bundled with PHP.
-sudo yum install -y rh-php72-php-gd rh-php72-php-intl rh-php72-php-mbstring rh-php72-php-opcache rh-php72-php-soap rh-php72-php-xmlrpc
+sudo yum install -y rh-php72-php-bcmath rh-php72-php-gd rh-php72-php-intl rh-php72-php-mbstring rh-php72-php-opcache rh-php72-php-soap rh-php72-php-xmlrpc
 # disable opcache for dev
 if [ "$1" = "dev" ]; then
     sudo bash -c 'echo "/var/www" > /etc/opt/rh/rh-php72/php.d/opcache-default.blacklist'
@@ -108,7 +108,7 @@ fi
 
 # bundled extensions
 # These extensions are bundled with PHP.
-sudo yum install -y rh-php71-php-gd rh-php71-php-intl rh-php71-php-mbstring rh-php71-php-opcache rh-php71-php-soap rh-php71-php-xmlrpc
+sudo yum install -y rh-php71-php-bcmath rh-php71-php-gd rh-php71-php-intl rh-php71-php-mbstring rh-php71-php-opcache rh-php71-php-soap rh-php71-php-xmlrpc
 # disable opcache for dev
 if [ "$1" = "dev" ]; then
     sudo bash -c 'echo "/var/www" > /etc/opt/rh/rh-php71/php.d/opcache-default.blacklist'
@@ -169,7 +169,7 @@ fi
 
 # bundled extensions
 # These extensions are bundled with PHP.
-sudo yum install -y php-gd php-intl php-mbstring php-posix php-soap php-xmlrpc
+sudo yum install -y php-bcmath php-gd php-intl php-mbstring php-posix php-soap php-xmlrpc
 
 # external extensions
 # These extensions are bundled with PHP but in order to compile them, external libraries will be needed.
@@ -306,7 +306,7 @@ if ([ "${4}" == "apache" ]); then
     # apache mpm_prefork default values
     # https://httpd.apache.org/docs/2.4/mod/mpm_common.html#startservers
     # https://httpd.apache.org/docs/2.4/mod/prefork.html
-    # StartServers 5
+    # StartServers 5 (cores x 1)
     # MinSpareServers 5
     # MaxSpareServers 10
     # MaxRequestWorkers 256
@@ -315,9 +315,9 @@ if ([ "${4}" == "apache" ]); then
 
     # php-fpm default values
     # pm.max_children = 50
-    # pm.start_servers = 5
-    # pm.min_spare_servers = 5
-    # pm.max_spare_servers = 35
+    # pm.start_servers = 5 (cores x 4)
+    # pm.min_spare_servers = 5 (cores x 2)
+    # pm.max_spare_servers = 35 (cores x 4)
     # pm.max_requests = 0 (set this to something to prevent memory leaks from php applications - recommended 500)
 
     # https://medium.com/@sbuckpesch/apache2-and-php-fpm-performance-optimization-step-by-step-guide-1bfecf161534
@@ -334,9 +334,9 @@ if ([ "${4}" == "apache" ]); then
     # calculate configuration based on above values
     # /catapult/provisioners/redhat/installers/php/configuration-calculator.xlsx
 
-    sed -i -e "s#^pm.max_children.*#pm.max_children = 100#g" /etc/opt/rh/rh-php72/php-fpm.d/www.conf
-    sed -i -e "s#^pm.max_children.*#pm.max_children = 100#g" /etc/opt/rh/rh-php71/php-fpm.d/www.conf
-    sed -i -e "s#^pm.max_children.*#pm.max_children = 100#g" /etc/php-fpm.d/www.conf
+    sed -i -e "s#^pm.max_children.*#pm.max_children = 300#g" /etc/opt/rh/rh-php72/php-fpm.d/www.conf
+    sed -i -e "s#^pm.max_children.*#pm.max_children = 300#g" /etc/opt/rh/rh-php71/php-fpm.d/www.conf
+    sed -i -e "s#^pm.max_children.*#pm.max_children = 300#g" /etc/php-fpm.d/www.conf
 
     sed -i -e "s#.*pm.max_requests.*#pm.max_requests = 500#g" /etc/opt/rh/rh-php72/php-fpm.d/www.conf
     sed -i -e "s#.*pm.max_requests.*#pm.max_requests = 500#g" /etc/opt/rh/rh-php71/php-fpm.d/www.conf

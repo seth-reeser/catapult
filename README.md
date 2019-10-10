@@ -1092,7 +1092,7 @@ Debug output, unlike logging, is a configuration that outputs exceptions on-scre
 
 ### Cache Busting ###
 
-Caching plays a very important role in the performance of your website and enforces and recommends many [performance optimizations](#performance). Catapult generally enforces caching of files to 7 days, because of this, to ensure that a new website release is reflected in a user's browser you should consider [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of website resource files. Here's an example of query string cache busting:
+Caching plays a very important role in the performance of your website and enforces and recommends many [performance optimizations](#performance). Catapult generally enforces caching of files to [1 year](https://developers.google.com/web/tools/lighthouse/audits/cache-policy), because of this, to ensure that a new website release is reflected in a user's browser you should consider [semantic versioning]((http://semver.org/spec/v2.0.0.html)) of website resource files. Here's an example of query string cache busting:
 
 `<link rel="stylesheet" href="/css/style.min.css?v=3.4.1">`
 
@@ -1493,6 +1493,7 @@ Catapult as a platform can only reach so far into the configuration of your webs
   * Image compression with [imagemin](https://www.npmjs.com/package/gulp-imagemin)
   * JavaScript minification with [UglifyJS2](https://www.npmjs.com/package/gulp-uglify)
   * CSS minification with [clean-css](https://www.npmjs.com/package/gulp-clean-css)
+  * Concatenate minified JavaScript and CSS to reduce the number of HTTP requests
 * Execute `<script>` tags [asynchronously](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#attr-async)
     * Note that asynchronous scripts are not guaranteed to execute in specified order
 * Execute `<script>` tags after the document has been parsed with [defer](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#attr-defer)
