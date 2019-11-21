@@ -25,11 +25,13 @@ if ([ ! -z "${software}" ]); then
         : #no-op
     else
         if [ -z "${software_db}" ]; then
-            echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, however, the database does not exist. performing a database restore..."
+            echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, however, the database does not exist. creating a database and attempting to perform a database restore..."
+            # create database
+            mysql --defaults-extra-file=$dbconf -e "CREATE DATABASE ${1}_${domain_valid_db_name}"
         elif [ -z "${software_db_tables}" ]; then
-            echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, however, the database exists but contains no tables. performing a database restore..."
+            echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, however, the database exists but contains no tables. attempting to perform a database restore..."
         else
-            echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, performing a database restore..."
+            echo -e "\t* workflow is set to ${software_workflow} and this is the ${1} environment, attempting to perform a database restore..."
         fi
         # confirm we have a usable database backup
         if ! [ -d "/var/www/repositories/apache/${domain}/_sql" ]; then
@@ -124,10 +126,13 @@ if ([ ! -z "${software}" ]); then
                 # post-process the database
                 # necessary for PHP serialized arrays
                 # for software with a cli tool for database url reference replacements, use cli tool to post-process database and replace url references
-                if ([ "${software}" = "wordpress4" ] \
-                 || [ "${software}" = "wordpress5" ]); then
+                if ([ "${software}" = "wordpress4" ]); then
                     echo -e "\t- replacing URLs in the database to align with the enivronment..."
                     wp-cli-php71 --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" search-replace ":\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})" "://\$1${domain_url}" --regex | sed "s/^/\t\t/"
+                fi
+                if ([ "${software}" = "wordpress5" ]); then
+                    echo -e "\t- replacing URLs in the database to align with the enivronment..."
+                    wp-cli-php72 --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" search-replace ":\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})" "://\$1${domain_url}" --regex | sed "s/^/\t\t/"
                 fi
             fi
         fi
