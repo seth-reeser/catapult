@@ -102,7 +102,7 @@ Moodle 3                          | `moodle3`              | 5.6.5  | 7.1 | Nove
 SilverStripe 3                    | `silverstripe3`        | 5.3.3  | 5.4 | June 29, 2012      |
 SuiteCRM 7                        | `suitecrm7`            | 5.5    | 7.1 | October 21, 2013   | [November 15, 2019](http://support.sugarcrm.com/Resources/Supported_Versions/)
 WordPress 4                       | `wordpress4`           | 5.2.4  | 7.1 | September 4, 2014  |
-WordPress 5                       | `wordpress5`           | 5.2.4  | 7.1 | December 6, 2018   |
+WordPress 5                       | `wordpress5`           | 5.2.4  | 7.2 | December 6, 2018   |
 XenForo 1                         | `xenforo1`             | 5.2.11 | 5.4 | March 8, 2011      | [December 31, 2019](https://xenforo.com/community/threads/xenforo-1-5-end-of-life-schedule.157679/)
 XenForo 2                         | `xenforo2`             | 5.4.0  | 7.1 | November 28, 2017  |
 Zend Framework 2                  | `zendframework2`       | 5.3.23 | 5.4 | September 5, 2012  |
@@ -857,14 +857,17 @@ The following options are available:
 * `software:`
     * required: no
     * description: manages many aspects of software respective to each environment for websites with supported software types
-        * maintains software database config file
-        * manages tracked and untracked software file stores intelligently via git and rsync
-        * manages permissions of software file store containers
-        * manages software operations such as cron, garbage collection, and caches
-        * manages software database migrations
-        * manages software database backups and restores intelligently via git
-        * manages software url references in database
-        * manages software admininistrator account integrity
+        * php version
+        * git ignore file entries
+        * directory and file permissions
+        * database configuration file
+        * software file stores
+        * operations such as cron, garbage collection, and cache rebuilds
+        * performance configuration
+        * database migrations
+        * database backups and restores
+        * url references in database
+        * admininistrator account integrity
     * option: `software: codeigniter2`
     * option: `software: codeigniter3`
     * option: `software: concrete58`
@@ -1500,7 +1503,8 @@ Catapult as a platform can only reach so far into the configuration of your webs
 * Execute `<script>` tags after the document has been parsed with [defer](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#attr-defer)
     * Note this is the same as placing script tags just before the `</body>` tag
 * Use [CSS sprites](https://css-tricks.com/css-sprites/) to reduce the number of HTTP requests
-* Take advantage of [link prefetching](https://css-tricks.com/prefetching-preloading-prebrowsing/) using `rel="prefetch"`
+* Take advantage of [resource prioritization](https://developers.google.com/web/fundamentals/performance/resource-prioritization) using `rel="prefetch"`
+* Take advantage of [cross-origin performance gains](https://developers.google.com/web/tools/lighthouse/audits/noopener) for external `target="_blank"` links, use `rel="noopener"`
 * Write [PHP the right way](http://www.phptherightway.com/#welcome)
   * Practice [self-documenting code](https://www.amazon.com/dp/0132350882/)
 * Write [efficient PHP](http://www.phpbench.com/)
