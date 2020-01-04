@@ -13,7 +13,9 @@ webroot=$(catapult websites.apache.$5.webroot)
 
 softwareroot=$(provisioners software.apache.${software}.softwareroot)
 
-
+# expose the alternate software tool version aliases
+shopt -s expand_aliases
+source ~/.bashrc
 
 # set website software site email address
 # set website software admin credentials, email address, and role
@@ -64,6 +66,18 @@ elif [ "${software}" = "drupal7" ]; then
     "
 
 elif [ "${software}" = "drupal8" ]; then
+    
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.site mail --value="$(catapult company.email)"
+
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush user-create "admin" --mail="$(catapult company.email)" --password="$(catapult environments.${1}.software.drupal.admin_password)"
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush user-password 1 --password="$(catapult environments.${1}.software.drupal.admin_password)"
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush user-add-role "administrator" --uid=1
+
+    mysql --defaults-extra-file=$dbconf ${1}_${domain_valid_db_name} -e "
+        UPDATE users_field_data SET name='admin', mail='$(catapult company.email)', status='1' WHERE uid='1';
+    "
+
+elif [ "${software}" = "drupal9" ]; then
     
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.site mail --value="$(catapult company.email)"
 
@@ -148,7 +162,7 @@ elif [ "${software}" = "wordpress4" ]; then
         VALUES ('1', 'admin', MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), 'admin', '$(catapult company.email)', '0', 'admin')
         ON DUPLICATE KEY UPDATE user_login='admin', user_pass=MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), user_nicename='admin', user_email='$(catapult company.email)', user_status='0', display_name='admin';
     "
-    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root user add-role 1 administrator
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root user add-role 1 administrator
 
 elif [ "${software}" = "wordpress5" ]; then
     
@@ -159,7 +173,7 @@ elif [ "${software}" = "wordpress5" ]; then
         VALUES ('1', 'admin', MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), 'admin', '$(catapult company.email)', '0', 'admin')
         ON DUPLICATE KEY UPDATE user_login='admin', user_pass=MD5('$(catapult environments.${1}.software.wordpress.admin_password)'), user_nicename='admin', user_email='$(catapult company.email)', user_status='0', display_name='admin';
     "
-    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root user add-role 1 administrator
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root user add-role 1 administrator
 
 elif [ "${software}" = "xenforo2" ]; then
 
@@ -252,7 +266,19 @@ elif [ "${software}" = "drupal7" ]; then
 elif [ "${software}" = "drupal8" ]; then
 
     # https://www.drupal.org/node/2598914
+    if [ "$1" = "dev" ]; then
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance cache.page.max_age 0
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance css.preprocess 0
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance js.preprocess 0
+    else
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance cache.page.max_age 900
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance css.preprocess 1
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance js.preprocess 1
+    fi
 
+elif [ "${software}" = "drupal9" ]; then
+
+    # https://www.drupal.org/node/2598914
     if [ "$1" = "dev" ]; then
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance cache.page.max_age 0
         cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.performance css.preprocess 0
@@ -325,6 +351,13 @@ elif [ "${software}" = "drupal8" ]; then
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes updatedb
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes cache-rebuild
 
+elif [ "${software}" = "drupal9" ]; then
+
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes watchdog-delete all
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes core-cron
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes updatedb
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes cache-rebuild
+
 elif [ "${software}" = "elgg1" ]; then
 
     echo "nothing to perform, skipping..."
@@ -374,13 +407,15 @@ elif [ "${software}" = "suitecrm7" ]; then
 
 elif [ "${software}" = "wordpress4" ]; then
 
-    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update-db
-    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root cache flush
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root core update-db
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root cache flush
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache flush all
 
 elif [ "${software}" = "wordpress5" ]; then
 
-    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update-db
-    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root cache flush
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root core update-db
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root cache flush
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache flush all
 
 elif [ "${software}" = "xenforo1" ]; then
 

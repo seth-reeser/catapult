@@ -12,7 +12,7 @@ redhat:
       multithreading_persistent: false
       persistent: false
     apache_vhosts:
-      description: "Manages HTTP and HTTPS virtual hosts and SSL certificates for websites."
+      description: "Manages HTTP and HTTPS virtual hosts for websites."
       multithreading: false
       multithreading_persistent: false
       persistent: false
@@ -27,7 +27,7 @@ redhat:
       multithreading_persistent: false
       persistent: true
     cloudflare_dns:
-      description: "Manages CloudfFlare DNS A records for websites."
+      description: "Manages CloudfFlare DNS records for websites."
       multithreading: true
       multithreading_persistent: false
       persistent: false
@@ -56,8 +56,18 @@ redhat:
       multithreading: true
       multithreading_persistent: false
       persistent: true
+    haproxy:
+      description: "Manages HAProxy as a layer 4 load balancer."
+      multithreading: false
+      multithreading_persistent: false
+      persistent: false
     iptables:
       description: "Manages a strict firewall to only allow necessary traffic."
+      multithreading: false
+      multithreading_persistent: false
+      persistent: false
+    letsencrypt:
+      description: "Manages HTTPS certificates for websites."
       multithreading: false
       multithreading_persistent: false
       persistent: false
@@ -81,6 +91,16 @@ redhat:
       multithreading: true
       multithreading_persistent: true
       persistent: true
+    nfs_client:
+      description: "Manages NFS client."
+      multithreading: false
+      multithreading_persistent: false
+      persistent: false
+    nfs_server:
+      description: "Manages NFS server."
+      multithreading: false
+      multithreading_persistent: false
+      persistent: false
     newrelic_apm_php:
       description: "Manages New Relic APM PHP daemon."
       multithreading: false
@@ -138,11 +158,13 @@ redhat:
       persistent: false
   servers:
     apache:
-      modules: ["time","system","iptables","cron","apache","php","software_tools","git_clean","software_operations_file","git","rsync","git_permissions","software_config","cloudflare_zones","cloudflare_dns","apache_vhosts_clean","apache_vhosts"]
+      modules: ["time","system","iptables","cron","apache","php","software_tools","git_clean","software_operations_file","git","rsync","git_permissions","software_config","cloudflare_zones","cloudflare_dns","apache_vhosts_clean","letsencrypt","apache_vhosts","nfs_server","haproxy"]
+    apache-node:
+      modules: ["time","system","iptables","cron","apache","php","software_tools","nfs_client","apache_vhosts_clean","apache_vhosts"]
     bamboo:
       modules: ["time","system","iptables","cron","bamboo"]
     mysql:
-      modules: ["time","system","iptables","cron","php","software_tools","git_clean","git","rsync","git_permissions","software_config","mysql","mysql_database_table_retain","mysql_database_restore","software_operations_meta","mysql_database_backup","cloudflare_cache"]
+      modules: ["time","system","iptables","cron","php","software_tools","nfs_client","mysql","mysql_database_table_retain","mysql_database_restore","software_operations_meta","mysql_database_backup","cloudflare_cache"]
 windows:
   modules:
     cloudflare_dns:
@@ -206,6 +228,7 @@ software:
       branch: "6.x"
       database_config_file: "sites/default/settings.php"
       eol: "2016-02-24"
+      file_store_containers: ["sites/default/files"]
       file_stores: ["sites/default/files"]
       php_version: "5.4"
       version: [6]
@@ -213,20 +236,33 @@ software:
       repo: "https://git.drupal.org/project/drupal.git"
       branch: "7.x"
       database_config_file: "sites/default/settings.php"
+      eol: "2021-11-1"
+      file_store_containers: ["sites/default/files"]
       file_stores: ["sites/default/files"]
       php_version: "7.1"
       version: [7]
     drupal8:
       repo: "https://git.drupal.org/project/drupal.git"
-      branch: "8.5.x"
+      branch: "8.8.x"
       database_config_file: "sites/default/settings.php"
+      eol: "2021-11-1"
+      file_store_containers: ["sites/default/files"]
       file_stores: ["sites/default/files"]
-      php_version: "7.1"
+      php_version: "7.2"
       version: [8]
+    drupal9:
+      repo: "https://git.drupal.org/project/drupal.git"
+      branch: "9.0.x"
+      database_config_file: "sites/default/settings.php"
+      file_store_containers: ["sites/default/files"]
+      file_stores: ["sites/default/files"]
+      php_version: "7.2"
+      version: [9]
     elgg1:
       repo: "https://github.com/Elgg/Elgg.git"
       branch: "1.12"
       database_config_file: "engine/settings.php"
+      eol: "2019-04-05"
       file_store_containers: ["dataroot"]
       php_version: "7.1"
       version: [1]
@@ -290,7 +326,7 @@ software:
       database_config_file: "config_override.php"
       eol: "2019-11-15"
       file_store_containers: ["cache","custom","data","modules","upload","themes","tmp"]
-      file_stores: ["uploads"]
+      file_stores: ["upload"]
       php_version: "7.1"
       version: [7]
     wordpress4:
@@ -307,7 +343,7 @@ software:
       database_config_file: "wp-config.php"
       file_store_containers: ["wp-content"]
       file_stores: ["wp-content/languages","wp-content/uploads"]
-      php_version: "7.1"
+      php_version: "7.2"
       version: [5]
     xenforo1:
       repo: PRIVATE

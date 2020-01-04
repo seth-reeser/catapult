@@ -11,7 +11,7 @@ sudo systemctl start sshd.service
 # reduce this number "There were 34877 failed login attempts since the last successful login."
 echo -e "$(lastb | head -n -2 | wc -l) failed login attempts"
 echo -e "$(last | head -n -2 | wc -l) successful login attempts"
-sudo last
+sudo last -F -n 20
 # only allow authentication via ssh key pair
 sed -i -e "/PasswordAuthentication/d" /etc/ssh/sshd_config
 if ! grep -q "PasswordAuthentication no" "/etc/ssh/sshd_config"; then
@@ -134,6 +134,8 @@ hostnamectl set-hostname "" --pretty
 # configure the hostname
 if ([ "${4}" == "apache" ]); then
     hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat"
+elif ([ "${4}" == "apache-node" ]); then
+    hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat1"
 elif ([ "${4}" == "bamboo" ]); then
     hostnamectl set-hostname "$(catapult company.name | tr '[:upper:]' '[:lower:]')-build"
 elif ([ "${4}" == "mysql" ]); then
@@ -216,7 +218,7 @@ echo -e "\n> system swap configuration"
 swaps=$(swapon --noheadings --show=NAME)
 swap_volumes=$(cat /etc/fstab | grep "swap" | awk '{print $1}')
 
-if ([ "${4}" == "apache" ] || [ "${4}" == "mysql" ]); then
+if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ] || [ "${4}" == "mysql" ]); then
 
     # create a 256MB swap at /swapfile if it does not exist
     if [[ ! ${swaps[*]} =~ "/swapfile" ]]; then
@@ -264,7 +266,7 @@ if ([ "${4}" == "bamboo" ]); then
 fi
 
 # define the swaps
-if ([ "${4}" == "apache" ] || [ "${4}" == "mysql" ]); then
+if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ] || [ "${4}" == "mysql" ]); then
     defined_swaps=("/swapfile" "/swapfile512")
 elif ([ "${4}" == "bamboo" ]); then
     defined_swaps=("/swapfile" "/swapfile512" "/swapfile768")
@@ -307,7 +309,11 @@ EOF
 echo -e "\n> system monitoring configuration"
 # new relic servers is no longer available, so until we find an agnostic monitor, let's rely on the provider
 if ([ "$1" != "dev" ]); then
-    curl --silent --show-error --connect-timeout 5 --max-time 5 --location https://insights.nyc3.cdn.digitaloceanspaces.com/install.sh | sudo bash
+    version=$(/opt/digitalocean/bin/do-agent --version 2>/dev/null | grep "^Version:" | grep --only-matching --regexp="[0-9]\.[0-9]\.[0-9]" | grep --only-matching --regexp="^[0-9]" || echo "0")
+    if [[ "${version}" != "3" ]]; then
+        sudo yum remove -y do-agent
+        curl --silent --show-error --connect-timeout 5 --max-time 5 --location https://insights.nyc3.cdn.digitaloceanspaces.com/install.sh | sudo bash
+    fi
 fi
 
 

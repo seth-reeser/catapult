@@ -44,6 +44,10 @@ unique_hash=$(dmidecode -s system-uuid)
 webroot=$(catapult websites.apache.$5.webroot)
 database_config_file=$(provisioners software.apache.${software}.database_config_file)
 
+# expose the alternate software tool version aliases
+shopt -s expand_aliases
+source ~/.bashrc
+
 
 # generate software database config files
 # set website software logging and debug output
@@ -104,12 +108,14 @@ elif [ "${software}" = "concrete58" ]; then
         sudo chmod 0444 "${file}"
     else
         mkdir --parents $(dirname "${file_site_install}")
+        sudo chmod 0777 "${file_site_install}"
+        sudo chmod 0777 "${file_site_install_user}"
         sed --expression="s/database_name_here/${1}_${domain_valid_db_name}/g" \
             --expression="s/username_here/${mysql_user}/g" \
             --expression="s/password_here/${mysql_user_password}/g" \
             --expression="s/localhost/${redhat_mysql_ip}/g" \
             /catapult/provisioners/redhat/installers/software/${software}/site_install.php > "${file_site_install}"
-        cp "${file_site_install}" "${file_site_install_user}"
+        yes | cp -rf "${file_site_install}" "${file_site_install_user}"
         sudo chmod 0444 "${file_site_install}"
         sudo chmod 0444 "${file_site_install_user}"
     fi
@@ -179,6 +185,37 @@ elif [ "${software}" = "drupal8" ]; then
     mkdir --parents "/var/www/repositories/apache/${domain}/${webroot}sites/default/files/sync"
 
     # drupal 8 requires the config file to be writable for installation
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush status bootstrap | grep -q Successful
+    if [ $? -eq 0 ]; then
+        sudo chmod 0444 "${file}"
+    fi
+
+    if ([ "$1" = "dev" ] || [ "$1" = "test" ]); then
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.logging error_level verbose
+    else
+        cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes config-set system.logging error_level hide
+    fi
+
+elif [ "${software}" = "drupal9" ]; then
+
+    file="/var/www/repositories/apache/${domain}/${webroot}${softwareroot}${database_config_file}"
+    if [ -f "${file}" ]; then
+        sudo chmod 0777 "${file}"
+    else
+        mkdir --parents $(dirname "${file}")
+    fi
+    # @todo: the sed delimiter was updated from / to ~ to accomodate for the ${webroot}'s "/" - plan to persist the ~ delimiter
+    connectionstring="\$databases['default']['default'] = ['driver' => 'mysql','database' => '${1}_${domain_valid_db_name}','username' => '${mysql_user}','password' => '${mysql_user_password}','host' => '${redhat_mysql_ip}','prefix' => '${software_dbprefix}'];"
+    sed --expression="s/\$databases\s=\s\[\];/${connectionstring}/g" \
+        --expression="s/\$settings\['hash_salt'\]\s=\s'';/\$settings['hash_salt'] = '${unique_hash}';/g" \
+        --expression="s~\$config_directories\s=\s\[\];~\$config_directories = [CONFIG_SYNC_DIRECTORY => '\\/var\\/www\\/repositories\\/apache\\/${domain}\\/${webroot}sites\\/default\\/files\\/sync'];~g" \
+        --expression="s/\$settings\['trusted_host_patterns'\]\s=\s\[\];/\$settings['trusted_host_patterns'] = ['^${domain_valid_regex}','^.+\\\.${domain_valid_regex}'];/g" \
+        /catapult/provisioners/redhat/installers/software/${software}/settings.php > "${file}"
+
+    # create the drupal 9 sync directory
+    mkdir --parents "/var/www/repositories/apache/${domain}/${webroot}sites/default/files/sync"
+
+    # drupal 9 requires the config file to be writable for installation
     cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush status bootstrap | grep -q Successful
     if [ $? -eq 0 ]; then
         sudo chmod 0444 "${file}"
@@ -352,6 +389,12 @@ elif [ "${software}" = "suitecrm7" ]; then
 
 elif [ "${software}" = "wordpress4" ]; then
 
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root plugin is-installed w3-total-cache
+    if [ $? -eq 0 ]; then
+        cache="true"
+    else
+        cache="false"
+    fi
     if ([ "$1" = "dev" ] || [ "$1" = "test" ]); then
         debug="true"
     else
@@ -369,12 +412,19 @@ elif [ "${software}" = "wordpress4" ]; then
         --expression="s/localhost/${redhat_mysql_ip}/g" \
         --expression="s/'wp_'/'${software_dbprefix}'/g" \
         --expression="s/'put your unique phrase here'/'${unique_hash}'/g" \
-        --expression="s/false/${debug}/g" \
+        --expression="s/'debug_here'/${debug}/g" \
+        --expression="s/'cache_here'/${cache}/g" \
         /catapult/provisioners/redhat/installers/software/${software}/wp-config.php > "${file}"
     sudo chmod 0444 "${file}"
 
 elif [ "${software}" = "wordpress5" ]; then
 
+    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root plugin is-installed w3-total-cache
+    if [ $? -eq 0 ]; then
+        cache="true"
+    else
+        cache="false"
+    fi
     if ([ "$1" = "dev" ] || [ "$1" = "test" ]); then
         debug="true"
     else
@@ -392,7 +442,8 @@ elif [ "${software}" = "wordpress5" ]; then
         --expression="s/localhost/${redhat_mysql_ip}/g" \
         --expression="s/'wp_'/'${software_dbprefix}'/g" \
         --expression="s/'put your unique phrase here'/'${unique_hash}'/g" \
-        --expression="s/false/${debug}/g" \
+        --expression="s/'debug_here'/${debug}/g" \
+        --expression="s/'cache_here'/${cache}/g" \
         /catapult/provisioners/redhat/installers/software/${software}/wp-config.php > "${file}"
     sudo chmod 0444 "${file}"
 

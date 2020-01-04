@@ -34,21 +34,6 @@ while IFS='' read -r -d '' key; do
     software_workflow=$(echo "$key" | grep -w "software_workflow" | cut -d ":" -f 2 | tr -d " ")
     webroot=$(echo "$key" | grep -w "webroot" | cut -d ":" -f 2 | tr -d " ")
 
-    # generate letsencrypt certificates for upstream
-    if ([ "$1" != "dev" ]); then
-        if [ -z "${domain_tld_override}" ]; then
-            bash /catapult/provisioners/redhat/installers/dehydrated/dehydrated --cron --domain "${domain_environment}" --domain "www.${domain_environment}" 2>&1
-            sudo cat >> /catapult/provisioners/redhat/installers/dehydrated/domains.txt << EOF
-${domain_environment} www.${domain_environment}
-EOF
-        else
-            bash /catapult/provisioners/redhat/installers/dehydrated/dehydrated --cron --domain "${domain_environment}.${domain_tld_override}" --domain "www.${domain_environment}.${domain_tld_override}" 2>&1
-            sudo cat >> /catapult/provisioners/redhat/installers/dehydrated/domains.txt << EOF
-${domain_environment}.${domain_tld_override} www.${domain_environment}.${domain_tld_override}
-EOF
-        fi
-    fi
-
     # configure vhost
     echo -e "Configuring vhost for ${domain_environment}"
     sudo mkdir --parents /var/log/httpd/${domain_environment}
@@ -215,7 +200,7 @@ EOF
 
     RewriteEngine On
 
-    <VirtualHost *:80> # must listen * to support cloudflare
+    <VirtualHost *:8080> # must listen * to support cloudflare
 
         ServerAdmin ${company_email}
         ServerName ${domain_environment}
@@ -238,7 +223,7 @@ EOF
     </VirtualHost>
 
     <IfModule mod_ssl.c>
-        <VirtualHost *:443> # must listen * to support cloudflare
+        <VirtualHost *:8081> # must listen * to support cloudflare
 
             ServerAdmin ${company_email}
             ServerName ${domain_environment}
@@ -372,9 +357,9 @@ EOF
         # https://httpd.apache.org/docs/current/mod/mod_expires.html
         <IfModule mod_expires.c>
             ExpiresActive on
-            ExpiresDefault                                      "access plus 1 week"
+            ExpiresDefault                                      "access plus 1 year"
           # CSS
-            ExpiresByType text/css                              "access plus 1 week"
+            ExpiresByType text/css                              "access plus 1 year"
           # Data interchange
             ExpiresByType application/atom+xml                  "access plus 1 hour"
             ExpiresByType application/rdf+xml                   "access plus 1 hour"
@@ -386,45 +371,45 @@ EOF
             ExpiresByType application/xml                       "access plus 0 seconds"
             ExpiresByType text/xml                              "access plus 0 seconds"
           # Favicon (cannot be renamed!) and cursor images
-            ExpiresByType image/vnd.microsoft.icon              "access plus 1 week"
-            ExpiresByType image/x-icon                          "access plus 1 week"
+            ExpiresByType image/vnd.microsoft.icon              "access plus 1 year"
+            ExpiresByType image/x-icon                          "access plus 1 year"
           # HTML
             ExpiresByType text/html                             "access plus 0 seconds"
           # JavaScript
-            ExpiresByType application/javascript                "access plus 1 week"
-            ExpiresByType application/x-javascript              "access plus 1 week"
-            ExpiresByType text/javascript                       "access plus 1 week"
+            ExpiresByType application/javascript                "access plus 1 year"
+            ExpiresByType application/x-javascript              "access plus 1 year"
+            ExpiresByType text/javascript                       "access plus 1 year"
           # Manifest files
-            ExpiresByType application/manifest+json             "access plus 1 week"
+            ExpiresByType application/manifest+json             "access plus 1 year"
             ExpiresByType application/x-web-app-manifest+json   "access plus 0 seconds"
             ExpiresByType text/cache-manifest                   "access plus 0 seconds"
           # Media files
-            ExpiresByType audio/ogg                             "access plus 1 week"
-            ExpiresByType image/bmp                             "access plus 1 week"
-            ExpiresByType image/gif                             "access plus 1 week"
-            ExpiresByType image/jpeg                            "access plus 1 week"
-            ExpiresByType image/png                             "access plus 1 week"
-            ExpiresByType image/svg+xml                         "access plus 1 week"
-            ExpiresByType image/webp                            "access plus 1 week"
-            ExpiresByType video/mp4                             "access plus 1 week"
-            ExpiresByType video/ogg                             "access plus 1 week"
-            ExpiresByType video/webm                            "access plus 1 week"
+            ExpiresByType audio/ogg                             "access plus 1 year"
+            ExpiresByType image/bmp                             "access plus 1 year"
+            ExpiresByType image/gif                             "access plus 1 year"
+            ExpiresByType image/jpeg                            "access plus 1 year"
+            ExpiresByType image/png                             "access plus 1 year"
+            ExpiresByType image/svg+xml                         "access plus 1 year"
+            ExpiresByType image/webp                            "access plus 1 year"
+            ExpiresByType video/mp4                             "access plus 1 year"
+            ExpiresByType video/ogg                             "access plus 1 year"
+            ExpiresByType video/webm                            "access plus 1 year"
           # Web fonts
             # Embedded OpenType (EOT)
-            ExpiresByType application/vnd.ms-fontobject         "access plus 1 month"
-            ExpiresByType font/eot                              "access plus 1 month"
+            ExpiresByType application/vnd.ms-fontobject         "access plus 1 year"
+            ExpiresByType font/eot                              "access plus 1 year"
             # OpenType
-            ExpiresByType font/opentype                         "access plus 1 month"
+            ExpiresByType font/opentype                         "access plus 1 year"
             # TrueType
-            ExpiresByType application/x-font-ttf                "access plus 1 month"
+            ExpiresByType application/x-font-ttf                "access plus 1 year"
             # Web Open Font Format (WOFF) 1.0
-            ExpiresByType application/font-woff                 "access plus 1 month"
-            ExpiresByType application/x-font-woff               "access plus 1 month"
-            ExpiresByType font/woff                             "access plus 1 month"
+            ExpiresByType application/font-woff                 "access plus 1 year"
+            ExpiresByType application/x-font-woff               "access plus 1 year"
+            ExpiresByType font/woff                             "access plus 1 year"
             # Web Open Font Format (WOFF) 2.0
-            ExpiresByType application/font-woff2                "access plus 1 month"
+            ExpiresByType application/font-woff2                "access plus 1 year"
           # Other
-            ExpiresByType text/x-cross-domain-policy            "access plus 1 week"
+            ExpiresByType text/x-cross-domain-policy            "access plus 1 year"
         </IfModule>
 
     </Directory>
@@ -456,12 +441,14 @@ EOF
         sudo ln -s /etc/httpd/sites-available/$domain_environment.conf /etc/httpd/sites-enabled/$domain_environment.conf
     fi
 
-    # set a .user.ini file for php-fpm to read
-    sudo mkdir --parents /var/www/repositories/apache/${domain}/${webroot}
-    sudo touch /var/www/repositories/apache/${domain}/${webroot}/.user.ini
-    sudo cat > /var/www/repositories/apache/${domain}/${webroot}/.user.ini << EOF
+    if ([ "${4}" == "apache" ]); then
+        # set a .user.ini file for php-fpm to read
+        sudo mkdir --parents /var/www/repositories/apache/${domain}/${webroot}
+        sudo touch /var/www/repositories/apache/${domain}/${webroot}.user.ini
+        sudo cat > /var/www/repositories/apache/${domain}/${webroot}.user.ini << EOF
 newrelic.appname="${domain_environment};$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat"
 EOF
+    fi
 
 done
 
