@@ -89,29 +89,31 @@ else
         fi
 
     done
+fi
 
-    # rsync the always untracked _sql file store
-    if ([ "${software_workflow}" = "downstream" ] && [ "$1" != "production" ]); then
+# rsync the always untracked _sql file store
+if ([ "${software_workflow}" = "downstream" ] && [ "$1" != "production" ]) || ([ "${software_workflow}" = "downstream" ] && [ "$1" = "production" ] && [ "$4" = "apache" ]); then
 
-        file_store_size=$(ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -n -q root@${production_redhat_mysql_ip} "du --summarize /var/www/repositories/apache/${domain}/_sql/ 2>&1")
-        file_store_size=$(echo -e "${file_store_size}" | awk '{ print $1 }')
+    file_store_size=$(ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -n -q root@${production_redhat_mysql_ip} "du --summarize /var/www/repositories/apache/${domain}/_sql/ 2>&1")
+    file_store_size=$(echo -e "${file_store_size}" | awk '{ print $1 }')
 
-        echo -e "sql file store: /var/www/repositories/apache/${domain}/_sql/"
-        echo -e "- production:downstream file store size: $(( ${file_store_size} / 1024 ))MB"
-        echo -e "- rsyncing..."
-        sudo rsync --delete --exclude '*.lock' --recursive -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${production_redhat_mysql_ip}:/var/www/repositories/apache/${domain}/_sql/" "/var/www/repositories/apache/${domain}/_sql/"
+    echo -e "sql file store: /var/www/repositories/apache/${domain}/_sql/"
+    echo -e "- production:downstream file store size: $(( ${file_store_size} / 1024 ))MB"
+    echo -e "- rsyncing..."
+    # do a --size-only to help eleviate unnecessary copies of large files (with the risk of skipping byteless file changes to sql dumps)
+    sudo rsync --delete --exclude '*.lock' --recursive --size-only -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${production_redhat_mysql_ip}:/var/www/repositories/apache/${domain}/_sql/" "/var/www/repositories/apache/${domain}/_sql/"
 
-    elif ([ "${software_workflow}" = "upstream" ] && [ "$1" != "test" ]); then
+elif ([ "${software_workflow}" = "upstream" ] && [ "$1" != "test" ]) || ([ "${software_workflow}" = "upstream" ] && [ "$1" = "test" ] && [ "$4" = "apache" ]); then
 
-        file_store_size=$(ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -n -q root@${test_redhat_mysql_ip} "du --summarize /var/www/repositories/apache/${domain}/_sql/ 2>&1")
-        file_store_size=$(echo -e "${file_store_size}" | awk '{ print $1 }')
+    file_store_size=$(ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -n -q root@${test_redhat_mysql_ip} "du --summarize /var/www/repositories/apache/${domain}/_sql/ 2>&1")
+    file_store_size=$(echo -e "${file_store_size}" | awk '{ print $1 }')
 
-        echo -e "sql file store: /var/www/repositories/apache/${domain}/_sql/"
-        echo -e "- test:upstream file store size: $(( ${file_store_size} / 1024 ))MB"
-        echo -e "- rsyncing..."
-        sudo rsync --delete --exclude '*.lock' --recursive -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${test_redhat_mysql_ip}:/var/www/repositories/apache/${domain}/_sql/" "/var/www/repositories/apache/${domain}/_sql/"
-    
-    fi
+    echo -e "sql file store: /var/www/repositories/apache/${domain}/_sql/"
+    echo -e "- test:upstream file store size: $(( ${file_store_size} / 1024 ))MB"
+    echo -e "- rsyncing..."
+    # do a --size-only to help eleviate unnecessary copies of large files (with the risk of skipping byteless file changes to sql dumps)
+    sudo rsync --delete --exclude '*.lock' --recursive --size-only -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${test_redhat_mysql_ip}:/var/www/repositories/apache/${domain}/_sql/" "/var/www/repositories/apache/${domain}/_sql/"
+
 fi
 
 touch "/catapult/provisioners/redhat/logs/rsync.$(catapult websites.apache.$5.domain).complete"

@@ -16,6 +16,10 @@ else
     software_auto_update="false"
 fi
 
+# expose the alternate software tool version aliases
+shopt -s expand_aliases
+source ~/.bashrc
+
 # only auto-update if the tools are available
 if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/null; then
 
@@ -55,13 +59,13 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                if [ "${version}" != "3.1.9" ]; then
+                if [ "${version}" != "3.1.11" ]; then
                     # https://www.codeigniter.com/userguide3/installation/upgrading.html
                     git clone https://github.com/bcit-ci/CodeIgniter "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter"
-                    cd "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter" && git checkout tags/3.1.9
+                    cd "/catapult/provisioners/redhat/installers/temp/${domain}/codeigniter" && git checkout tags/3.1.11
                     # upgrading from 3.0.0 to 3.0.1
                     yes | cp -rf /catapult/provisioners/redhat/installers/temp/$domain/codeigniter/application/views/errors/cli/* "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}/application/views/errors/cli"
-                    # upgrading from 3.1.8 to 3.1.9
+                    # upgrading from 3.1.8 to 3.1.9 and from 3.1.10 to 3.1.11
                     yes | cp -rf /catapult/provisioners/redhat/installers/temp/$domain/codeigniter/application/config/mimes.php "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}/application/config/mimes.php"
                     # upgrading constant
                     yes | cp -rf /catapult/provisioners/redhat/installers/temp/$domain/codeigniter/system/* "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}/system"
@@ -123,6 +127,22 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
         fi
 
     elif [ "${software}" = "drupal8" ]; then
+
+        version=$(cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && cat core/lib/Drupal.php 2>/dev/null | grep "const VERSION =" | grep --extended-regexp --only-matching --regexp="[0-9]\.[0-9][0-9]?[0-9]?(\.[0-9][0-9]?[0-9]?)?" || echo "0")
+
+        if [[ "${softwareversion_array[@]}" =~ "$(grep --only-matching --regexp="^[0-9]" <<< "${version}")" ]]; then
+            echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
+
+            if [ "${software_auto_update}" = "true" ]; then
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-refresh
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && drush --yes pm-updatecode --check-disabled
+            fi
+
+        else
+            echo -e "\nSUPPORTED SOFTWARE NOT DETECTED\n"
+        fi
+
+    elif [ "${software}" = "drupal9" ]; then
 
         version=$(cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && cat core/lib/Drupal.php 2>/dev/null | grep "const VERSION =" | grep --extended-regexp --only-matching --regexp="[0-9]\.[0-9][0-9]?[0-9]?(\.[0-9][0-9]?[0-9]?)?" || echo "0")
 
@@ -311,11 +331,34 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update --version=4.9
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root core update --version=4.9
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root plugin install w3-total-cache
+                # remove any prior cached files that may be in git
+                git rm -rf "/var/www/repositories/apache/${domain}/${webroot}wp-content/cache"
+                # create a .gitignore file if none exists
+                touch "/var/www/repositories/apache/${domain}/.gitignore"
+                # manage the cache entry in the .gitignore file
+                if ! grep -q "${webroot}wp-content/cache" "/var/www/repositories/apache/${domain}/.gitignore"; then
+                   sudo bash -c "echo \"${webroot}wp-content/cache\" >> \"/var/www/repositories/apache/${domain}/.gitignore\""
+                fi
+                # manage performance settings here as files are manipulated by the cache plugin
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root plugin activate w3-total-cache
+                if [ "$1" = "dev" ]; then
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set pgcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set dbcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set objectcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set browsercache.enabled false --type=boolean
+                else
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set pgcache.enabled true --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set dbcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set objectcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache option set browsercache.enabled false --type=boolean
+                fi
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php71 --allow-root w3-total-cache fix_environment
             fi
 
         else
@@ -330,11 +373,34 @@ if hash composer 2>/dev/null && hash drush 2>/dev/null && hash wp-cli 2>/dev/nul
             echo -e "\nSUPPORTED SOFTWARE VERSION DETECTED: ${version}\n"
 
             if [ "${software_auto_update}" = "true" ]; then
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root core update
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root plugin update --all
-                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root core update
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root plugin update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root theme update --all
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root plugin install w3-total-cache
+                # remove any prior cached files that may be in git
+                git rm -rf "/var/www/repositories/apache/${domain}/${webroot}wp-content/cache"
+                # create a .gitignore file if none exists
+                touch "/var/www/repositories/apache/${domain}/.gitignore"
+                # manage the cache entry in the .gitignore file
+                if ! grep -q "${webroot}wp-content/cache" "/var/www/repositories/apache/${domain}/.gitignore"; then
+                   sudo bash -c "echo \"${webroot}wp-content/cache\" >> \"/var/www/repositories/apache/${domain}/.gitignore\""
+                fi
+                # manage performance settings here as files are manipulated by the cache plugin
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root plugin activate w3-total-cache
+                if [ "$1" = "dev" ]; then
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set pgcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set dbcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set objectcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set browsercache.enabled false --type=boolean
+                else
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set pgcache.enabled true --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set dbcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set objectcache.enabled false --type=boolean
+                    cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache option set browsercache.enabled false --type=boolean
+                fi
+                cd "/var/www/repositories/apache/${domain}/${webroot}${softwareroot}" && wp-cli-php72 --allow-root w3-total-cache fix_environment
             fi
 
         else

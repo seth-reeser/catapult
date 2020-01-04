@@ -47,14 +47,14 @@ module Catapult
         title = "Catapult Error:"
         length = title.size
         padding = 5
-        puts "+".ljust(padding,"!") + "".ljust(length,"!") + "+".rjust(padding,"!")
-        puts "|".ljust(padding)     + title                + "|".rjust(padding)
-        puts "+".ljust(padding,"!") + "".ljust(length,"!") + "+".rjust(padding,"!")
+        puts "+".ljust(padding,"!").color(Colors::RED) + "".ljust(length,"!").color(Colors::RED)     + "+".rjust(padding,"!").color(Colors::RED)
+        puts "|".ljust(padding).color(Colors::RED)     + title.color(Colors::RED) + "|".rjust(padding).color(Colors::RED)
+        puts "+".ljust(padding,"!").color(Colors::RED) + "".ljust(length,"!").color(Colors::RED)     + "+".rjust(padding,"!").color(Colors::RED)
         puts "\n"
-        puts exception.message
+        puts exception.message.color(Colors::RED)
         puts "\n"
-        puts "Please correct the error then re-run your vagrant command."
-        puts "See https://github.com/devopsgroup-io/catapult for more information."
+        puts "To continue, please correct the error then re-run your vagrant command.".color(Colors::YELLOW)
+        puts "See https://github.com/devopsgroup-io/catapult for README information.".color(Colors::YELLOW)
         exit 1
       end
     end
@@ -289,6 +289,10 @@ module Catapult
       "")
     end
     puts "\n * Configuring the #{branch} branch:\n\n"
+    # remove the catapult changes file if it exists
+    if File.exist?('provisioners/redhat/logs/catapult.changes')
+      File.delete('provisioners/redhat/logs/catapult.changes')
+    end
     # if on the develop branch, update from catapult core
     if "#{branch}" == "develop"
       `#{@git} fetch`
@@ -559,7 +563,7 @@ module Catapult
     # validate @configuration["company"]
     if @configuration["company"]["catapult_repo"] == nil
       if @configuration_user["settings"]["gpg_edit"] == false
-        confirm = ask("You have outstanding configuration that needs to be set in configuration.yml and the gpg_edit setting in your configuration-user.yml file is set to false, would you like to set it to true? [Y/N]") { |yn| yn.limit = 1, yn.validate = /[yn]/i }
+        confirm = ask("You have outstanding configuration that needs to be set in configuration.yml and the gpg_edit setting in your configuration-user.yml file is set to false, would you like to set it to true? [y/n]".color(Colors::YELLOW)) { |yn| yn.limit = 1, yn.validate = /[yn]/i }
         if confirm.downcase == 'y'
           @configuration_user["settings"]["gpg_edit"] = true
           File.open('secrets/configuration-user.yml', 'w') {|f| f.write configuration_user.to_yaml }
@@ -568,7 +572,7 @@ module Catapult
       end
     else
       if @configuration_user["settings"]["gpg_edit"] == true
-        confirm = ask("The gpg_edit setting in your configuration-user.yml file is set to true, would you like to set it to false? [Y/N]") { |yn| yn.limit = 1, yn.validate = /[yn]/i }
+        confirm = ask("The gpg_edit setting in your configuration-user.yml file is set to true, would you like to set it to false? [y/n]".color(Colors::YELLOW)) { |yn| yn.limit = 1, yn.validate = /[yn]/i }
         if confirm.downcase == 'y'
           @configuration_user["settings"]["gpg_edit"] = false
           File.open('secrets/configuration-user.yml', 'w') {|f| f.write configuration_user.to_yaml }
@@ -776,7 +780,9 @@ module Catapult
       catapult_exception("Please set [\"company\"][\"bitbucket_username\"] and [\"company\"][\"bitbucket_password\"] in secrets/configuration.yml")
     else
       begin
-        uri = URI("https://api.bitbucket.org/1.0/user")
+        # get the uuid, or account_id, from the defined bitbucket_username
+        # https://developer.atlassian.com/cloud/bitbucket/bitbucket-api-changes-gdpr/
+        uri = URI("https://api.bitbucket.org/2.0/user")
         Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
           request = Net::HTTP::Get.new uri.request_uri
           request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
@@ -787,9 +793,10 @@ module Catapult
             puts " * Bitbucket API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
           else
             puts " * Bitbucket API authenticated successfully."
-            @api_bitbucket = JSON.parse(response.body)
+            @api_bitbucket_user_account_id = JSON.parse(response.body)
+            @api_bitbucket_user_account_id = @api_bitbucket_user_account_id["account_id"]
             # verify bitbucket user's catapult ssh key
-            uri = URI("https://api.bitbucket.org/1.0/users/#{@configuration["company"]["bitbucket_username"]}/ssh-keys")
+            uri = URI("https://api.bitbucket.org/2.0/users/#{@api_bitbucket_user_account_id}/ssh-keys")
             Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
               request = Net::HTTP::Get.new uri.request_uri
               request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
@@ -798,7 +805,7 @@ module Catapult
               @api_bitbucket_ssh_keys_title = false
               @api_bitbucket_ssh_keys_key = false
               unless response.code.to_f.between?(399,600)
-                @api_bitbucket_ssh_keys.each do |key|
+                @api_bitbucket_ssh_keys["values"].each do |key|
                   if key["label"] == "Catapult"
                     @api_bitbucket_ssh_keys_title = true
                     if "#{key["key"].match(/(\w*-\w*\s\S*)/)}" == "#{File.read("secrets/id_rsa.pub").match(/(\w*-\w*\s\S*)/)}"
@@ -893,6 +900,7 @@ module Catapult
       end
     end
     # https://bobswift.atlassian.net/wiki/display/BCLI/Reference
+    # https://bobswift.atlassian.net/wiki/spaces/BCLI/pages/652083565/Reference+-+7.9.0
     puts "[Bamboo CLI]"
     if @environment == :posix
       @api_bamboo_cli = "bash catapult/installers/atlassian-cli-7.0.0/bamboo.sh"
@@ -946,11 +954,25 @@ module Catapult
         if ! api_bamboo_cli_result_plan.strip.include?("error")
           puts "   - #{api_bamboo_cli_result_plan.strip}"
         end
-        # configure: trigger
+        # configure: trigger: scheduled
         api_bamboo_cli_result_plan_triggers = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTriggerList --plan "#{plan}" #{@api_bamboo_cli_redirect}`; result=$?.success?
         if ! api_bamboo_cli_result_plan_triggers.strip.include?("Scheduled")
           api_bamboo_cli_result_plan_triggers = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTrigger --plan "#{plan}" --type "scheduled" --schedule "#{@api_bamboo_cli_environment_trigger_time}" --field1 "custom.triggerrCondition.plansGreen.plan" #{@api_bamboo_cli_environment_trigger_conditions} #{@api_bamboo_cli_redirect}`; result=$?.success?
           puts "   - #{api_bamboo_cli_result_plan_triggers.strip}"
+        end
+        # configure: trigger: remote
+        # bitbucket
+        # https://confluence.atlassian.com/bitbucket/what-are-the-bitbucket-cloud-ip-addresses-i-should-use-to-configure-my-corporate-firewall-343343385.html
+        # https://ip-ranges.atlassian.com/
+        # github
+        # https://developer.github.com/changes/2019-03-29-webhooks-ip-changes/
+        # https://api.github.com/meta
+        if plan.include?("TEST")
+          api_bamboo_cli_result_plan_triggers = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTriggerList --plan "#{plan}" #{@api_bamboo_cli_redirect}`; result=$?.success?
+          if ! api_bamboo_cli_result_plan_triggers.strip.include?("18.205.93.0/25,18.234.32.128/25,13.52.5.0/25,192.30.252.0/22,185.199.108.0/22,140.82.112.0/20")
+            api_bamboo_cli_result_plan_triggers = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTrigger --plan "#{plan}" --type "remote" --ipRestriction "18.205.93.0/25,18.234.32.128/25,13.52.5.0/25,192.30.252.0/22,185.199.108.0/22,140.82.112.0/20" #{@api_bamboo_cli_redirect}`; result=$?.success?
+            puts "   - #{api_bamboo_cli_result_plan_triggers.strip}"
+          end
         end
         # configure: stage
         api_bamboo_cli_result_stage = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addStage --plan "#{plan}" --stage "Default Stage" #{@api_bamboo_cli_redirect}`; result=$?.success?
@@ -1014,6 +1036,19 @@ module Catapult
               api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 2 --taskKey "SSH" --field1 "host" --value1 "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat_mysql"]["ip"]}" --field2 "username" --value2 "root" --field3 "authType" --value3 "KEY" --field4 "private_key" --value4 @file --field5 "change_key" --value5 "true" --field6 "command" --value6 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "mysql"' --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
               puts "   - #{api_bamboo_cli_result_task.strip}"
             end
+          end
+          if (@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"] != nil && @configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"]["ip"] != nil)
+            api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action getTask --plan "#{plan}" --job "JOB1" --id 3 #{@api_bamboo_cli_redirect}`; result=$?.success?
+            if api_bamboo_cli_result_task.strip.include?("could not be found")
+              api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action addTask --plan "#{plan}" --job "JOB1" --taskKey "SSH" --field1 "host" --value1 "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"]["ip"]}" --field2 "username" --value2 "root" --field3 "authType" --value3 "KEY" --field4 "private_key" --value4 @file --field5 "change_key" --value5 "true" --field6 "command" --value6 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache-node"' --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+              puts "   - #{api_bamboo_cli_result_task.strip}"
+            else
+              api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action updateTask --plan "#{plan}" --job "JOB1" --id 3 --taskKey "SSH" --field1 "host" --value1 "#{@configuration["environments"]["#{@api_bamboo_cli_environment}"]["servers"]["redhat1"]["ip"]}" --field2 "username" --value2 "root" --field3 "authType" --value3 "KEY" --field4 "private_key" --value4 @file --field5 "change_key" --value5 "true" --field6 "command" --value6 'bash /catapult/provisioners/redhat/provision.sh "#{@api_bamboo_cli_environment}" "#{@repo}" "#{@configuration_user["settings"]["gpg_key"]}" "apache-node"' --file "secrets/id_rsa" #{@api_bamboo_cli_redirect}`; result=$?.success?
+              puts "   - #{api_bamboo_cli_result_task.strip}"
+            end
+          else
+            api_bamboo_cli_result_task = `#{@api_bamboo_cli} --server #{@configuration["company"]["bamboo_base_url"]} --password #{@configuration["company"]["bamboo_password"]} --user #{@configuration["company"]["bamboo_username"]} --action removeTask --plan "#{plan}" --job "JOB1" --id 3 #{@api_bamboo_cli_redirect}`; result=$?.success?
+            puts "   - #{api_bamboo_cli_result_task.strip}"
           end
         end
       end
@@ -1610,10 +1645,32 @@ module Catapult
     @configuration["environments"].each do |environment,data|
 
       puts "\n[#{environment}]"
-      puts "[machine]".ljust(45) + "[provider]".ljust(14) + "[state]".ljust(13) + "[id]".ljust(12) + "[type]".ljust(13) + "[ipv4_public]".ljust(17) + "[ipv4_private]".ljust(17)
+      
+      # verify environments
+      if not ["dev","test","qc","production"].include?("#{environment}")
+        catapult_exception("There is an error in your secrets/configuration.yml file.\nThe \"#{environment}\" environment is invalid, it must be dev, test, qc, or production.")
+      end
+
+      # verify environments => servers (load balancer)
+      @environment_loadbalancer = false
+      @configuration["environments"]["#{environment}"]["servers"].each do |server,data|
+        if "#{server}" === "redhat1"
+          @environment_loadbalancer = true
+        end
+      end
+      if @environment_loadbalancer === false
+        puts " * Could not find \"redhat1\" at [\"environments\"][\"#{environment}\"][\"servers\"] in secrets/configuration.yml, there will be no load balancing for [\"websites\"][\"apache\"].".color(Colors::YELLOW)
+      end
+
+      puts "[server]".ljust(44) + "[provider]".ljust(14) + "[state]".ljust(13) + "[id]".ljust(12) + "[type]".ljust(13) + "[ipv4_public]".ljust(17) + "[ipv4_private]".ljust(17)
       puts "\n"
 
       @configuration["environments"]["#{environment}"]["servers"].each do |server,data|
+
+        # verify environments => servers
+        if not ["redhat","redhat1","redhat_mysql","windows","windows_mssql"].include?("#{server}")
+          catapult_exception("There is an error in your secrets/configuration.yml file.\nThe \"#{server}\" server is invalid, it must be redhat, redhat1, redhat_mysql, windows, or windows_mssql.")
+        end
 
         # start new row
         row = Array.new
@@ -1795,12 +1852,12 @@ module Catapult
               `gpg --verbose --batch --yes --passphrase "#{@configuration_user["settings"]["gpg_key"]}" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
             end
           end
-          if @configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"] == nil
-            catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat is empty and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
+          if !defined?(@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"]) || (@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"].nil?)
+            catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => #{server} is empty and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
           end
           if @api_digitalocean_slugs.any?
             if not @api_digitalocean_slugs.include?("#{@configuration["environments"]["#{environment}"]["servers"]["#{server}"]["slug"]}")
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => redhat is invalid and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
+              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe slug (DigitalOcean droplet size) for #{environment} => servers => #{server} is invalid and the droplet has not been created. Please choose from the following (see DigitalOcean.com for pricing):\n#{@api_digitalocean_slugs}")
             end
           end
           # ipv4_public
@@ -1869,6 +1926,7 @@ module Catapult
         puts row.join(" ")
 
       end
+
       # if environment passwords do not exist, create them
       ######################################################################
       # BE VERY CAREFUL WITH THE MERGE OPERATIONS                          #
@@ -2059,150 +2117,157 @@ module Catapult
     # validate @configuration["websites"]
     if ["provision","status"].include?(ARGV[0])
       puts "\nVerification of configuration[\"websites\"]:".color(Colors::WHITE)
+      # temporarily add catapult to verify repo and add bamboo webhooks
+      @configuration["websites"]["catapult"] = *(["domain" => "#{@repo}", "repo" => "#{@repo}"])
       # validate @configuration["websites"]
       @configuration["websites"].each do |service,data|
+        if "#{service}" == "catapult"
+          puts "\nVerification of this Catapult instance:".color(Colors::WHITE)
+        end
         # create array of domains to later validate domain alpha order per service
         domains = Array.new
         domains_sorted = Array.new
         unless @configuration["websites"]["#{service}"] == nil
           puts "\n[#{service}] #{@configuration["websites"]["#{service}"].nil? ? "0" : @configuration["websites"]["#{service}"].length} total"
-          puts "[domain]".ljust(40) + "[repo]".ljust(12) + "[repo size]".ljust(12) + "[repo write access]".ljust(20) + "[develop]".ljust(16) + "[release]".ljust(16) + "[master]".ljust(16) + "[bamboo service]".ljust(18)
+          puts "[domain]".ljust(40) + "[repo]".ljust(12) + "[repo size]".ljust(12) + "[repo write access]".ljust(20) + "[develop]".ljust(16) + "[release]".ljust(16) + "[master]".ljust(16) + "[bamboo webhook]".ljust(18)
           puts "\n"
           @configuration["websites"]["#{service}"].each do |instance|
             # start new row
             row = Array.new
             # get domain
             row.push(" * #{instance["domain"]}".slice!(0, 39).ljust(39))
-            # validate the domain to ensure it only includes the domain and not protocol
-            if instance["domain"].include? "://"
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} is invalid, it must not include http:// or https://.")
-            end
-            # validate the domain_tld_override to ensure only valid characters
-            if not instance["domain"] =~ /^[0-9a-zA-Z\-\.]*$/
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, letters, hyphens, and periods.")
-            end
-            # validate the domain depth
-            domain_depth = instance["domain"].split(".")
-            if domain_depth.count > 3
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} is invalid, there is a maximum of one subdomain.")
-            end
-            unless instance["domain_tld_override"] == nil
-              # validate the domain_tld_override to ensure it only includes the domain and not protocol
-              if instance["domain_tld_override"].include? "://"
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} is invalid, it must not include http:// or https://.")
+            unless "#{service}" == "catapult"
+              # validate the domain to ensure it only includes the domain and not protocol
+              if instance["domain"].include? "://"
+                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} is invalid, it must not include http:// or https://.")
               end
               # validate the domain_tld_override to ensure only valid characters
-              if not instance["domain_tld_override"] =~ /^[0-9a-zA-Z\-\.]*$/
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, letters, hyphens, and periods.")
+              if not instance["domain"] =~ /^[0-9a-zA-Z\-\.]*$/
+                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, letters, hyphens, and periods.")
               end
-              # validate the domain_tld_override depth
-              domain_tld_override_depth = instance["domain_tld_override"].split(".")
-              if domain_tld_override_depth.count != 2
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only be one domain level (company.com).")
+              # validate the domain depth
+              domain_depth = instance["domain"].split(".")
+              if domain_depth.count > 3
+                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain for websites => #{service} => domain => #{instance["domain"]} is invalid, there is a maximum of one subdomain.")
               end
-            end
-            # there is a maximum domain (including domain_tld_override) length of 53 characters
-            # max mysql database name length of 64 - 11 for longest prefix of production_ = 53
-            # max mssql database name length of 128
-            if (instance["domain"].length + (instance["domain_tld_override"].nil? ? 0 : instance["domain_tld_override"].length)) > 53
-              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe combination of domain and domain_tld_override for websites => #{service} => domain => #{instance["domain"]} must not exceed 53 characters in length.")
-            end
-            # validate force_auth
-            unless instance["force_auth"] == nil
-              if instance["force_auth"].length < 10 || instance["force_auth"].length > 20
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth for websites => #{service} => domain => #{instance["domain"]} must be 10 to 20 characters in length.")
-              end
-              if not instance["force_auth"] =~ /^[0-9a-zA-Z]*$/
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, lowercase letters, and uppercase letters.")
-              end
-            end
-            # validate force_auth_exclude
-            unless instance["force_auth_exclude"] == nil
-              # this can only be used with force_auth
-              if instance["force_auth"] == nil
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth_exclude for websites => #{service} => domain => #{instance["domain"]} requires force_auth to be set.")
-              end
-              # only test, qc, and production are valid values
-              @force_auth_exclude_valid_values = true
-              instance["force_auth_exclude"].each do |value|
-                if not ["dev","test","qc","production"].include?("#{value}")
-                  @force_auth_exclude_valid_values = false
+              unless instance["domain_tld_override"] == nil
+                # validate the domain_tld_override to ensure it only includes the domain and not protocol
+                if instance["domain_tld_override"].include? "://"
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} is invalid, it must not include http:// or https://.")
+                end
+                # validate the domain_tld_override to ensure only valid characters
+                if not instance["domain_tld_override"] =~ /^[0-9a-zA-Z\-\.]*$/
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, letters, hyphens, and periods.")
+                end
+                # validate the domain_tld_override depth
+                domain_tld_override_depth = instance["domain_tld_override"].split(".")
+                if domain_tld_override_depth.count != 2
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe domain_tld_override for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only be one domain level (company.com).")
                 end
               end
-              unless @force_auth_exclude_valid_values
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth_exclude for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only include one, some, or all of the following [\"dev\",\"test\",\"qc\",\"production\"].")
+              # there is a maximum domain (including domain_tld_override) length of 53 characters
+              # max mysql database name length of 64 - 11 for longest prefix of production_ = 53
+              # max mssql database name length of 128
+              if (instance["domain"].length + (instance["domain_tld_override"].nil? ? 0 : instance["domain_tld_override"].length)) > 53
+                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe combination of domain and domain_tld_override for websites => #{service} => domain => #{instance["domain"]} must not exceed 53 characters in length.")
               end
-            end
-            # validate force_https
-            unless instance["force_https"] == nil
-              unless ["true"].include?("#{instance["force_https"]}")
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_https for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be true or removed.")
-              end
-            end
-            # validate force_ip
-            unless instance["force_ip"] == nil
-              # validate both IPv4 and IPv6 adressess
-              instance["force_ip"].each do |value|
-                if not (value =~ Resolv::IPv4::Regex || value =~ Resolv::IPv6::Regex)
-                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_ip for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be an array of valid IPv4 or IPv6 address.")
+              # validate force_auth
+              unless instance["force_auth"] == nil
+                if instance["force_auth"].length < 10 || instance["force_auth"].length > 20
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth for websites => #{service} => domain => #{instance["domain"]} must be 10 to 20 characters in length.")
+                end
+                if not instance["force_auth"] =~ /^[0-9a-zA-Z]*$/
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth for websites => #{service} => domain => #{instance["domain"]} must only contain numbers, lowercase letters, and uppercase letters.")
                 end
               end
-            end
-            # validate force_ip_exclude
-            unless instance["force_ip_exclude"] == nil
-              # this can only be used with force_ip
-              if instance["force_ip"] == nil
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_ip_exclude for websites => #{service} => domain => #{instance["domain"]} requires force_ip to be set.")
-              end
-              # only test, qc, and production are valid values
-              @force_ip_exclude_valid_values = true
-              instance["force_ip_exclude"].each do |value|
-                if not ["dev","test","qc","production"].include?("#{value}")
-                  @force_ip_exclude_valid_values = false
+              # validate force_auth_exclude
+              unless instance["force_auth_exclude"] == nil
+                # this can only be used with force_auth
+                if instance["force_auth"] == nil
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth_exclude for websites => #{service} => domain => #{instance["domain"]} requires force_auth to be set.")
+                end
+                # only test, qc, and production are valid values
+                @force_auth_exclude_valid_values = true
+                instance["force_auth_exclude"].each do |value|
+                  if not ["dev","test","qc","production"].include?("#{value}")
+                    @force_auth_exclude_valid_values = false
+                  end
+                end
+                unless @force_auth_exclude_valid_values
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_auth_exclude for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only include one, some, or all of the following [\"dev\",\"test\",\"qc\",\"production\"].")
                 end
               end
-              unless @force_ip_exclude_valid_values
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_ip_exclude for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only include one, some, or all of the following [\"dev\",\"test\",\"qc\",\"production\"].")
+              # validate force_https
+              unless instance["force_https"] == nil
+                unless ["true"].include?("#{instance["force_https"]}")
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_https for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be true or removed.")
+                end
               end
-            end
-            # validate software
-            unless instance["software"] == nil
-              # create an array of available software
-              provisioners_software = Array.new
-              unless @provisioners["software"]["#{service}"] == nil
-                @provisioners["software"]["#{service}"].each { |i, v| provisioners_software.push(i) }
+              # validate force_ip
+              unless instance["force_ip"] == nil
+                # validate both IPv4 and IPv6 adressess
+                instance["force_ip"].each do |value|
+                  if not (value =~ Resolv::IPv4::Regex || value =~ Resolv::IPv6::Regex)
+                    catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_ip for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be an array of valid IPv4 or IPv6 address.")
+                  end
+                end
+              end
+              # validate force_ip_exclude
+              unless instance["force_ip_exclude"] == nil
+                # this can only be used with force_ip
+                if instance["force_ip"] == nil
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_ip_exclude for websites => #{service} => domain => #{instance["domain"]} requires force_ip to be set.")
+                end
+                # only test, qc, and production are valid values
+                @force_ip_exclude_valid_values = true
+                instance["force_ip_exclude"].each do |value|
+                  if not ["dev","test","qc","production"].include?("#{value}")
+                    @force_ip_exclude_valid_values = false
+                  end
+                end
+                unless @force_ip_exclude_valid_values
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_ip_exclude for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only include one, some, or all of the following [\"dev\",\"test\",\"qc\",\"production\"].")
+                end
               end
               # validate software
-              unless provisioners_software.include?("#{instance["software"]}")
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be one of the following #{provisioners_software.join(", ")}.")
-              end
-              # validate software_auto_update
-              unless instance["software_auto_update"] == nil
-                if instance["software_auto_update"].to_s != "true"
-                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software_auto_update for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be \"true\" or not set.")
+              unless instance["software"] == nil
+                # create an array of available software
+                provisioners_software = Array.new
+                unless @provisioners["software"]["#{service}"] == nil
+                  @provisioners["software"]["#{service}"].each { |i, v| provisioners_software.push(i) }
+                end
+                # validate software
+                unless provisioners_software.include?("#{instance["software"]}")
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be one of the following #{provisioners_software.join(", ")}.")
+                end
+                # validate software_auto_update
+                unless instance["software_auto_update"] == nil
+                  if instance["software_auto_update"].to_s != "true"
+                    catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software_auto_update for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be \"true\" or not set.")
+                  end
+                end
+                # validate software_dbprefix
+                unless instance["software_dbprefix"] == nil
+                  if not instance["software_dbprefix"] =~ /^[0-9a-zA-Z\_]*$/
+                    catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software_dbprefix for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only contain numbers, letters, and underscores.")
+                  end
+                end
+                # validate software_dbtable_retain
+                unless instance["software_dbtable_retain"] == nil
+                  if not instance["software_dbtable_retain"].kind_of?(Array)
+                    catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software_dbtable_retain for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be an array in the following example format [\"comments\",\"commentmeta\"].")
+                  end
+                end
+                # validate software_workflow
+                unless ["downstream","upstream"].include?("#{instance["software_workflow"]}")
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software_workflow for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be one of the following [\"downstream\",\"upstream\"].")
                 end
               end
-              # validate software_dbprefix
-              unless instance["software_dbprefix"] == nil
-                if not instance["software_dbprefix"] =~ /^[0-9a-zA-Z\_]*$/
-                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software_dbprefix for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only contain numbers, letters, and underscores.")
+              # validate webroot
+              unless instance["webroot"] == nil
+                unless "#{instance["webroot"]}"[-1,1] == "/"
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe webroot for websites => #{service} => domain => #{instance["domain"]} is invalid, it must include a trailing slash.")
                 end
-              end
-              # validate software_dbtable_retain
-              unless instance["software_dbtable_retain"] == nil
-                if not instance["software_dbtable_retain"].kind_of?(Array)
-                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software_dbtable_retain for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be an array in the following example format [\"comments\",\"commentmeta\"].")
-                end
-              end
-              # validate software_workflow
-              unless ["downstream","upstream"].include?("#{instance["software_workflow"]}")
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe software_workflow for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be one of the following [\"downstream\",\"upstream\"].")
-              end
-            end
-            # validate webroot
-            unless instance["webroot"] == nil
-              unless "#{instance["webroot"]}"[-1,1] == "/"
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe webroot for websites => #{service} => domain => #{instance["domain"]} is invalid, it must include a trailing slash.")
               end
             end
             # create array of domains to later validate repo alpha order per service
@@ -2244,16 +2309,15 @@ module Catapult
               # repo_split_4[0] => devopsgroup-io
               # repo_split_4[1] => devopsgroup-io
             end
-            # validate repo uri
+            # validate repo is an ssh uri
             unless "#{service}" == "catapult"
-              # validate repo is an ssh uri
               unless "#{repo_split_1[0]}" == "git"
                 catapult_exception("There is an error in your secrets/configuration.yml file.\nThe repo for websites => #{service} => domain => #{instance["domain"]} is invalid, the format must be git@github.com:devopsgroup-io/devopsgroup-io.git")
               end
-              # validate repo hosted at bitbucket.org or github.com
-              unless "#{repo_split_2[0]}" == "bitbucket.org" || "#{repo_split_2[0]}" == "github.com"
-                catapult_exception("There is an error in your secrets/configuration.yml file.\nThe repo for websites => #{service} => domain => #{instance["domain"]} is invalid, it must either be a bitbucket.org or github.com repository.")
-              end
+            end
+            # validate repo hosted at bitbucket.org or github.com
+            unless "#{repo_split_2[0]}" == "bitbucket.org" || "#{repo_split_2[0]}" == "github.com"
+              catapult_exception("There is an error in your secrets/configuration.yml file.\nThe repo for websites => #{service} => domain => #{instance["domain"]} is invalid, it must either be a bitbucket.org or github.com repository.")
             end
             # validate repo exists
             if "#{repo_split_2[0]}" == "bitbucket.org"
@@ -2266,7 +2330,7 @@ module Catapult
 
                 if response.code.to_f == 404
                   # create the repo if it does not exist
-                  confirm = ask("The Bitbucket repository #{repo_split_3[0]} does not exist, would you like to create it? [Y/N]") { |yn| yn.limit = 1, yn.validate = /[yn]/i }
+                  confirm = ask("The Bitbucket repository #{repo_split_3[0]} does not exist, would you like to create it? [y/n]") { |yn| yn.limit = 1, yn.validate = /[yn]/i }
                   if confirm.downcase == 'y'
                     uri = URI("https://api.bitbucket.org/2.0/repositories/#{repo_split_3[0]}")
                     Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
@@ -2351,7 +2415,7 @@ module Catapult
                     api_bitbucket_repo_group_privileges.each do |group|
                       if group["privilege"] == "admin" || group["privilege"] == "write"
                         group["group"]["members"].each do |member|
-                          if member["username"] == "#{@configuration["company"]["bitbucket_username"]}"
+                          if member["account_id"] == "#{@api_bitbucket_user_account_id}"
                             @api_bitbucket_repo_access = true
                           end
                         end
@@ -2374,7 +2438,7 @@ module Catapult
                     api_bitbucket_repo_privileges = JSON.parse(response.body)
                     api_bitbucket_repo_privileges.each do |member|
                       if member["privilege"] == "admin" || member["privilege"] == "write"
-                        if member["user"]["username"] == "#{@configuration["company"]["bitbucket_username"]}"
+                        if member["user"]["account_id"] == "#{@api_bitbucket_user_account_id}"
                           @api_bitbucket_repo_access = true
                         end
                       end
@@ -2395,7 +2459,7 @@ module Catapult
                   else
                     api_bitbucket_repo_repositories = JSON.parse(response.body)
                     if response.code.to_f == 200
-                      if api_bitbucket_repo_repositories["owner"]["username"] == "#{@configuration["company"]["bitbucket_username"]}"
+                      if api_bitbucket_repo_repositories["owner"]["account_id"] == "#{@api_bitbucket_user_account_id}"
                         @api_bitbucket_repo_access = true
                       end
                     end
@@ -2469,7 +2533,7 @@ module Catapult
             end
             # validate repo branches
             if "#{repo_split_2[0]}" == "bitbucket.org"
-              uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/branches")
+              uri = URI("https://api.bitbucket.org/2.0/repositories/#{repo_split_3[0]}/refs/branches?pagelen=100")
               Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
                 request = Net::HTTP::Get.new uri.request_uri
                 request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
@@ -2481,14 +2545,14 @@ module Catapult
                   @api_bitbucket_repo_develop = false
                   @api_bitbucket_repo_release = false
                   @api_bitbucket_repo_master = false
-                  api_bitbucket_repo_branches.each do |branch, array|
-                    if branch == "master"
+                  api_bitbucket_repo_branches["values"].each do |branch|
+                    if branch["name"] == "master"
                       @api_bitbucket_repo_master = true
                     end
-                    if branch == "release"
+                    if branch["name"] == "release"
                       @api_bitbucket_repo_release = true
                     end
-                    if branch == "develop"
+                    if branch["name"] == "develop"
                       @api_bitbucket_repo_develop = true
                     end
                   end
@@ -2552,10 +2616,10 @@ module Catapult
                 end
               end
             end
-            # create bamboo service per bitbucket repo
+            # create bamboo webhook per bitbucket repo
             if "#{repo_split_2[0]}" == "bitbucket.org"
-              # the bitbucket api offers no patch for service hooks, so we first need to check if the bitbucket bamboo service hooks exist
-              uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/services")
+              @api_bitbucket_repo_hook = false
+              uri = URI("https://api.bitbucket.org/2.0/repositories/#{repo_split_3[0]}/hooks")
               Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
                 request = Net::HTTP::Get.new uri.request_uri
                 request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
@@ -2563,113 +2627,91 @@ module Catapult
                 if response.code.to_f.between?(399,600)
                   puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
                 else
-                  api_bitbucket_services = JSON.parse(response.body)
-                  @api_bitbucket_services_bamboo_cat_test = 0
-                  api_bitbucket_services.each do |service|
-                    if service["service"]["type"] == "Bamboo"
-                      service["service"]["fields"].each do |field|
-                        if field["name"] == "Plan Key"
-                          if field["value"] == "CAT-TEST"
-                            @api_bitbucket_services_bamboo_cat_test = @api_bitbucket_services_bamboo_cat_test + 1
-                            # remove potential duplicates
-                            if @api_bitbucket_services_bamboo_cat_test > 1
-                              uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/services/#{service["id"]}")
-                              Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                                request = Net::HTTP::Delete.new uri.request_uri
-                                request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-                                response = http.request(request)
-                                if response.code.to_f.between?(399,600)
-                                  catapult_exception("Unable to configure Bitbucket Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
-                                end
-                              end
-                            # update existing
-                            else
-                              uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/services/#{service["id"]}")
-                              Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                                request = Net::HTTP::Put.new uri.request_uri
-                                request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-                                request.body = URI::encode\
-                                  (""\
-                                    "type=Bamboo"\
-                                    "&URL=#{@configuration["company"]["bamboo_base_url"]}"\
-                                    "&Plan Key=CAT-TEST"\
-                                    "&Username=#{@configuration["company"]["bamboo_username"]}"\
-                                    "&Password=#{@configuration["company"]["bamboo_password"]}"\
-                                  "")
-                                response = http.request(request)
-                                if response.code.to_f.between?(399,600)
-                                  catapult_exception("Unable to configure Bitbucket Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
-                                end
-                              end
-                            end
-                          end
-                          # remove known service plans we no longer want
-                          if field["value"] == "CAT-QC"
-                            uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/services/#{service["id"]}")
-                            Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                              request = Net::HTTP::Delete.new uri.request_uri
-                              request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-                              response = http.request(request)
-                              if response.code.to_f.between?(399,600)
-                                catapult_exception("Unable to configure Bitbucket Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
-                              end
-                            end
-                          end
-                        end
-                      end
+                  api_github_repo_hooks = JSON.parse(response.body)
+                  api_github_repo_hooks["values"].each do |hook|
+                    if hook["description"] == "bamboo:CAT-TEST" && hook["url"] == "#{@configuration["company"]["bamboo_base_url"]}rest/triggers/1.0/remote/changeDetection?planKey=CAT-TEST&skipBranches=false"
+                      @api_bitbucket_repo_hook = true
                     end
                   end
-                  # create the service if it does not exist
-                  unless @api_bitbucket_services_bamboo_cat_test > 0
-                    uri = URI("https://api.bitbucket.org/1.0/repositories/#{repo_split_3[0]}/services")
+                  unless @api_bitbucket_repo_hook
+                    uri = URI("https://api.bitbucket.org/2.0/repositories/#{repo_split_3[0]}/hooks")
                     Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
                       request = Net::HTTP::Post.new uri.request_uri
                       request.basic_auth "#{@configuration["company"]["bitbucket_username"]}", "#{@configuration["company"]["bitbucket_password"]}"
-                      request.body = URI::encode\
-                        (""\
-                          "type=Bamboo"\
-                          "&URL=#{@configuration["company"]["bamboo_base_url"]}"\
-                          "&Plan Key=CAT-TEST"\
-                          "&Username=#{@configuration["company"]["bamboo_username"]}"\
-                          "&Password=#{@configuration["company"]["bamboo_password"]}"\
-                        "")
+                      request.add_field "Content-Type", "application/json"
+                      request.body = ""\
+                        "{"\
+                          "\"description\":\"bamboo:CAT-TEST\","\
+                          "\"url\":\"#{@configuration["company"]["bamboo_base_url"]}rest/triggers/1.0/remote/changeDetection?planKey=CAT-TEST&skipBranches=false\","\
+                          "\"active\":true,"\
+                          "\"events\":"\
+                            "["\
+                              "\"repo:push\""\
+                            "]"\
+                        "}"
                       response = http.request(request)
-                      if response.code.to_f.between?(399,600)
-                        catapult_exception("Unable to configure Bitbucket Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
+                      if response.code.to_f.between?(500,600)
+                        puts "   - The Bitbucket API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
+                      elsif response.code.to_f.between?(399,499)
+                        catapult_exception("Unable to configure Bitbucket Bamboo webhook for websites => #{service} => domain => #{instance["domain"]}. Ensure the bitbucket_username defined in secrets/configuration.yml has correct access to the repository.")
+                      else
+                        row.push("configured".ljust(17))
                       end
                     end
+                  else
+                    row.push("configured".ljust(17))
                   end
                 end
               end
             end
-            # create bamboo service per github repo
+            # create bamboo webhook per github repo
             if "#{repo_split_2[0]}" == "github.com"
+              @api_github_repo_hook = false
               uri = URI("https://api.github.com/repos/#{repo_split_3[0]}/hooks")
               Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
-                request = Net::HTTP::Post.new uri.request_uri
+                request = Net::HTTP::Get.new uri.request_uri
                 request.basic_auth "#{@configuration["company"]["github_username"]}", "#{@configuration["company"]["github_password"]}"
-                request.add_field "Content-Type", "application/json"
-                request.body = ""\
-                  "{"\
-                    "\"name\":\"bamboo\","\
-                    "\"active\":true,"\
-                    "\"config\":"\
-                      "{"\
-                        "\"base_url\":\"#{@configuration["company"]["bamboo_base_url"]}\","\
-                        "\"build_key\":\"develop:CAT-TEST\","\
-                        "\"username\":\"#{@configuration["company"]["bamboo_username"]}\","\
-                        "\"password\":\"#{@configuration["company"]["bamboo_password"]}\""\
-                      "}"\
-                  "}"
                 response = http.request(request)
-                if response.code.to_f.between?(500,600)
+                if response.code.to_f.between?(399,600)
                   puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
-                elsif response.code.to_f.between?(399,499)
-                  catapult_exception("Unable to configure GitHub Bamboo service for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
+                else
+                  api_github_repo_hooks = JSON.parse(response.body)
+                  api_github_repo_hooks.each do |hook|
+                    if hook["config"]["url"] == "#{@configuration["company"]["bamboo_base_url"]}rest/triggers/1.0/remote/changeDetection?planKey=CAT-TEST&skipBranches=false"
+                      @api_github_repo_hook = true
+                    end
+                  end
+                  unless @api_github_repo_hook
+                    uri = URI("https://api.github.com/repos/#{repo_split_3[0]}/hooks")
+                    Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+                      request = Net::HTTP::Post.new uri.request_uri
+                      request.basic_auth "#{@configuration["company"]["github_username"]}", "#{@configuration["company"]["github_password"]}"
+                      request.add_field "Content-Type", "application/json"
+                      request.body = ""\
+                        "{"\
+                          "\"name\":\"web\","\
+                          "\"active\":true,"\
+                          "\"config\":"\
+                            "{"\
+                              "\"url\":\"#{@configuration["company"]["bamboo_base_url"]}rest/triggers/1.0/remote/changeDetection?planKey=CAT-TEST&skipBranches=false \","\
+                              "\"content_type\":\"json\""\
+                            "}"\
+                        "}"
+                      response = http.request(request)
+                      if response.code.to_f.between?(500,600)
+                        puts "   - The GitHub API seems to be down, skipping... (this may impact provisioning, deployments, and dashboard reporting)".color(Colors::RED)
+                      elsif response.code.to_f.between?(399,499)
+                        catapult_exception("Unable to configure GitHub Bamboo webhook for websites => #{service} => domain => #{instance["domain"]}. Ensure the github_username defined in secrets/configuration.yml has correct access to the repository.")
+                      else
+                        row.push("configured".ljust(17))
+                      end
+                    end
+                  else
+                    row.push("configured".ljust(17))
+                  end
                 end
               end
             end
-            row.push("configured".ljust(17))
 
             puts row.join(" ")
 
@@ -2682,6 +2724,8 @@ module Catapult
         end
       end
     end
+    # remove the temporary catapult entry
+    @configuration["websites"].delete("catapult")
 
 
 
