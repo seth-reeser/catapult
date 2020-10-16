@@ -1,1 +1,2 @@
 **/installers/** linguist-vendored
+*.sh eol=lf
