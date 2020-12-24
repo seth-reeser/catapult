@@ -141,6 +141,8 @@ Catapult orchestrates the following key components of DevOps to provide you with
     - [Geographic Optimizations](#geographic-optimizations)
     - [Recommended Optimizations](#recommended-optimizations)
 - [Capacity](#capacity)
+    - [Increasing Capacity](#increasing-capacity)
+    - [Load Balancer](#load-balancer)
 - [Performance and Capacity Testing](#performance-and-capacity-testing)
     - [Website Concurrency Maximum](#website-concurrency-maximum)
     - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
@@ -1523,7 +1525,7 @@ Google's [PageSpeed Insights](https://developers.google.com/speed/pagespeed/insi
 
 # Capacity #
 
-Your website's capacity potential is defined by two key elements; 1) your website's average resource requirement per request and 2) server resources available. We recommend to first [Performance](#performance) optmize your website and *then* consider your website's capacity potential through [Performance and Capacity Testing](#performance-and-capcity-testing).
+Your website's capacity potential is defined by two key elements; 1) your website's average resource requirement per request and 2) server resources available. We recommend to first [Performance](#performance) optmize your website and *then* consider your website's capacity potential through [Performance and Capacity Testing](#performance-and-capacity-testing).
 
 ## Increasing Capacity ##
 
@@ -1533,6 +1535,10 @@ Catapult defines horizontal scaling through adding additional servers, this affo
     * `vagrant up ~/secrets/configuration.yml["company"]["name"]-test-redhat1`
     * `vagrant up ~/secrets/configuration.yml["company"]["name"]-qc-redhat1`
     * `vagrant up ~/secrets/configuration.yml["company"]["name"]-production-redhat1`
+    
+## Load Balancer
+
+HAProxy is used to facilitate capacity management by means of a layer 7 load-balancer. The HAProxy status dashboard is made available to you for each environment by visiting port 32700 at the respective environment's `-redhat` server `ip` address as defined in `~/secrets/configuration.yml`. As example, `42.67.232.56:32700`. The username to login is `admin` and the password is the password as defined at the respective environment's `["software"]["admin_password"]` entry.
 
 
 
