@@ -146,6 +146,8 @@ Catapult orchestrates the following key components of DevOps to provide you with
 - [Performance and Capacity Testing](#performance-and-capacity-testing)
     - [Website Concurrency Maximum](#website-concurrency-maximum)
     - [Interpreting Apache AB Results](#interpreting-apache-ab-results)
+- [How-to](#how-to)
+    - [Rotating Secrets](#rotating-secrets)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
     - [Releases](#releases)
@@ -245,14 +247,14 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
 Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#instance-setup), and [Services Setup](#services-setup) as described in the following sections.
 
 **Please Note:**
-* You must run most commands from an elevated shell. For macOS and Linux, type `sudo su` in a terminal window, or for Windows, right-clicking on Command Prompt from the Start Menu and selecting "Run as Administrator".
 * It is advised to turn off any antivirus software that you may have installed during setup and usage of Catapult - tasks such as forwarding ports and writing hosts files may be blocked.
 * Virtualizaion must be enabled in the BIOS of the developer's workstation - follow [this how-to](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Virtualization/sect-Virtualization-Troubleshooting-Enabling_Intel_VT_and_AMD_V_virtualization_hardware_extensions_in_BIOS.html) to get started.
+* It is recommended to disable Internet Service Provider (ISP) Domain Name System (DNS) helpers, such as opting out of the [Verizon DNS Assitance](https://www.verizon.com/support/residential/internet/home-network/settings/opt-out-of-dns-assist).
 * Using a VPN client during usage of LocalDev may result in lost communication between your workstation and the guests, requiring a `vagrant reload` to regain communication.
 
 ## Developer Setup ##
 
-Catapult is controlled via Vagrant and the command line of a developer's workstation - below is a list of required software that will need to be installed.
+Catapult uses Vagrant and the command line of a developer's workstation, below is a list of required software that will need to be installed.
 
 * macOS workstations: Compatible and supported
 * Linux workstations: Compatible and supported
@@ -283,9 +285,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
     * **Using Linux?**
         1. Git commandline is included in the base distribution in most cases.
         1. For a streamlined Git GUI, download and install SmartGit from http://www.syntevo.com/smartgit/
-4. **Git Credential Caching**
-    1. Follow the instructions outlined for your system to store your Git credentials https://docs.github.com/en/github/using-git/caching-your-github-credentials-in-git
-5. **VirtualBox**
+4. **VirtualBox**
     * **Using macOS?**
         1. Download and install the latest version of VirtualBox from https://www.virtualbox.org/wiki/Downloads
     * **Using Windows?**
@@ -294,7 +294,7 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
         1. Download and install the latest version of VirtualBox using Advanced Packaging Tool (APT) `sudo apt-get install virtualbox`
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download and install the latest version of VirtualBox using Yellowdog Updater, Modifed (yum) `sudo yum install virtualbox`
-6. **Vagrant**
+5. **Vagrant**
     * **Using macOS?**
         1. Ensure Xcode Command Line Tools are installed by running `xcode-select --install` from Terminal
         2. Download and install the latest version of Vagrant v2.x from https://releases.hashicorp.com/vagrant/
@@ -307,8 +307,20 @@ Catapult is controlled via Vagrant and the command line of a developer's worksta
     * **Using Linux (Fedora, Red Hat, Suse)?**
         1. Download the latest version of Vagrant v2.x respective to your architecture from https://releases.hashicorp.com/vagrant/ by running e.g. `wget https://releases.hashicorp.com/vagrant/2.2.9/vagrant_2.2.9_x86_64.rpm`
         2. Install Vagrant using yum e.g. `sudo yum install vagrant_2.2.9_x86_64.rpm`
-7. **Java SE Development Kit**
-    1. Follow the instructions outlined for your system http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+6. **Java SE Development Kit**
+    1. Download the respective Java SE Development Kit for your system http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+7. **Instance Configuration**
+    1. **If you are a Catapult admin**:
+       1. If you are setting up a new Catapult instance, continue on to the [Instance Setup](#instance-setup) step. If you are configuring a new workstation with an existing Catapult instance, ensure the following is completed:
+           1. Run `vagrant status` to verify the correct workstation software is installed and to generate your Catapult user files
+           2. Set `~/secrets/configuration-user.yml["settings"]["admin"]` to `true`
+           3. Enable Git credential caching by following the instructions outlined for your system to [store your Git credentials](https://docs.github.com/en/github/using-git/caching-your-github-credentials-in-git). This will allow you to push changes to your Catapult instance without prompt for credentials.
+    2. **If you are a Catapult user**:
+       1. Using Git, clone your team's Catapult instance repository
+       2. Once cloned, from your workstation's terminal, change directory into the root of the newly cloned Catapult repository
+       3. Run `vagrant status` to verify the correct workstation software is installed and to generate your Catapult user files
+       4. Contact your Catapult admin for your Catapult instance's GPG passphrase and place at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
+       5. You may stop at this point and contact your Catapult admin for next steps. The following [Instance Setup](#instance-setup) and [Services Setup](#services-setup) will be, or have been, completed by your Catapult admin
 
 ## Instance Setup ##
 
@@ -316,14 +328,26 @@ Catapult is quick to setup. You have the option of using GitHub (public) or Bitb
 
 1. **Fork Catapult**
     * **GitHub (public)**
-        1. Fork https://github.com/devopsgroup-io/catapult and clone via SourceTree or the git utility of your choice.
+        1. Fork https://github.com/devopsgroup-io/catapult and clone via SourceTree or the Git utility of your choice.
     * **BitBucket (private)**
-        1. From BitBucket, create a new repository and import https://github.com/devopsgroup-io/catapult. Then clone via SourceTree or the git utility of your choice.
-2. **SSH Key Pair**
+        1. From BitBucket, create a new repository and import https://github.com/devopsgroup-io/catapult. Then clone via SourceTree or the Git utility of your choice.
+2. **Admin Mode**
+    1. Once cloned, from your workstation's terminal, change directory into the root of the newly cloned Catapult repository
+    2. Run `vagrant status` to verify the correct workstation software is installed and to generate your Catapult user files
+    3. Set `~/secrets/configuration-user.yml["settings"]["admin"]` to `true`
+    4. Enable Git credential caching by following the instructions outlined for your system to [store your Git credentials](https://docs.github.com/en/github/using-git/caching-your-github-credentials-in-git)
+3. **GPG Edit Mode**
+    1. **GPG Edit Mode** is set at `~/secrets/configuration-user.yml["settings"]["gpg_edit"]` (`false` by default) and is used to encrypt your Catapult configuration secrets using your **GPG Passphrase**:
+        1. `~/secrets/id_rsa` as `~/secrets/id_rsa.gpg`
+        2. `~/secrets/id_rsa.pub` as `~/secrets/id_rsa.pub.gpg`
+        3. `~/secrets/configuration.yml` as `~/secrets/configuration.yml.gpg`
+    1. **GPG Edit Mode** requires that you are on your Catapult fork's `develop` branch.
+    3. Running any Vagrant command (e.g. `vagrant status`) will encrypt your configuration, of which, will allow you to commit and push safely to your public Catapult fork.
+4. **SSH Key Pair**
     1. Create a *passwordless* SSH key pair - this will drive authentication for Catapult.
         1. For instructions please see https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/
         2. Place the newly created *passwordless* SSH key pair `id_rsa` and `id_rsa.pub` in the `~/secrets/` folder.
-3. **GPG Passphrase**
+5. **GPG Passphrase**
     1. Generate a GPG passphrase 
         1. This passphrase is used to encrypt and descrypt your Catapult instance's configuration file.
         2. NEVER SHARE THE PASSPHRASE WITH ANYONE OTHER THAN YOUR TEAM.
@@ -332,13 +356,7 @@ Catapult is quick to setup. You have the option of using GitHub (public) or Bitb
         5. Place your newly generated passphrase at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
         6. It is recommended to print a QR code of the passphrase to distribute to your team, please visit http://educastellano.github.io/qr-code/demo/
         7. Remember! Effective security is equal parts process and technology.
-4. **GPG Edit Mode**
-    1. **GPG Edit Mode** is set at `~/secrets/configuration-user.yml["settings"]["gpg_edit"]` (`false` by default) and is used to encrypt your Catapult configuration secrets using your **GPG Passphrase**:
-        1. `~/secrets/id_rsa` as `~/secrets/id_rsa.gpg`
-        2. `~/secrets/id_rsa.pub` as `~/secrets/id_rsa.pub.gpg`
-        3. `~/secrets/configuration.yml` as `~/secrets/configuration.yml.gpg`
-    1. **GPG Edit Mode** requires that you are on your Catapult fork's `develop` branch.
-    3. Running any Vagrant command (e.g. `vagrant status`) will encrypt your configuration, of which, will allow you to commit and push safely to your public Catapult fork.
+
 
 
 
@@ -753,7 +771,7 @@ The exclusive Company entry contains top-level company information and service c
         * Your company's timezone in Windows Standard Format
         * See [this list](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Virtualization/3.1/html/Developer_Guide/appe-REST_API_Guide-Timezones.html) for a list of valid Windows Standard Format timezones
 
-The remaining keys include credentials to services, ideally rotated on a bi-annual basis. When rotated, all Bamboo builds need to be disabled and then the configuration changes merged into all branches of your Catapult's fork (`develop` > `release` > `master`), then builds enabled.
+The remaining keys include credentials to services:
 
 * `digitalocean_personal_access_token`
 * `bitbucket_username`
@@ -763,6 +781,7 @@ The remaining keys include credentials to services, ideally rotated on a bi-annu
 * `github_personal_access_token`
 * `bamboo_base_url`
 * `bamboo_username`
+* `bamboo_password`
 * `aws_access_key`
 * `aws_secret_key`
 * `bamboo_password`
@@ -771,6 +790,9 @@ The remaining keys include credentials to services, ideally rotated on a bi-annu
 * `newrelic_admin_api_key`
 * `newrelic_api_key`
 * `newrelic_license_key`
+* `sendgrid_api_key`
+* `sendgrid_username`
+* `sendgrid_password`
 
 
 ### Environments ###
@@ -1616,6 +1638,39 @@ Percentage of the requests served within a certain time (ms)
   99%   7227
  100%   7325 (longest request)
 ```
+
+
+
+# How-to #
+
+This section outlines Catapult maintenance tasks.
+
+
+## Rotating Secrets ##
+
+As your team members change, there may be a need to rotate Catapult secrets. The following is the recommended method and order to do so.
+
+1. **GPG Passphrase**
+   1. Disable all Bamboo build plans
+   2. Generate a new GPG passphrase, as described in the [Instance Setup](#instance-setup), and place at `~/secrets/configuration-user.yml["settings"]["gpg_key"]`
+   3. Encrypt the file `~secrets/configuration.yml` with the new GPG passphrase: `gpg --verbose --batch --yes --passphrase "[insert newly generated passphrase here]" --output secrets/configuration.yml.gpg --armor --cipher-algo AES256 --symmetric secrets/configuration.yml`
+   4. Encrypt the file `~secrets/id_rsa` with the new GPG passphrase: `gpg --verbose --batch --yes --passphrase "[insert newly generated passphrase here]" --output secrets/id_rsa.gpg --armor --cipher-algo AES256 --symmetric secrets/id_rsa`
+   5. Encrypt the file `~secrets/secrets/id_rsa.pub` with the new GPG passphrase: `gpg --verbose --batch --yes --passphrase "[insert newly generated passphrase here]" --output secrets/id_rsa.pub.gpg --armor --cipher-algo AES256 --symmetric secrets/id_rsa.pub`
+   6. Commit the updated files to the `develop` branch, then ensure the TEST Bamboo build plan's jobs have the updated GPG passphrase, and run the build for confirmation.
+   7. Create and merge a pull request from `develop` into the `release` branch, then ensure the QC Bamboo build plan's jobs have the updated GPG passphrase, and run the build for confirmation.
+   8. Create and merge a pull request from `release` into the `master` branch, then ensure the PROD Bamboo build plan's jobs have the updated GPG passphrase, and run the build for confirmation. 
+2. **Bamboo Server**
+   1. Login to the Bamboo Server and change the password
+   2. With GPG Edit Mode enabled, update `~/secrets/configuration.yml` with the new credential and commit
+3. **DigitalOcean**
+   1. Login to DigitalOcean and generate a new personal access token and delete the old
+   2. With GPG Edit Mode enabled, update `~/secrets/configuration.yml` with the new credential and commit
+4. **Bitbucket**
+   1. Login to Bitbucket and change the password
+   2. With GPG Edit Mode enabled, update `~/secrets/configuration.yml` with the new credential and commit
+5. **GitHub**
+   1. Login to GitHub and change the password, generate a new personal access token and delete the old
+   2. With GPG Edit Mode enabled, update `~/secrets/configuration.yml` with the new credential and commit
 
 
 
