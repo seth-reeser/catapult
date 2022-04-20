@@ -61,11 +61,10 @@ ${output_swap_utilization} \
 
 # install shyaml
 yum install python -y
-yum install python-devel -y
-yum install python-setuptools -y
-sudo easy_install pip
-sudo pip install --upgrade pip
-sudo pip install shyaml --upgrade
+yum install python-pip -y
+sudo pip install pathlib --upgrade
+sudo pip install pyyaml==5.4.1
+sudo pip install shyaml==0.6.2
 
 # run server provision
 if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redhat.servers.$4.modules) ]; then
@@ -74,11 +73,26 @@ if [ $(cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 redha
 
     # decrypt secrets
     gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/configuration.yml --decrypt /catapult/secrets/configuration.yml.gpg
+    if [ $? -eq 0 ]; then
+        chmod 700 /catapult/secrets/configuration.yml
+    else
+        echo -e "Cannot decrypt /catapult/secrets/configuration.yml, please check the gpg key."
+        exit 1
+    fi
     gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa --decrypt /catapult/secrets/id_rsa.gpg
+    if [ $? -eq 0 ]; then
+        chmod 700 /catapult/secrets/id_rsa
+    else
+        echo -e "Cannot decrypt /catapult/secrets/id_rsa, please check the gpg key."
+        exit 1
+    fi
     gpg --verbose --batch --yes --passphrase ${3} --output /catapult/secrets/id_rsa.pub --decrypt /catapult/secrets/id_rsa.pub.gpg
-    chmod 700 /catapult/secrets/configuration.yml
-    chmod 700 /catapult/secrets/id_rsa
-    chmod 700 /catapult/secrets/id_rsa.pub
+    if [ $? -eq 0 ]; then
+        chmod 700 /catapult/secrets/id_rsa.pub
+    else
+        echo -e "Cannot decrypt /catapult/secrets/id_rsa.pub, please check the gpg key."
+        exit 1
+    fi
 
     # get configuration
     source "/catapult/provisioners/redhat/modules/catapult.sh"
