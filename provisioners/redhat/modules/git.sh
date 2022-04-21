@@ -68,8 +68,16 @@ if [ -d "/var/www/repositories/apache/${domain}/.git" ]; then
             # manage software ignores
             if [ "${software}" = "wordpress4" ] || [ "${software}" = "wordpress5" ]; then
                 git rm -rf --cached "/var/www/repositories/apache/${domain}/${webroot}wp-content/cache"
+                git rm -rf --cached "/var/www/repositories/apache/${domain}/${webroot}wp-content/advanced-cache.php"
+                git rm -rf --cached "/var/www/repositories/apache/${domain}/${webroot}wp-content/w3tc-config/master.php"
                 if ! grep -q "${webroot}wp-content/cache" "/var/www/repositories/apache/${domain}/.gitignore"; then
                    sudo bash -c "echo \"${webroot}wp-content/cache\" >> \"/var/www/repositories/apache/${domain}/.gitignore\""
+                fi
+                if ! grep -q "${webroot}wp-content/advanced-cache.php" "/var/www/repositories/apache/${domain}/.gitignore"; then
+                   sudo bash -c "echo \"${webroot}wp-content/advanced-cache.php\" >> \"/var/www/repositories/apache/${domain}/.gitignore\""
+                fi
+                if ! grep -q "${webroot}wp-content/w3tc-config/master.php" "/var/www/repositories/apache/${domain}/.gitignore"; then
+                   sudo bash -c "echo \"${webroot}wp-content/w3tc-config/master.php\" >> \"/var/www/repositories/apache/${domain}/.gitignore\""
                 fi
             fi
             # add everything in the repository to the git index (keep in mind untracked file stores)
@@ -81,7 +89,11 @@ if [ -d "/var/www/repositories/apache/${domain}/.git" ]; then
             # loop through each file store as a way to reduce repository size and avoid limits
             if [ ! -z "$(provisioners_array software.apache.${software}.file_stores)" ]; then
                 for file_store in $(provisioners_array software.apache.${software}.file_stores); do
+                    file_store_relative="${file_store}"
                     file_store="/var/www/repositories/apache/${domain}/${webroot}${file_store}"
+                    for file_stores_rsync_exclude in $(provisioners_array software.apache.${software}.file_stores_rsync_exclude); do
+                        sudo bash -c "echo \"${file_stores_rsync_exclude}\" >> \"${file_store}/.gitignore\""
+                    done
                     # confirm the file store exists
                     if [ -d "${file_store}" ]; then
                         # get the file store size

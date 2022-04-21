@@ -27,6 +27,17 @@ else
     # define a maximum directory size
     directory_size_maximum=$(( 1024 * 750 ))
 
+    # create temp file to define rsync exclusions
+    tmpfile_rsync_exclusions=$(mktemp /tmp/catapult.rsync.$domain.XXXXXXXXXX)
+
+    if [ "$(provisioners_array software.apache.${software}.file_stores_rsync_exclude)" ]; then
+        cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 software.apache.$(catapult websites.apache.$5.software).file_stores_rsync_exclude |
+        while read -r -d $'\0' file_stores_rsync_exclude; do
+            echo -e "exclude from file store sync: ${file_stores_rsync_exclude}"
+            echo "${file_stores_rsync_exclude}" >> "$tmpfile_rsync_exclusions"
+        done
+    fi
+
     # loop through each software file store
     cat "/catapult/provisioners/provisioners.yml" | shyaml get-values-0 software.apache.$(catapult websites.apache.$5.software).file_stores |
     while read -r -d $'\0' file_store; do
@@ -43,18 +54,18 @@ else
                 echo -e "- production:downstream file store does not exist"
             else
                 echo -e "- production:downstream file store size: $(( ${file_store_size} / 1024 ))MB"
-                cd "/var/www/repositories/apache/${domain}" && git check-ignore --quiet "${file_store}"
+                cd "/var/www/repositories/apache/${domain}" && git check-ignore --quiet "${file_store}" &> /dev/null
                 if [ $? -ne 0 ]; then
                     echo -e "- this file store is tracked in git"
                     if [ "${file_store_size}" -gt "${directory_size_maximum}" ]; then
                         echo -e "- production:downstream file store is over the tracked limit [$(( ${file_store_size} / 1024 ))MB / $(( ${directory_size_maximum} / 1024 ))MB max]"
                         echo -e "- rsyncing..."
-                        sudo rsync --delete --recursive -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${production_redhat_ip}:${file_store}" "${file_store}"
+                        sudo rsync --delete --recursive --exclude-from="$tmpfile_rsync_exclusions" -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${production_redhat_ip}:${file_store}" "${file_store}"
                     fi
                 else
                     echo -e "- this file store is untracked in git"
                     echo -e "- rsyncing..."
-                    sudo rsync --delete --recursive -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${production_redhat_ip}:${file_store}" "${file_store}"
+                    sudo rsync --delete --recursive --exclude-from="$tmpfile_rsync_exclusions" -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${production_redhat_ip}:${file_store}" "${file_store}"
                 fi
             fi
        
@@ -67,18 +78,18 @@ else
                 echo -e "- test:upstream file store does not exist"
             else
                 echo -e "- test:upstream file store size: $(( ${file_store_size} / 1024 ))MB"
-                cd "/var/www/repositories/apache/${domain}" && git check-ignore --quiet "${file_store}"
+                cd "/var/www/repositories/apache/${domain}" && git check-ignore --quiet "${file_store}" &> /dev/null
                 if [ $? -ne 0 ]; then
                     echo -e "- this file store is tracked in git"
                     if [ "${file_store_size}" -gt "${directory_size_maximum}" ]; then
                         echo -e "- test:upstream file store is over the tracked limit [$(( ${file_store_size} / 1024 ))MB / $(( ${directory_size_maximum} / 1024 ))MB max]"
                         echo -e "- rsyncing..."
-                        sudo rsync --delete --recursive -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${test_redhat_ip}:${file_store}" "${file_store}"
+                        sudo rsync --delete --recursive --exclude-from="$tmpfile_rsync_exclusions" -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${test_redhat_ip}:${file_store}" "${file_store}"
                     fi
                 else
                     echo -e "- this file store is untracked in git"
                     echo -e "- rsyncing..."
-                    sudo rsync --delete --recursive -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${test_redhat_ip}:${file_store}" "${file_store}"
+                    sudo rsync --delete --recursive --exclude-from="$tmpfile_rsync_exclusions" -e "ssh -oStrictHostKeyChecking=no -i /catapult/secrets/id_rsa -q" "root@${test_redhat_ip}:${file_store}" "${file_store}"
                 fi
             fi
 
@@ -89,6 +100,9 @@ else
         fi
 
     done
+
+    # clean up the rsync exclusions file
+    rm "$tmpfile_rsync_exclusions"
 fi
 
 # rsync the always untracked _sql file store: YYYYMMDD.sql files
