@@ -160,7 +160,7 @@ Catapult orchestrates the following key components of DevOps to provide you with
 
 Catapult intelligently manages the following website software that have been chosen from trending usage statistics from [BuiltWith](https://trends.builtwith.com/cms) and aligns with the [CentOS 7](http://mirror.centos.org/centos/7/os/x86_64/Packages/) and [Software Collections](https://www.softwarecollections.org/) trunks:
 
-Software | [Key](#websites) | Required PHP Version | Running PHP Version | Released | End-of-Life
+Software | [Key](#websites) | Minimum PHP Version | Running PHP Version | Released | End-of-Life
 ---------|------------------|---------------------|---------------------|----------|------------
 CodeIgniter 2                     | `codeigniter2`         | 5.1.6  | 5.4 | January 28, 2011   | [October 31, 2015](http://forum.codeigniter.com/thread-61357.html)
 CodeIgniter 3                     | `codeigniter3`         | 5.6    | 7.1 | March 30, 2015     |
@@ -177,8 +177,9 @@ MediaWiki 1                       | `mediawiki1`           | 5.5.9  | 7.1 | Dece
 Moodle 3                          | `moodle3`              | 5.6.5  | 7.1 | November 16, 2015  |
 SilverStripe 3                    | `silverstripe3`        | 5.3.3  | 5.4 | June 29, 2012      |
 SuiteCRM 7                        | `suitecrm7`            | 5.5    | 7.1 | October 21, 2013   | [November 15, 2019](http://support.sugarcrm.com/Resources/Supported_Versions/)
-WordPress 4                       | `wordpress4`           | 5.2.4  | 7.1 | September 4, 2014  |
-WordPress 5                       | `wordpress5`           | 5.2.4  | 7.2 | December 6, 2018   |
+WordPress 4                       | `wordpress4`           | 5.2    | 7.1 | September 4, 2014  |
+WordPress 5                       | `wordpress5`           | 5.6    | 7.2 | December 6, 2018   |
+WordPress 6                       | `wordpress6`           | 5.6    | 7.3 | May 24, 2022       |
 XenForo 1                         | `xenforo1`             | 5.2.11 | 5.4 | March 8, 2011      | [December 31, 2019](https://xenforo.com/community/threads/xenforo-1-5-end-of-life-schedule.157679/)
 XenForo 2                         | `xenforo2`             | 5.4.0  | 7.1 | November 28, 2017  |
 Zend Framework 2                  | `zendframework2`       | 5.3.23 | 5.4 | September 5, 2012  |
@@ -195,8 +196,9 @@ Catapult maintains a high level of integrity when it comes to PHP versions, thro
 PHP Version | End-of-Life | Maintainer | Updater
 ------------|-------------|------------|--------
 5.4 | June 30, 2024 | [CentOS](https://wiki.centos.org/FAQ/General#head-fe8a0be91ee3e7dea812e8694491e1dde5b75e6d) | [Red Hat](https://access.redhat.com/security/updates/backporting)
-7.1 | December 1, 2019 | [SCLO](https://www.softwarecollections.org/en/scls/rhscl/rh-php71/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
-7.2 | November 30, 2020 | [SCLO](https://www.softwarecollections.org/en/scls/rhscl/rh-php72/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
+7.1 | December 1, 2019 | [Software Collections](https://www.softwarecollections.org/en/scls/rhscl/rh-php71/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
+7.2 | November 30, 2020 | [Software Collections](https://www.softwarecollections.org/en/scls/rhscl/rh-php72/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
+7.3 | June 30, 2024 | [Jan Staněk](https://www.softwarecollections.org/en/scls/jstanek/rh-php73/) | [Red Hat](https://access.redhat.com/support/policy/updates/rhscl-rhel7)
 
 ### End-of-Life (EOL) ###
 
@@ -246,6 +248,13 @@ See an error or have a suggestion? Email competition@devopsgroup.io - we appreci
 # Setup Catapult #
 
 Catapult requires a [Developer Setup](#developer-setup), [Instance Setup](#instance-setup), and [Services Setup](#services-setup) as described in the following sections.
+
+There are two roles when using Catapult, Catapult User and Catapult Admin.
+
+* Catapult Users are developers who use Catapult for developing within the websites that the Catapult Admin has added and configured
+* Catapult Admins are administrators who setup their organization's Catapult instance and required services
+
+The Catapult User only needs to complete the [Developer Setup](#developer-setup) and the Catapult Admin completes the [Instance Setup](#instance-setup) and [Services Setup](#services-setup).
 
 **Please Note:**
 * It is advised to turn off any antivirus software that you may have installed during setup and usage of Catapult - tasks such as forwarding ports and writing hosts files may be blocked.
@@ -326,6 +335,7 @@ Catapult uses Vagrant and the command line of a developer's workstation, below i
        1. Users can choose to specify a personal Bamboo user (rather than the company user) for certain Bamboo calls that originate locally
            1. Set `~/secrets/configuration-user.yml["settings"]["bamboo_username"]` to the username for this Bamboo user
            2. Set `~/secrets/configuration-user.yml["settings"]["bamboo_password"]` to the password for this Bamboo user
+ 8. If you are a Catapult User, contact your Catapult Admin for next steps. If you are a Catapult Admin, continue to the [Instance Setup](#instance-setup) and [Services Setup](#services-setup).
 
 ## Instance Setup ##
 
@@ -924,6 +934,7 @@ The following options are available:
     * option: `software: suitecrm7`
     * option: `software: wordpress4`
     * option: `software: wordpress5`
+    * option: `software: wordpress6`
     * option: `software: xenforo1`
     * option: `software: xenforo2`
     * option: `software: zendframework2`
@@ -1002,6 +1013,7 @@ Software | Install Approach | Install Notes
 `suitecrm7`         | Fork     |
 `wordpress4`        | Fork     |
 `wordpress5`        | Fork     |
+`wordpress6`        | Fork     |
 `xenforo1`          | Download |
 `xenforo2`          | Download |
 `zendframework2`    | Fork     | Your best bet is to start from the [zendframework/ZendSkeletonApplication](https://github.com/zendframework/ZendSkeletonApplication) GitHub project. Catapult assumes Zend Framwork is at the root of your repo and writes a database config file at `config/autoload/global.php`, you will also need to set `webroot: public/` in your Catapult configuration.
@@ -1029,6 +1041,7 @@ Software | `software_auto_update` Support
 `suitecrm7`         | [:x:](https://suitecrm.com/wiki/index.php/Upgrade)
 `wordpress4`        | :white_check_mark:
 `wordpress5`        | :white_check_mark:
+`wordpress6`        | :white_check_mark:
 `xenforo1`          | [:x:](https://xenforo.com/help/upgrades/)
 `xenforo2`          | :white_check_mark:
 `zendframework2`    | :white_check_mark:
@@ -1126,6 +1139,7 @@ Software | Approach | Documentation
 `suitecrm7`         |                      | 
 `wordpress4`        | Database             | http://codex.wordpress.org/Changing_The_Site_URL
 `wordpress5`        | Database             | http://codex.wordpress.org/Changing_The_Site_URL
+`wordpress6`        | Database             | http://codex.wordpress.org/Changing_The_Site_URL
 `xenforo1`          |                      |
 `xenforo2`          |                      |
 `zendframework2`    |                      |
@@ -1231,6 +1245,7 @@ Software | Tool | Command | Documentation
 `suitecrm7`         |                 |                                                        |
 `wordpress4`        | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
 `wordpress5`        | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
+`wordpress6`        | WP-CLI          | `wp-cli core update-db`                                | http://codex.wordpress.org/Creating_Tables_with_Plugins#Adding_an_Upgrade_Function
 `xenforo1`          |                 |                                                        |
 `xenforo2`          |                 |                                                        |
 `zendframework2`    |                 |                                                        |

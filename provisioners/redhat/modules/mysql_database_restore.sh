@@ -134,6 +134,10 @@ if ([ ! -z "${software}" ]); then
                     echo -e "\t- replacing URLs in the database to align with the environment..."
                     wp-cli-php72 --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" search-replace ":\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})" "://\$1${domain_url}" --regex | sed "s/^/\t\t/"
                 fi
+                if ([ "${software}" = "wordpress6" ]); then
+                    echo -e "\t- replacing URLs in the database to align with the environment..."
+                    wp-cli-php73 --allow-root --path="/var/www/repositories/apache/${domain}/${webroot}" search-replace ":\/\/(www\.)?(dev\.|test\.|qc\.)?(${domain_url_replace})" "://\$1${domain_url}" --regex | sed "s/^/\t\t/"
+                fi
             fi
         fi
     fi
