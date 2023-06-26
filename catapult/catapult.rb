@@ -188,7 +188,7 @@ module Catapult
         end
       end
       # define required vagrant plugins
-      vagrant_plugins(["highline","vagrant-aws","vagrant-digitalocean","vagrant-hostmanager","vagrant-vbguest"]);
+      vagrant_plugins(["highline","vagrant-aws","vagrant-digitalocean","vagrant-hostmanager","vagrant-vbguest","vagrant-vmware-desktop"]);
     else
       catapult_exception("Cannot detect your operating system, please submit an issue at https://github.com/devopsgroup-io/catapult")
     end
@@ -2292,6 +2292,12 @@ module Catapult
                 end
                 unless @force_ip_exclude_valid_values
                   catapult_exception("There is an error in your secrets/configuration.yml file.\nThe force_ip_exclude for websites => #{service} => domain => #{instance["domain"]} is invalid, it must only include one, some, or all of the following [\"dev\",\"test\",\"qc\",\"production\"].")
+                end
+              end
+              # validate idle
+              unless instance["idle"] == nil
+                unless ["true"].include?("#{instance["idle"]}")
+                  catapult_exception("There is an error in your secrets/configuration.yml file.\nThe idle for websites => #{service} => domain => #{instance["domain"]} is invalid, it must be true or removed.")
                 end
               end
               # validate software
