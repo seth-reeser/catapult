@@ -856,7 +856,9 @@ The following options are available:
     * required: no
     * example: `domain_tld_override: mycompany.com`
         * a domain name under your [name server authority](https://en.wikipedia.org/wiki/Domain_Name_System#Authoritative_name_server) to append to the top-level-domain (e.g. `.com`)
-            * useful when you cannot or do not wish to host the Test/QC website at the `domain`
+            * configures a vhost at the `domain` and `domain`.`domain_tld_override`
+            * useful when you do not have DNS control of the `domain`, but want to have a quick option to point DNS to `domain` if needed
+            * if DNS is pointed to `domain`, you may remove the `domain_tld_override`. please caution note below
         * appends the `domain_tld_override` for Environments
             * `dev.example.com.mycompany.com`, `test.example.com.mycompany.com`, `qc.example.com.mycompany.com`, `example.com.mycompany.com`
             * `www.dev.example.com.mycompany.com`, `www.test.example.com.mycompany.com`, `www.qc.example.com.mycompany.com`, `www.example.com.mycompany.com`
@@ -1723,10 +1725,14 @@ As your team members change, there may be a need to rotate Catapult secrets. The
 Below is a log of service-related troubleshooting. If you're having issues related to Catapult, [submit a GitHub Issue](https://github.com/devopsgroup-io/catapult/issues/new).
 
 * **Apple Silicon (M1 and M2 chips)**
-   * When using Catapult with a Mac computer with [Apple silicon](https://support.apple.com/en-us/HT211814), you will need to set `~/secrets/configuration-user.yml["settings"]["provider_dev"]` to `vmware_fusion`
+  * When using Catapult with a Mac computer with [Apple silicon](https://support.apple.com/en-us/HT211814), you will need to set `~/secrets/configuration-user.yml["settings"]["provider_dev"]` to `vmware_fusion`
 
 * **Vagrant**
-   * When upgrading Vagrant you may run into errors - the most common issue is mismatched plugins, running this command has a good chance of success `sudo rm -Rf ~/.vagrant.d/gems/ && sudo rm ~/.vagrant.d/plugins.json`
+  * When upgrading Vagrant you may run into errors - the most common issue is mismatched plugins, running this command has a good chance of success `sudo rm -Rf ~/.vagrant.d/gems/ && sudo rm ~/.vagrant.d/plugins.json`
+  * Mac OS Sonoma is locked to Vagrant 2.3.4 and the following Vagrant plugins:
+    - `vagrant plugin install highline --plugin-version=2.1.0`
+    - `vagrant plugin install faraday --plugin-version=2.7.4`
+    - `vagrant plugin install vagrant-digitalocean --plugin-version=0.9.6`
 
 
 
