@@ -18,6 +18,7 @@ echo -e "\n\n\n==> INSTALLING MINIMAL DEPENDENCIES"
 
 # install additional repositories
 sudo yum install -y epel-release centos-release-scl
+sudo yum install -y https://rpms.remirepo.net/enterprise/remi-release-7.rpm
 # clean the yum cache directory
 sudo yum clean all -y --verbose
 # update packages

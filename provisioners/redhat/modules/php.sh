@@ -7,6 +7,64 @@ sudo yum remove -y *php56*
 sudo yum remove -y *php70*
 
 #################
+# PHP 8.3 PHP_FPM
+# /etc/opt/remi/php83/php.ini
+# /opt/remi/php83/root/usr/bin/php
+# /var/opt/remi/php83/log/php-fpm
+# sudo yum list \*-php83-\*
+#################
+
+# core extensions
+sudo yum install -y php83-php
+# These are not actual extensions. They are part of the PHP core and cannot be left out of a PHP binary with compilation options.
+
+# configure php-fpm
+if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ]); then
+    sudo yum install -y php83-php-fpm
+    sed -i -e "s#^listen = 127.0.0.1:9000#listen = 127.0.0.1:9830#g" /etc/opt/remi/php83/php-fpm.d/www.conf
+    sudo systemctl enable php83-php-fpm
+    sudo systemctl start php83-php-fpm
+fi
+
+# php.ini configuration options
+# set the timezone
+sed -i -e "s#\;date\.timezone.*#date.timezone = \"$(catapult company.timezone_redhat)\"#g" /etc/opt/remi/php83/php.ini
+# increase the post_max_size
+sed -i -e "s#^post_max_size.*#post_max_size = 64M#g" /etc/opt/remi/php83/php.ini
+# increase the upload_max_filesize
+sed -i -e "s#^upload_max_filesize.*#upload_max_filesize = 16M#g" /etc/opt/remi/php83/php.ini
+# hide x-powered-by
+sed -i -e "s#^expose_php.*#expose_php = Off#g" /etc/opt/remi/php83/php.ini
+# increase php memory limit for tools like composer
+sed -i -e "s#^memory_limit.*#memory_limit = 256M#g" /etc/opt/remi/php83/php.ini
+# display errors on screen using the default recommendations for development and production
+if ([ "$1" = "dev" ] || [ "$1" = "test" ]); then
+    sed -i -e "s#^display_errors.*#display_errors = On#g" /etc/opt/remi/php83/php.ini
+    sed -i -e "s#^error_reporting.*#error_reporting = E_ALL#g" /etc/opt/remi/php83/php.ini
+else
+    sed -i -e "s#^display_errors.*#display_errors = Off#g" /etc/opt/remi/php83/php.ini
+    sed -i -e "s#^error_reporting.*#error_reporting = E_ALL \& \~E_DEPRECATED \& \~E_STRICT#g" /etc/opt/remi/php83/php.ini
+fi
+
+# bundled extensions
+# These extensions are bundled with PHP.
+sudo yum install -y php83-php-bcmath php83-php-gd php83-php-intl php83-php-mbstring php83-php-opcache php83-php-soap php83-php-xmlrpc
+# disable opcache for dev
+if [ "$1" = "dev" ]; then
+    sudo bash -c 'echo "/var/www" > /etc/opt/remi/php83/php.d/opcache-default.blacklist'
+else
+    sudo bash -c 'echo "" > /etc/opt/remi/php83/php.d/opcache-default.blacklist'
+fi
+
+# external extensions
+# These extensions are bundled with PHP but in order to compile them, external libraries will be needed.
+sudo yum install -y php83-php-gmp php83-php-mysqlnd
+
+# pecl extensions
+# These extensions are available from » PECL. They may require external libraries. More PECL extensions exist but they are not documented in the PHP manual yet.
+sudo yum install -y php83-php-pecl-imagick-im6 php83-php-pecl-uploadprogress
+
+#################
 # PHP 7.3 PHP_FPM
 # /etc/opt/rh/rh-php73/php.ini
 # /opt/rh/rh-php73/root/usr/bin/php
@@ -303,6 +361,10 @@ if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ]); then
     sed --in-place --expression "s#newrelic\.appname.*#newrelic.appname = \"$(catapult company.name | tr '[:upper:]' '[:lower:]')-${1}-redhat\"#g" "/usr/share/newrelic/newrelic-php5-8.4.0.231-linux/scripts/newrelic.ini.template"
     sed --in-place --expression "s#;newrelic\.daemon.\port.*#newrelic.daemon.port = \"@newrelic-daemon\"#g" "/usr/share/newrelic/newrelic-php5-8.4.0.231-linux/scripts/newrelic.ini.template"
     sed --in-place --expression "s/\"REPLACE_WITH_REAL_KEY\"/\"$(catapult company.newrelic_license_key)\"/g" "/usr/share/newrelic/newrelic-php5-8.4.0.231-linux/scripts/newrelic.ini.template"
+    # rh-php83
+    rm --force "/opt/rh/rh-php83/root/usr/lib64/php/modules/newrelic.so"
+    cp "/usr/share/newrelic/newrelic-php5-8.4.0.231-linux/agent/x64/newrelic-20170718.so" "/opt/remi/php83/root/usr/lib64/php/modules/newrelic.so"
+    cp "/usr/share/newrelic/newrelic-php5-8.4.0.231-linux/scripts/newrelic.ini.template" "/etc/opt/remi/php83/php.d/newrelic.ini"
     # rh-php73
     rm --force "/opt/rh/rh-php73/root/usr/lib64/php/modules/newrelic.so"
     cp "/usr/share/newrelic/newrelic-php5-8.4.0.231-linux/agent/x64/newrelic-20170718.so" "/opt/rh/rh-php73/root/usr/lib64/php/modules/newrelic.so"
@@ -317,7 +379,7 @@ if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ]); then
     cp "/usr/share/newrelic/newrelic-php5-8.4.0.231-linux/scripts/newrelic.ini.template" "/etc/opt/rh/rh-php71/php.d/newrelic.ini"
 
     # new relic apm php installed but we need to set configuration
-    NR_INSTALL_PHPLIST="/usr/bin:/opt/rh/rh-php71/root/usr/bin:/opt/rh/rh-php72/root/usr/bin:/opt/rh/rh-php73/root/usr/bin"; export NR_INSTALL_PHPLIST
+    NR_INSTALL_PHPLIST="/usr/bin:/opt/rh/rh-php71/root/usr/bin:/opt/rh/rh-php72/root/usr/bin:/opt/rh/rh-php73/root/usr/bin:/opt/remi/php83/root/usr/bin"; export NR_INSTALL_PHPLIST
     NR_INSTALL_SILENT="true"; export NR_INSTALL_SILENT
     NR_INSTALL_KEY="$(catapult company.newrelic_license_key)"; export NR_INSTALL_KEY
     /usr/bin/newrelic-install install
@@ -326,6 +388,7 @@ if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ]); then
     if [ -S /tmp/.newrelic.sock ]; then
         sudo rm -f /tmp/.newrelic.sock
         /etc/init.d/newrelic-daemon restart
+        sudo systemctl restart php83-php-fpm
         sudo systemctl restart rh-php73-php-fpm
         sudo systemctl restart rh-php72-php-fpm
         sudo systemctl restart rh-php71-php-fpm
@@ -344,6 +407,7 @@ if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ]); then
     # cat /var/log/httpd/error_log* | grep Max
 
     # look for php-fpm max errors
+    # cat /var/opt/remi/php83/log/php-fpm/error.log* | grep max
     # cat /var/opt/rh/rh-php73/log/php-fpm/error.log* | grep max
     # cat /var/opt/rh/rh-php72/log/php-fpm/error.log* | grep max
     # cat /var/opt/rh/rh-php71/log/php-fpm/error.log* | grep max
@@ -390,15 +454,21 @@ if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ]); then
     # calculate configuration based on above values
     # /catapult/provisioners/redhat/installers/php/configuration-calculator.xlsx
 
+    sed -i -e "s#^pm.max_children.*#pm.max_children = 300#g" /etc/opt/remi/php83/php-fpm.d/www.conf
     sed -i -e "s#^pm.max_children.*#pm.max_children = 300#g" /etc/opt/rh/rh-php73/php-fpm.d/www.conf
     sed -i -e "s#^pm.max_children.*#pm.max_children = 300#g" /etc/opt/rh/rh-php72/php-fpm.d/www.conf
     sed -i -e "s#^pm.max_children.*#pm.max_children = 300#g" /etc/opt/rh/rh-php71/php-fpm.d/www.conf
     sed -i -e "s#^pm.max_children.*#pm.max_children = 300#g" /etc/php-fpm.d/www.conf
 
+    sed -i -e "s#.*pm.max_requests.*#pm.max_requests = 500#g" /etc/opt/remi/php83/php-fpm.d/www.conf
     sed -i -e "s#.*pm.max_requests.*#pm.max_requests = 500#g" /etc/opt/rh/rh-php73/php-fpm.d/www.conf
     sed -i -e "s#.*pm.max_requests.*#pm.max_requests = 500#g" /etc/opt/rh/rh-php72/php-fpm.d/www.conf
     sed -i -e "s#.*pm.max_requests.*#pm.max_requests = 500#g" /etc/opt/rh/rh-php71/php-fpm.d/www.conf
     sed -i -e "s#.*pm.max_requests.*#pm.max_requests = 500#g" /etc/php-fpm.d/www.conf
+
+    echo -e "\n> php 8.3 configuration"
+    /opt/remi/php83/root/usr/bin/php --version
+    /opt/remi/php83/root/usr/bin/php --modules
 
     echo -e "\n> php 7.3 configuration"
     /opt/rh/rh-php73/root/usr/bin/php --version
@@ -417,6 +487,7 @@ if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ]); then
     /usr/bin/php --modules
 
     # reload php-fpm for configuration changes to take effect
+    sudo systemctl reload php83-php-fpm
     sudo systemctl reload rh-php73-php-fpm
     sudo systemctl reload rh-php72-php-fpm
     sudo systemctl reload rh-php71-php-fpm
@@ -428,6 +499,7 @@ if ([ "${4}" == "apache" ] || [ "${4}" == "apache-node" ]); then
     # cat /var/log/httpd/error_log
     # [Tue Dec 26 21:06:23.816950 2017] [mpm_prefork:notice] [pid 792] AH00171: Graceful restart requested, doing restart
     # [Tue Dec 26 21:06:24.648573 2017] [core:notice] [pid 792] AH00060: seg fault or similar nasty error detected in the parent process
+    sudo systemctl start php83-php-fpm
     sudo systemctl start rh-php73-php-fpm
     sudo systemctl start rh-php72-php-fpm
     sudo systemctl start rh-php71-php-fpm
